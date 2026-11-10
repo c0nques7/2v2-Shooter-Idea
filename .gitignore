@@ -1,0 +1,17 @@
+# OS and editor clutter
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# Node, for when a server or build step is added
+node_modules/
+dist/
+.env
+.env.*
+npm-debug.log*
+
+# Local screenshots and scratch output
+*.log
+tmp/
