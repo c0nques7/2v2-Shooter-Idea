@@ -30,7 +30,7 @@ A keyboard and mouse are required.
 | 1 to 5 | Pick a return zone when respawning |
 | O | Settings (graphics, sound, controls) |
 | T | Tuning panel (Sandbox only) |
-| Esc | Free the mouse |
+| Esc | In-game menu (Resume, Settings, Leave match); practice and sandbox pause while it is open |
 
 ## Rules
 
