@@ -12,6 +12,30 @@
 [hidden]{display:none!important}
 #wpick{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
 #wpick .btn{font-size:15px;padding:7px 14px}
+/* weapon wheel: one builder, two hosts (floating #wheel for match start / sandbox hold, inline in the respawn screen) */
+.wheel{display:flex;flex-direction:column;align-items:center;gap:6px}
+.wsvg{display:block;overflow:visible}
+.wseg path{fill:rgba(20,15,36,.9);stroke:var(--line);stroke-width:1.5;transition:fill .08s}
+.wseg text{fill:var(--fg);font-family:var(--display);text-anchor:middle;pointer-events:none}
+.wseg .wn{font-size:19px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.wseg .wk,.wseg .we{font-family:var(--mono);font-size:11px;fill:var(--muted)}
+.wseg .we{fill:var(--accent);display:none}
+.wseg.sel path{stroke:var(--accent);stroke-width:2.5}
+.wseg.sel .we{display:inline}
+.wseg.hov path{fill:rgba(95,242,255,.34);stroke:var(--accent)}
+.wseg{cursor:pointer;outline:none}
+.wseg:focus-visible path{stroke:var(--accent2);stroke-width:3}
+.whub{fill:rgba(10,7,20,.75);stroke:var(--line)}
+.wdot{fill:var(--accent2);pointer-events:none}
+.wcap{text-align:center;min-height:42px}
+.wcap b{display:block;font-size:20px;letter-spacing:.05em;text-transform:uppercase}
+.wcap span{display:block;font-family:var(--mono);font-size:12px;color:var(--muted)}
+#wheel{position:fixed;inset:0;z-index:9;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:radial-gradient(circle at center,rgba(5,4,12,.55),rgba(5,4,12,.15) 60%);pointer-events:none}
+#wheel.free{pointer-events:auto}
+#wheel .wsvg{width:min(340px,70vw,52vh);height:auto}
+#wheel h2{margin:0;font-size:30px;letter-spacing:.04em;text-align:center}
+#wheel .keys{display:block;color:var(--muted);font-size:15px;text-align:center}
+#wpick .wsvg{width:min(210px,30vh);height:auto}
 #sbpanel{position:fixed;z-index:12;top:calc(10px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px));width:min(360px,calc(100vw - 24px));overflow-y:auto;background:var(--panel-solid);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px;user-select:text;-webkit-user-select:text}
 #sbpanel h3{margin:6px 0 0;font-size:14px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
 #sbpanel .hd{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
@@ -191,6 +215,7 @@ input,select{font:inherit;font-size:16px;color:var(--fg);background:#0b0f12;bord
   <div class="sub keys">Press <kbd>1</kbd>–<kbd>5</kbd> or click a zone. Closer to the enemy means less HP.</div>
 </div>
 
+<div id="wheel" hidden role="dialog" aria-label="Weapon wheel"><h2 id="wheelT">Pick your weapon</h2><div id="wheelHost"></div><div class="keys" id="wheelK"></div></div>
 <div id="sbpanel" hidden aria-label="Sandbox tuning panel"></div>
 <div class="hud" id="fps" hidden></div>
 <div class="overlay" id="pause" hidden role="dialog" aria-label="Menu">
@@ -273,7 +298,7 @@ const ZHP=[100,80,60,45,30];
 const ZX=[-46,-20,0,20,46];
 const TEAMN=['Blue','Orange'];
 const BOTN=['Bot Ash','Bot Rook','Bot Vex','Bot Juno'];
-const CFG={roundTime:75,buy:3,post:3,overT:10,fuse:25,arm:5,defuse:7,revive:2.5,bleed:8,respawn:4,tickets:4,downHP:30,winScore:4,killHeal:25,block:15,dmg:25,head:50,fireCd:0.12,mag:24,reload:1.8,speed:6,sprint:9.5,crawl:1.8,jump:6.5,grav:18,wallRun:1.3,wallGrav:0.22,wallKick:7,grab:2.3};
+const CFG={roundTime:75,buy:3,post:3,overT:10,fuse:25,arm:5,defuse:7,revive:2.5,bleed:8,respawn:4,tickets:4,downHP:30,winScore:4,killHeal:25,block:15,dmg:25,head:50,fireCd:0.12,mag:24,reload:1.8,buy1:8,speed:6,sprint:9.5,crawl:1.8,jump:6.5,grav:18,wallRun:1.3,wallGrav:0.22,wallKick:7,grab:2.3};
 const SITES={A:{x:22,z:-9},B:{x:22,z:9}};
 /* weapons: the rifle reads CFG so the sandbox sliders tune it. near/far = full damage up to near m, down to fall x at far m */
 const W={
@@ -393,7 +418,7 @@ function damageCover(ci,d){if(!S||S.phase!=='live'||!S.cover||!(ci>=0&&ci<S.cove
 function startRound(){
   S.cover=COVER.map(b=>b.max);
   S.center={own:-1,cap:-1,p:0};
-  S.armed=null;S.timer=CFG.roundTime;S.phase='buy';S.t=CFG.buy;S.last=null;
+  S.armed=null;S.timer=CFG.roundTime;S.phase='buy';S.t=S.round===1?Math.max(CFG.buy,CFG.buy1):CFG.buy;S.last=null;
   S.sudden=!SB.on&&S.score[0]===CFG.winScore-1&&S.score[1]===CFG.winScore-1;
   S.tickets=S.sudden?[0,0]:[CFG.tickets,CFG.tickets];
   S.botSite=[Math.random()<.5?'A':'B',Math.random()<.5?'A':'B'];
@@ -1233,19 +1258,23 @@ document.addEventListener('keydown',e=>{
   keys[e.code]=true;
   if(e.code==='KeyR')startReload();
   if(e.code==='KeyT'&&SB.on&&!e.repeat)toggleSB();
-  if(/^Digit[1-5]$/.test(e.code)){const zi=+e.code.slice(5)-1;if(S&&S.phase==='buy'){if(zi<3)setWeapon(WKEYS[zi]);}else choosePick(zi);}
+  if(/^Digit[1-5]$/.test(e.code)){const zi=+e.code.slice(5)-1;if(WH.open){if(zi<3){WH.hov=WKEYS[zi];closeWheel(true);}}else if(S&&S.phase==='buy'){if(zi<3)setWeapon(WKEYS[zi]);}else choosePick(zi);}
   if(e.code==='Space'){e.preventDefault();if(!e.repeat)me.jumpBuf=0.14;}
 });
 document.addEventListener('keyup',e=>{keys[e.code]=false;});
 window.addEventListener('blur',()=>{for(const k in keys)keys[k]=false;mouseDown=false;adsDown=false;});
 canvas.addEventListener('mousedown',e=>{
   if(!$('menu').hidden||!$('pause').hidden)return;
+  if(e.button===1){e.preventDefault();if(canHoldWheel())openWheel('hold');if(!locked)grabMouse(true);return;}
+  if(WH.open){if(e.button===0&&WH.mode==='start')closeWheel(true);return;}
   if(e.button===0)mouseDown=true;if(e.button===2)adsDown=true;
   if(!locked)grabMouse(true);
 });
-window.addEventListener('mouseup',e=>{if(e.button===0)mouseDown=false;if(e.button===2)adsDown=false;});
+window.addEventListener('mouseup',e=>{if(e.button===0)mouseDown=false;if(e.button===2)adsDown=false;if(e.button===1&&WH.open&&WH.mode==='hold')closeWheel(true);});
+canvas.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault();});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('mousemove',e=>{
+  if(WH.open){if(locked)wheelMove(e.movementX,e.movementY);return;}
   if(locked||(dragMode&&e.buttons)){const k=0.0023*OPT.sens*(1-0.32*me.ads)*(1+(OPT.adsSens-1)*me.ads);me.yaw-=e.movementX*k;me.pitch=clamp(me.pitch-e.movementY*k*(OPT.invertY?-1:1),-1.45,1.45);me.swayX=clamp(me.swayX+e.movementX*0.012,-1,1);me.swayY=clamp(me.swayY+e.movementY*0.012,-1,1);}
 });
 /* Mouse capture. Browsers refuse pointer lock for about a second after the player leaves it with Esc, and only grant it
@@ -1263,8 +1292,62 @@ document.addEventListener('pointerlockerror',lockFailed);
 function startReload(){if(me.reloadT>0||me.ammo===wOf(me.w).mag)return;me.reloadT=wOf(me.w).reload;reloadSound(me.reloadT,me.ammo===0);}
 function setWeapon(k){if(!W[k])return;me.wPref=k;try{localStorage.setItem('za-w',k);}catch(e){}
   const s=mySlot();const P=s>=0&&S?S.players[s]:null;
-  if(S&&S.phase==='buy'&&P&&P.st==='alive'&&me.w!==k){me.w=k;me.ammo=W[k].mag;me.reloadT=0;showWeapon(k);blip(520,0.06,0.03);}
+  if(S&&(S.phase==='buy'||SB.on)&&P&&P.st==='alive'&&me.w!==k){me.w=k;me.ammo=W[k].mag;me.reloadT=0;showWeapon(k);blip(520,0.06,0.03);}
   lastPickerKey='';}
+/* ---------- weapon wheel ----------
+   Opens on its own in the first-round freeze (sweep picks live, click or 1-3 locks in), and while middle mouse is held
+   in the sandbox or any freeze (equips on release). With the mouse captured, mouse movement steers a virtual cursor. */
+const WDESC={rifle:'All-rounder',smg:'Fast, strong up close, weak at range',br:'Hard-hitting, heavy recoil'};
+const WANG={rifle:-90,smg:30,br:150};
+function wheelAt(a){let best=WKEYS[0],bd=1e9;for(const k of WKEYS){const d=Math.abs(((a-WANG[k])%360+540)%360-180);if(d<bd){bd=d;best=k;}}return best;}
+function arcPath(c,R,r,span){const p=(rad,deg)=>{const t=deg*Math.PI/180;return`${(rad*Math.cos(t)).toFixed(2)} ${(rad*Math.sin(t)).toFixed(2)}`;};
+  const a0=c-span/2,a1=c+span/2;return`M${p(R,a0)}A${R} ${R} 0 0 1 ${p(R,a1)}L${p(r,a1)}A${r} ${r} 0 0 0 ${p(r,a0)}Z`;}
+function wStats(k){const w=wOf(k);return`${w.dmg} dmg · ${w.head} head · ${Math.round(60/w.cd)} rpm · ${w.mag} rds`;}
+function makeWheel(host,o){
+  const NS='http://www.w3.org/2000/svg',svg=document.createElementNS(NS,'svg');svg.setAttribute('viewBox','-160 -160 320 320');svg.classList.add('wsvg');
+  const el=(t,a,txt)=>{const n=document.createElementNS(NS,t);for(const k in a)n.setAttribute(k,a[k]);if(txt!=null)n.textContent=txt;return n;};
+  const seg={};
+  for(const k of WKEYS){const g=el('g',{class:'wseg',role:'button',tabindex:'0','aria-label':W[k].name});
+    const t=WANG[k]*Math.PI/180,lx=(104*Math.cos(t)).toFixed(1),ly=104*Math.sin(t);
+    g.append(el('path',{d:arcPath(WANG[k],154,62,114)}),el('text',{class:'wn',x:lx,y:(ly+2).toFixed(1)},W[k].name),
+      el('text',{class:'wk',x:lx,y:(ly+20).toFixed(1)},o.keys?'key '+W[k].key:''),el('text',{class:'we',x:lx,y:(ly-20).toFixed(1)},o.selLabel||'equipped'));
+    g.addEventListener('pointerenter',()=>o.onHover&&o.onHover(k));g.addEventListener('pointerleave',()=>o.onHover&&o.onHover(null));
+    g.addEventListener('click',e=>{e.stopPropagation();o.onPick(k);});
+    g.addEventListener('keydown',e=>{if(e.code==='Enter'||e.code==='Space'){e.preventDefault();o.onPick(k);}});
+    seg[k]=g;svg.append(g);}
+  svg.append(el('circle',{class:'whub',r:56}));
+  const dot=el('circle',{class:'wdot',r:7});dot.style.display='none';svg.append(dot);
+  const cap=document.createElement('div');cap.className='wcap';const cn=document.createElement('b'),cs=document.createElement('span'),cd=document.createElement('span');cap.append(cn,cs,cd);
+  const wrap=document.createElement('div');wrap.className='wheel';wrap.append(svg,cap);host.replaceChildren(wrap);
+  let lastKey='';
+  return{dot,set(sel,hov){const key=sel+'|'+hov;if(key===lastKey)return;lastKey=key;
+    for(const k of WKEYS){seg[k].classList.toggle('sel',k===sel);seg[k].classList.toggle('hov',k===hov);}
+    const f=hov||sel;cn.textContent=W[f].name;cs.textContent=WDESC[f];cd.textContent=wStats(f);},
+    refresh(){lastKey='';}};
+}
+const WH={open:false,mode:'',hov:null,vx:0,vy:0,auto:false};
+const wheelUI=makeWheel($('wheelHost'),{keys:true,onHover:k=>{if(!locked)wheelHover(k);},onPick:k=>{WH.hov=k;closeWheel(true);}});
+const deadWheel=makeWheel($('wpick'),{keys:false,selLabel:'next life',onHover:k=>deadWheel.set(me.wPref,k),onPick:k=>{setWeapon(k);deadWheel.set(me.wPref,null);}});
+function wheelHover(k){if(k===WH.hov)return;WH.hov=k;if(k)blip(760,0.03,0.015,false,'ui');if(WH.mode==='start'&&k)setWeapon(k);wheelUI.set(me.wPref,WH.hov);}
+function canHoldWheel(){const s=mySlot();const P=s>=0&&S?S.players[s]:null;return !!(P&&P.st==='alive'&&(SB.on||S.phase==='buy')&&$('pause').hidden&&$('settings').hidden&&$('dead').hidden);}
+function openWheel(mode){if(WH.open&&WH.mode===mode)return;WH.open=true;WH.mode=mode;WH.hov=null;WH.vx=WH.vy=0;mouseDown=false;adsDown=false;
+  $('wheelK').innerHTML=mode==='start'?'Move the mouse to a weapon, then click or press <kbd>1</kbd>–<kbd>3</kbd> to lock in':'Point at a weapon and release the middle mouse button to equip';
+  wheelUI.dot.setAttribute('cx',0);wheelUI.dot.setAttribute('cy',0);wheelUI.dot.style.display=locked?'':'none';
+  $('wheel').classList.toggle('free',!locked);wheelUI.refresh();wheelUI.set(me.wPref,null);$('wheel').hidden=false;wheelTitle();}
+function closeWheel(commit){if(!WH.open)return;const k=WH.hov,mode=WH.mode;WH.open=false;WH.mode='';$('wheel').hidden=true;
+  if(commit&&k){const was=me.w;setWeapon(k);if(me.w===was&&mode==='hold')blip(520,0.04,0.02);}
+  if(commit&&mode==='start'&&net.mode==='solo'&&S&&S.phase==='buy'&&S.round===1)S.t=Math.min(S.t,1.2);
+  if(!locked)autoLock();}
+function wheelTitle(){if(!S)return;const s=mySlot();const P=s>=0?S.players[s]:null;const role=P?roleOf(P.team,S.round):null;
+  $('wheelT').textContent=WH.mode==='start'?`${role==='atk'?'You attack':'You defend'} · starts in ${Math.ceil(S.t)}`:'Switch weapon';}
+function wheelMove(dx,dy){WH.vx+=dx;WH.vy+=dy;const L=Math.hypot(WH.vx,WH.vy);if(L>110){WH.vx*=110/L;WH.vy*=110/L;}
+  wheelUI.dot.setAttribute('cx',WH.vx.toFixed(1));wheelUI.dot.setAttribute('cy',WH.vy.toFixed(1));
+  if(L>28)wheelHover(wheelAt(Math.atan2(WH.vy,WH.vx)*180/Math.PI));}
+function wheelTick(P){
+  if(S.phase==='buy'&&S.round===1){if(!WH.auto&&P&&P.st==='alive'&&$('pause').hidden&&$('settings').hidden){WH.auto=true;openWheel('start');}}
+  else{WH.auto=false;if(WH.open&&WH.mode==='start')closeWheel(false);}
+  if(WH.open&&WH.mode==='hold'&&!canHoldWheel())closeWheel(false);
+  if(WH.open)wheelTitle();}
 function choosePick(zi){const s=mySlot();if(s<0||!S||S.players[s].st!=='dead')return;const role=roleOf(S.players[s].team,S.round);if(!canSpawn(role,zi))return;me.pick=zi;}
 
 
@@ -1409,13 +1492,13 @@ let pauseAt=0;
 function inPlay(){return !!S&&$('menu').hidden;}
 function autoLock(gesture){if(inPlay()&&!locked&&$('pause').hidden&&!otherOverlay())grabMouse(gesture);}
 function otherOverlay(){return !$('settings').hidden||!$('sbpanel').hidden||!$('dead').hidden;}
-function openPause(){if(!inPlay()||!$('pause').hidden)return;$('pause').hidden=false;pauseAt=performance.now();
+function openPause(){if(!inPlay()||!$('pause').hidden)return;closeWheel(false);$('pause').hidden=false;pauseAt=performance.now();
   for(const k in keys)keys[k]=false;mouseDown=false;adsDown=false;if(locked)document.exitPointerLock();
   $('pauseS').textContent=net.mode==='solo'?(SB.on?'Sandbox is paused.':'Practice is paused.'):'Online match: the game keeps running while this menu is open.';
   blip(520,0.05,0.03,false,'ui');}
 function resumeLock(){grabMouse();}
 function closePause(){if($('pause').hidden)return;$('pause').hidden=true;toggleSettings(false);autoLock();blip(660,0.05,0.03,false,'ui');}
-function leaveMatch(){$('pause').hidden=true;toggleSettings(false);toggleSB(false);
+function leaveMatch(){closeWheel(false);WH.auto=false;$('pause').hidden=true;toggleSettings(false);toggleSB(false);
   if(net.room){try{net.room.leave().catch(()=>{});}catch(e){}}
   net.mode='none';net.room=null;net.host=false;net.hostPeer=null;net.myPeer=null;S=null;SB.on=false;me.sp=-1;me.round=0;
   for(const id of ['topbar','mini','vitals','ammo','cross','netpill','banner','prompt','ring','lockhint','down','dead','fps'])$(id).hidden=true;
@@ -1426,7 +1509,7 @@ function leaveMatch(){$('pause').hidden=true;toggleSettings(false);toggleSB(fals
 $('presume').addEventListener('click',()=>{closePause();autoLock(true);});
 $('psettings').addEventListener('click',()=>toggleSettings(true));
 $('pleave').addEventListener('click',leaveMatch);
-document.addEventListener('pointerlockchange',()=>{if(!locked&&inPlay()&&!otherOverlay())openPause();});
+document.addEventListener('pointerlockchange',()=>{if(WH.open){$('wheel').classList.toggle('free',!locked);wheelUI.dot.style.display=locked?'':'none';}if(!locked&&inPlay()&&!otherOverlay())openPause();});
 
 
 /* ---------- local update: movement and weapon feel ---------- */
@@ -1516,7 +1599,7 @@ function localTick(dt){
   const mv=clamp(speedNow/CFG.speed,0,1.4);
   me.spread=wOf(me.w).spread*(Math.abs(me.lean)*0.004+(0.0022+me.bloom)*(me.crouch?0.6:1)*(1-0.6*me.ads)+mv*0.026*(1-0.5*me.ads)+(me.ground?0:me.wr?0.025:0.05)+(sliding?0.03:0));
   me.fireCd-=dt;if(me.reloadT>0){me.reloadT-=dt;if(me.reloadT<=0){me.reloadT=0;me.ammo=wOf(me.w).mag;}}
-  const canFire=alive&&S.phase==='live'&&(locked||dragMode)&&me.reloadT<=0&&!P.ak&&!me.mantle;
+  const canFire=alive&&S.phase==='live'&&(locked||dragMode)&&!WH.open&&me.reloadT<=0&&!P.ak&&!me.mantle;
   if(mouseDown&&canFire)me.sprintLock=0.25;
   if(mouseDown&&canFire&&me.fireCd<=0&&me.sprintK<0.4){
     if(me.ammo<=0){if(me.reloadT<=0)dryFire();startReload();}
@@ -1700,11 +1783,12 @@ function hud(dt){
   if(P&&P.ak&&P.ap>0){rc.hidden=false;ringC.clearRect(0,0,120,120);ringC.lineWidth=8;ringC.strokeStyle='rgba(255,255,255,.18)';ringC.beginPath();ringC.arc(60,60,44,0,Math.PI*2);ringC.stroke();ringC.strokeStyle=P.ak==='rev'?'#5cc27f':P.ak==='arm'?'#e3584d':'#5b93f5';ringC.beginPath();ringC.arc(60,60,44,-Math.PI/2,-Math.PI/2+Math.PI*2*Math.min(1,P.ap));ringC.stroke();}
   else rc.hidden=true;
   // banner
-  const bn=$('banner');
+  const bn=$('banner');wheelTick(P);
   if(S.phase==='post'&&S.last){bn.hidden=false;$('bannerT').textContent=(S.last.team===myTeam&&P?'Round won':P?'Round lost':TEAMN[S.last.team]+' wins the round');$('bannerS').textContent=`${TEAMN[S.last.team]}: ${S.last.why} · ${S.score[0]}–${S.score[1]} · sides swap next round`;}
   else if(S.phase==='over'){bn.hidden=false;const w=S.score[0]>S.score[1]?0:1;$('bannerT').textContent=`${TEAMN[w]} wins the match`;$('bannerS').textContent=`${S.score[0]}–${S.score[1]} · new match in ${Math.ceil(S.t)}`;}
   else if(S.phase==='buy'){bn.hidden=false;$('bannerT').textContent=role?(role==='atk'?'You attack this round':'You defend this round'):'Round '+S.round;$('bannerS').textContent=(role==='atk'?'Start in your home base on the west end':'Sites A and B are in your half. Hold them.')+` · Weapon: ${wOf(me.w).name} · 1 Rifle, 2 SMG, 3 Battle rifle`;}
   else bn.hidden=true;
+  if(WH.open)bn.hidden=true;
   // down / dead overlays
   $('down').hidden=!(P&&P.st==='down');
   if(P&&P.st==='down'){const mate=S.players.find(o=>o.team===myTeam&&o!==P);$('downtxt').textContent=`Bleeding out in ${Math.ceil(P.downT)}s · ${mate&&mate.st==='alive'?mate.name+' can revive you':'no teammate up'} · hold G to give up`;}
@@ -1725,7 +1809,7 @@ function hud(dt){
         const st=document.createElement('span');st.className='st';st.textContent=z.lockC?'Take the center to unlock':!z.ok?'Revive only':z.bl?'Blocked by enemy':'Spawn here';
         const k=document.createElement('span');k.className='k';k.textContent='key '+(z.zi+1);
         b.append(zn,h,st,k);b.addEventListener('click',()=>{choosePick(z.zi);lastPickerKey='';});return b;}));
-      $('wpick').replaceChildren(...WKEYS.map(k=>{const b=document.createElement('button');b.type='button';b.className='btn'+(me.wPref===k?' primary':'');b.textContent=W[k].name;b.addEventListener('click',()=>setWeapon(k));return b;}));}
+      deadWheel.refresh();deadWheel.set(me.wPref,null);}
   }
   $('lockhint').hidden=locked||!$('menu').hidden||!!dead||!P||!$('settings').hidden||!$('pause').hidden;
   $('lockmode').textContent=dragMode?'mouse capture is blocked here, so drag with the mouse button held (or use arrow keys) to look':'click or press any key to take back the mouse · Esc opens the menu';
@@ -1787,6 +1871,6 @@ mergeChildren(scene);
 refreshZoneLook('atk');
 // Compile every material's shader up front (in parallel where the browser supports it) so nothing compiles on the first shot or spawn.
 renderer.compileAsync(scene,camera).catch(()=>{}).finally(()=>requestAnimationFrame(frame));
-window.__za={gfx:{renderer,scene,camera,applyGfx,DR},openPause:()=>openPause(),closePause:()=>closePause(),leaveMatch:()=>leaveMatch(),get S(){return S;},me,net,botMem,CFG,SB,OPT,AU,get actx(){return actx;},mySlot:()=>mySlot()};
+window.__za={WH,openWheel:m=>openWheel(m),closeWheel:c=>closeWheel(c),wheelMove:(x,y)=>wheelMove(x,y),gfx:{renderer,scene,camera,applyGfx,DR},openPause:()=>openPause(),closePause:()=>closePause(),leaveMatch:()=>leaveMatch(),get S(){return S;},me,net,botMem,CFG,SB,OPT,AU,get actx(){return actx;},mySlot:()=>mySlot()};
 })();
 </script>
