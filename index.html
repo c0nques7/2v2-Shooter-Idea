@@ -821,6 +821,8 @@ for(const b of BOXES){if(!b.wall)continue;const w=b.x1-b.x0,h=b.y1-b.y0,d=b.z1-b
 const stripCy=new THREE.MeshBasicMaterial({color:lin(NEON.cy),toneMapped:false}),stripMg=new THREE.MeshBasicMaterial({color:lin(NEON.mg),toneMapped:false});
 // base solids get a violet neon outline so they read as permanent structure, not breakable cover
 for(const b of BOXES){if(!b.solid)continue;const e=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(b.x1-b.x0,b.y1,b.z1-b.z0)),new THREE.LineBasicMaterial({color:lin(NEON.vi),toneMapped:false}));e.position.set((b.x0+b.x1)/2,b.y1/2,(b.z0+b.z1)/2);scene.add(e);}
+for(const z of [-19.9,19.9]){const s=new THREE.Mesh(new THREE.BoxGeometry(100,0.1,0.1),z<0?stripCy:stripMg);s.position.set(0,WALL_H-0.05,z);scene.add(s);}
+for(const x of [-49.9,49.9]){const s=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.1,40),x<0?stripMg:stripCy);s.position.set(x,WALL_H-0.05,0);scene.add(s);}
 /* glass canopy: clear glass rises GLASS_H above the concrete walls, then turns 90 degrees into a flat roof that seals the arena.
    The outer wall boxes are raised to ROOF_Y for collision (bullets, movement, wallrun); the roof is a ceiling plane in rayWorld
    and the player's vertical move. Rain stops on the roof: drops bead and splash on it and streak down the side panes. */
@@ -1258,7 +1260,7 @@ function crowdCheer(kind,force){if(!actx||!LOOPB.A||!LOOPB.B)return;const now=ac
   if(kind==='knock')one(Math.random()<.5?'k1':'k2',0.3,0,0.05);
   else if(kind==='point'){one(a,0.4);one(b,0.35,0.25);}
   else{one('B',0.5);one('A',0.4,0.2);one('swell',0.5,0.1,0.6);}}
-/* reactive arena lights: LED bars on the wall tops, the canopy posts and the roof edge, plus the wall lamps, react to match events
+/* reactive arena lights: LED strips on the glass roof's supports (roof edge, trusses, glazing bars) react to match events
    (3-2-1-FIGHT, knocks, finishes, revives, center capture, charge armed/defused/detonated, last 10 s, round and match wins).
    Each light has an x position; a cue adds colour as a function of time and distance from where the event happened.
    Every client reads the same S, so guests see the same show as the host. OPT.lights turns it off; reduced motion drops the strobes. */
@@ -1268,20 +1270,15 @@ const LX=(function(){
     list.forEach((p,i)=>{o.position.set(p[0],p[1],p[2]);o.updateMatrix();m.setMatrixAt(i,o.matrix);units.push({m,i,x:p[0],z:p[2],base:lin(p[3]).multiplyScalar(base),c:new THREE.Color()});});
     m.instanceColor=new THREE.InstancedBufferAttribute(new Float32Array(list.length*3),3);m.frustumCulled=false;scene.add(m);meshes.push(m);};
   const side=(x,z)=>z<-0.1?NEON.cy:z>0.1?NEON.mg:x<0?NEON.mg:NEON.cy, SEG=2.5;
-  // wall-top strips (replace the old single strips), in 2.5 m segments so a cue can light just part of a wall
-  const top=[];for(let x=-50+SEG/2;x<50;x+=SEG)for(const z of [-19.9,19.9])top.push([x,WALL_H-0.05,z,side(x,z)]);
-  const topE=[];for(let z=-20+SEG/2;z<20;z+=SEG)for(const x of [-49.9,49.9])topE.push([x,WALL_H-0.05,z,side(x,0)]);
-  bar(new THREE.BoxGeometry(SEG-0.06,0.1,0.1),top,1);bar(new THREE.BoxGeometry(0.1,0.1,SEG-0.06),topE,1);
   // roof edge, just inside the ring beam
   const re=[];for(let x=-50+SEG/2;x<50;x+=SEG)for(const z of [-19.88,19.88])re.push([x,ROOF_Y-0.22,z,side(x,z)]);
   const reE=[];for(let z=-20+SEG/2;z<20;z+=SEG)for(const x of [-49.88,49.88])reE.push([x,ROOF_Y-0.22,z,side(x,0)]);
   bar(new THREE.BoxGeometry(SEG-0.06,0.06,0.06),re,1);bar(new THREE.BoxGeometry(0.06,0.06,SEG-0.06),reE,1);
-  // vertical LED bars on the inner face of every glass post; dim when idle so the canopy doesn't glare
-  const post=[];for(let x=-50;x<=50.01;x+=5)for(const z of [-19.98,19.98])post.push([x,(WALL_H+ROOF_Y)/2,z,side(x,z)]);
-  for(let z=-15;z<=15.01;z+=5)for(const x of [-49.98,49.98])post.push([x,(WALL_H+ROOF_Y)/2,z,side(x,0)]);
-  bar(new THREE.BoxGeometry(0.07,GLASS_H-0.3,0.07),post,0.28);
-  // the wall lamps join in: tube colour and their floor/wall glow pools
-  for(const L of lamps){L.fl=1;L.base=L.tube.material.color.clone();L.pc=L.floor.material.color.clone();units.push({lamp:L,x:L.tube.position.x,z:L.tube.position.z,base:L.base,c:new THREE.Color()});}
+  // LED strips under every roof truss (across the arena) and along the three long glazing bars; dimmer than the edge when idle
+  const tr=[];for(let x=-40.1;x<40;x+=10)for(let z=-20+SEG/2;z<20;z+=SEG)tr.push([x,ROOF_Y-0.2,z,x<0?NEON.mg:NEON.cy]);
+  bar(new THREE.BoxGeometry(0.12,0.05,SEG-0.06),tr,0.55);
+  const gl=[];for(let x=-50+SEG/2;x<50;x+=SEG)for(const z of [-10,0,10])gl.push([x,ROOF_Y-0.07,z,z<0?NEON.cy:z>0?NEON.mg:NEON.vi]);
+  bar(new THREE.BoxGeometry(SEG-0.06,0.04,0.08),gl,0.4);
   return{units,meshes,cues:[],st:{phase:'',prev:[],sec:-1,armed:false,cown:-2,clock:0,mid:null},dirty:true,armedK:0};
 })();
 const LXC={amber:lin(0xffb020),red:lin(0xff2840),white:lin(0xffffff),green:lin(0x35ffa0),cyan:lin(NEON.cy),orange:lin(0xffa040)};
@@ -1329,7 +1326,6 @@ function lxTick(dt,t){lxEvents(dt);
   const pulse=S&&LX.armedOn?0.35+0.65*Math.max(0,Math.sin(t*Math.PI*2*(0.6+2.4*LX.armedK))):0;
   if(!cues.length&&!pulse&&!LX.dirty)return;
   let alive=false;
-  const night=TOD.cur!=='day';
   for(const u of LX.units){const c=u.c;c.copy(u.base);let sum=0;_lc.setRGB(0,0,0);
     for(const q of cues){const a=lxAmp(q,u.x);if(a<0){q.done=true;continue;}if(a<0.003)continue;alive=true;let col=q.col;
       if(q.kind==='fight'&&q.age>0.35)col=u.x<0?q.colW:q.colE;else if(q.kind==='fight')col=LXC.white;
@@ -1338,12 +1334,7 @@ function lxTick(dt,t){lxEvents(dt);
       _lc.r+=col.r*a;_lc.g+=col.g*a;_lc.b+=col.b*a;sum+=a;}
     if(pulse){_lc.r+=LXC.red.r*pulse*0.9;_lc.g+=LXC.red.g*pulse*0.9;_lc.b+=LXC.red.b*pulse*0.9;sum+=pulse*0.9;}
     c.multiplyScalar(1-0.75*Math.min(1,sum)).add(_lc);
-    if(u.m)u.m.setColorAt(u.i,c);
-    else{const L=u.lamp;L.tube.material.color.copy(c);const f=L.fl==null?1:L.fl,boost=Math.min(1.6,sum);
-      const pc=boost>0.01?L.pc.clone().lerp(_lc.clone().multiplyScalar(1/Math.max(sum,1e-3)),Math.min(1,sum)):L.pc;
-      L.floor.material.color.copy(pc);L.wall.material.color.copy(pc);
-      L.floor.material.opacity=(night?POOL_FLOOR:0)*f+boost*0.35;L.wall.material.opacity=(night?POOL_WALL:0)*f+boost*0.35;
-      L.floor.visible=L.wall.visible=night||boost>0.01;}}
+    u.m.setColorAt(u.i,c);}
   for(const m of LX.meshes)m.instanceColor.needsUpdate=true;
   LX.cues=LX.cues.filter(c=>!c.done);LX.dirty=alive||pulse>0;}
 let flk={i:-1,t:0,next:3},fpsN=0,fpsT=0;const CALM=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1352,7 +1343,7 @@ function fxTick(dt,now){
   const t=now/1000,calm=CALM;crowdTick(dt,t);lxTick(dt,t);
   holos.forEach((m,i)=>{m.material.opacity=TOD.holo*(0.46+0.06*Math.sin(t*2.3+i*1.7)-(!calm&&Math.random()<0.006?0.3:0));});
   if(!calm){flk.next-=dt;if(flk.next<=0&&flk.i<0){flk.i=Math.floor(Math.random()*lamps.length);flk.t=0.18+Math.random()*0.25;flk.next=4+Math.random()*7;}
-    if(flk.i>=0){const L=lamps[flk.i];flk.t-=dt;const on=flk.t<=0||Math.random()<0.55;const f=on?1:1/6;L.fl=f;L.dirty=1;LX.dirty=true;L.tube.visible=on;if(flk.t<=0)flk.i=-1;}}
+    if(flk.i>=0){const L=lamps[flk.i];flk.t-=dt;const on=flk.t<=0||Math.random()<0.55;const f=on?1:1/6;L.floor.material.opacity=POOL_FLOOR*f;L.wall.material.opacity=POOL_WALL*f;L.tube.visible=on;if(flk.t<=0)flk.i=-1;}}
   if(OPT.fps){fpsN++;fpsT+=dt;if(fpsT>=0.5){$('fps').textContent=Math.round(fpsN/fpsT)+' fps'+(OPT.autoRes&&DR.scale<1?` · ${Math.round(DR.scale*100)}% res`:'');fpsN=0;fpsT=0;}}
 }
 /* auto resolution: every half second, lower the render scale when frames are slow and step it back up when there is headroom.
