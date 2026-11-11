@@ -30,7 +30,7 @@ A keyboard and mouse are required.
 | Hold middle mouse | Weapon wheel: point at a weapon, release to equip (Sandbox any time, other modes during the buy phase) |
 | 1 to 5 | Pick a return zone when respawning |
 | O | Settings (graphics, sound, controls) |
-| T | Tuning panel (Sandbox only) |
+| T or ` | Sandbox dev overlay (Sandbox only) |
 | Esc | In-game menu (Resume, Settings, Leave match); practice and sandbox pause while it is open |
 
 ## Rules
@@ -67,7 +67,14 @@ Current default numbers (from `CFG` in `index.html`):
 
 ## Sandbox
 
-Sandbox is a solo test range. Press **T** to open the tuning panel, change rules live, and use **Copy** to export the changed settings as JSON.
+Sandbox is a solo test range. Press **T** (or **`**) to open the dev overlay. Everything applies live and only in the sandbox; practice and online always use the defaults.
+
+- **Rules:** round rules, movement, gunplay, return HP, bots, teleports (kept in this browser automatically).
+- **Sound:** per sound (each gun, bolt catch/slam, dry fire, footsteps, slide, cover, explosion, UI) volume, pitch, tone (low-pass), low cut (high-pass) and extra echo, with Test buttons; the layers each synthesized gunshot is built from (crack, blast, tail, thump, action clicks, grit, reflections); and volume/pitch/tone per footstep mode.
+- **Weapons:** damage, fire rate, magazine, reload, spread, recoil, move speed and damage falloff for each weapon.
+- **Objects:** click a piece of cover in the view (or aim at it and press T) to select it, then move, resize, change height and HP. Edits mirror to the twin piece on the other side by default. Break, repair, go there, reset.
+
+**Save** keeps all of it in this browser (`localStorage` keys `za-sb` and `za-dev`) for the next sandbox session; **Copy JSON** / **Download** export every change from the defaults, and **Load pasted** applies JSON pasted into the box. Paste the JSON in the project chat to have it baked into the defaults.
 
 ## Tech notes
 
