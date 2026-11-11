@@ -273,7 +273,7 @@ const ZHP=[100,80,60,45,30];
 const ZX=[-46,-20,0,20,46];
 const TEAMN=['Blue','Orange'];
 const BOTN=['Bot Ash','Bot Rook','Bot Vex','Bot Juno'];
-const CFG={roundTime:75,buy:3,post:3,overT:10,fuse:25,arm:5,defuse:7,revive:2.5,bleed:8,respawn:4,tickets:4,downHP:30,winScore:4,killHeal:25,block:15,dmg:25,head:50,fireCd:0.12,mag:24,reload:1.8,speed:6,sprint:9.5,crawl:1.8,jump:6.5,grav:18,wallRun:1.3,wallGrav:0.22,wallKick:7};
+const CFG={roundTime:75,buy:3,post:3,overT:10,fuse:25,arm:5,defuse:7,revive:2.5,bleed:8,respawn:4,tickets:4,downHP:30,winScore:4,killHeal:25,block:15,dmg:25,head:50,fireCd:0.12,mag:24,reload:1.8,speed:6,sprint:9.5,crawl:1.8,jump:6.5,grav:18,wallRun:1.3,wallGrav:0.22,wallKick:7,grab:2.3};
 const SITES={A:{x:22,z:-9},B:{x:22,z:9}};
 /* weapons: the rifle reads CFG so the sandbox sliders tune it. near/far = full damage up to near m, down to fall x at far m */
 const W={
@@ -336,6 +336,10 @@ function moveCircle(pos,dx,dz,r,feetY){pos.x+=dx;resolveCircle(pos,r,feetY);pos.
 /* wallrun: nearest tall surface (outer walls, 2.5 m cover) touching a circle in the air. n = unit normal out of the wall */
 function wallNear(x,z,r,feetY){let best=null,bd=r;for(const b of BOXES){if(b.y1<2.4||feetY>b.y1-0.5)continue;
   const cx=clamp(x,b.x0,b.x1),cz=clamp(z,b.z0,b.z1),dx=x-cx,dz=z-cz,d=Math.hypot(dx,dz);if(d<1e-4||d>=bd)continue;bd=d;best={b,nx:dx/d,nz:dz/d};}return best;}
+/* ledge grab: nearest crate (never an arena wall) whose top is above the feet but within reach, that the wish direction points into */
+function ledgeNear(x,z,r,feetY,wx,wz){let best=null,bd=r;for(const b of BOXES){if(b.wall||b.y1<=feetY+0.05||b.y1>feetY+CFG.grab)continue;
+  const cx=clamp(x,b.x0,b.x1),cz=clamp(z,b.z0,b.z1),dx=x-cx,dz=z-cz,d=Math.hypot(dx,dz);if(d<1e-4||d>=bd)continue;
+  const nx=dx/d,nz=dz/d;if(-(wx*nx+wz*nz)<0.3)continue;bd=d;best={b,nx,nz,cx,cz};}return best;}
 function groundAt(x,z,feetY){let g=0;for(const b of BOXES){if(b.wall)continue;if(x>b.x0-0.25&&x<b.x1+0.25&&z>b.z0-0.25&&z<b.z1+0.25&&b.y1<=feetY+0.06&&b.y1>g)g=b.y1;}return g;}
 
 /* nav grid for bots: 1 m cells */
@@ -1207,7 +1211,7 @@ const SB={on:false,timer:false,tickets:true,bots:'on',god:false,ammo:false};
 const CFG0={...CFG},ZHP0=[...ZHP];
 const SB_KNOBS=[
  ['Gunplay',[['dmg','Rifle body damage',5,100,1],['head','Rifle head damage',5,200,1],['fireCd','Rifle seconds between shots',0.03,0.5,0.01],['mag','Rifle magazine',1,100,1],['reload','Rifle reload (s)',0.3,5,0.1]]],
- ['Movement',[['speed','Walk speed (m/s)',2,12,0.1],['sprint','Sprint speed (m/s)',3,16,0.1],['crawl','Downed crawl (m/s)',0,6,0.1],['jump','Jump strength',2,14,0.1],['grav','Gravity',5,40,0.5],['wallRun','Wallrun time (s)',0,4,0.1],['wallGrav','Wallrun gravity (x normal)',0,1,0.02],['wallKick','Wall jump push (m/s)',0,15,0.5]]],
+ ['Movement',[['speed','Walk speed (m/s)',2,12,0.1],['sprint','Sprint speed (m/s)',3,16,0.1],['crawl','Downed crawl (m/s)',0,6,0.1],['jump','Jump strength',2,14,0.1],['grav','Gravity',5,40,0.5],['wallRun','Wallrun time (s)',0,4,0.1],['wallGrav','Wallrun gravity (x normal)',0,1,0.02],['wallKick','Wall jump push (m/s)',0,15,0.5],['grab','Ledge grab reach above feet (m)',0,3.5,0.1]]],
  ['Down and return',[['downHP','Downed HP',1,100,1],['bleed','Bleed-out (s)',1,30,0.5],['revive','Revive (s)',0.5,10,0.1],['respawn','Respawn wait (s)',0,20,0.5],['killHeal','HP gained for a down',0,100,5],['block','Spawn block radius (m)',0,40,1],['tickets','Respawns per team (next round)',0,20,1]]],
  ['Objective',[['roundTime','Round length (s, next round)',20,300,5],['arm','Arm time (s)',0.5,15,0.5],['defuse','Defuse time (s)',0.5,15,0.5],['fuse','Fuse (s)',5,90,1]]]];
 function sbSave(){try{const d={};for(const k in CFG0)if(CFG[k]!==CFG0[k])d[k]=CFG[k];localStorage.setItem('za-sb',JSON.stringify({cfg:d,zhp:[...ZHP],sb:{timer:SB.timer,tickets:SB.tickets,bots:SB.bots,god:SB.god,ammo:SB.ammo}}));}catch(e){}}
@@ -1366,7 +1370,7 @@ document.addEventListener('pointerlockchange',()=>{if(!locked&&inPlay()&&!otherO
 /* ---------- local update: movement and weapon feel ---------- */
 let hitT=0,flashT=0,confirmT=0;
 const RM=matchMedia('(prefers-reduced-motion: reduce)').matches?0:1;
-Object.assign(me,{vx:0,vz:0,eye:1.6,crouch:false,slideT:0,slideCd:0,airT:0,jumpBuf:0,bob:0,bobAmp:0,land:0,roll:0,fov:78,rcP:0,rcY:0,bloom:0,burst:0,sinceShot:9,sprintLock:0,shake:0,ads:0,sprintK:0,kick:0,lean:0,swayX:0,swayY:0,spread:0.003,wr:0,wrT:0,wrCd:0,wrLast:null,wrNx:0,wrNz:0});
+Object.assign(me,{vx:0,vz:0,eye:1.6,crouch:false,slideT:0,slideCd:0,airT:0,jumpBuf:0,bob:0,bobAmp:0,land:0,roll:0,fov:78,rcP:0,rcY:0,bloom:0,burst:0,sinceShot:9,sprintLock:0,shake:0,ads:0,sprintK:0,kick:0,lean:0,swayX:0,swayY:0,spread:0.003,wr:0,wrT:0,wrCd:0,wrLast:null,wrNx:0,wrNz:0,kicked:false,mantle:null});
 const RECOIL_X=[0,0.2,-0.3,0.5,0.7,0.3,-0.4,-0.8,-0.6,0.1,0.6,0.9,0.4,-0.3,-0.7,-0.2];
 const lastHit=[0,0,0,0],prevSt=['','','',''];
 function viewPitch(){return clamp(me.pitch+(me.rcP||0),-1.5,1.5);}
@@ -1375,7 +1379,7 @@ function approach(vx,vz,tx,tz,step){const dx=tx-vx,dz=tz-vz,L=Math.hypot(dx,dz);
 function localTick(dt){
   const s=mySlot();const P=s>=0?S.players[s]:null;
   if(!P){camera.position.set(0,45,34);camera.rotation.set(-0.95,0,0);vm.visible=false;return;}
-  if(P.sp!==me.sp){if(me.sp>=0&&!locked)me.wantLock=true;me.sp=P.sp;me.x=P.spx;me.z=P.spz;me.y=0;me.vy=0;me.yaw=P.spyaw;me.pitch=0;me.w=me.wPref;showWeapon(me.w);me.ammo=wOf(me.w).mag;me.reloadT=0;me.pick=-1;me.give=false;me.vx=me.vz=0;me.rcP=me.rcY=me.bloom=0;me.slideT=0;me.wr=0;me.wrLast=null;}
+  if(P.sp!==me.sp){if(me.sp>=0&&!locked)me.wantLock=true;me.sp=P.sp;me.x=P.spx;me.z=P.spz;me.y=0;me.vy=0;me.yaw=P.spyaw;me.pitch=0;me.w=me.wPref;showWeapon(me.w);me.ammo=wOf(me.w).mag;me.reloadT=0;me.pick=-1;me.give=false;me.vx=me.vz=0;me.rcP=me.rcY=me.bloom=0;me.slideT=0;me.wr=0;me.wrLast=null;me.kicked=false;me.mantle=null;}
   if(S.round!==me.round){me.round=S.round;me.w=me.wPref;showWeapon(me.w);me.ammo=wOf(me.w).mag;}
   const alive=P.st==='alive',downed=P.st==='down';
   const frozen=S.phase==='buy'||S.phase==='over';
@@ -1394,7 +1398,8 @@ function localTick(dt){
   if(me.slideT>0){me.slideT-=dt;if(!crouchKey||speedNow<3.2)me.slideT=0;}
   const sliding=me.slideT>0;
   const maxSpd=downed?CFG.crawl:(sprinting?CFG.sprint:me.crouch?3.2:adsWant?4.2:CFG.speed)*wOf(me.w).move;
-  if(!canMove){me.vx=0;me.vz=0;}
+  if(!alive||frozen)me.mantle=null;
+  if(!canMove||me.mantle){me.vx=0;me.vz=0;}
   else if(sliding&&me.ground){const f=Math.max(0,1-1.5*dt);me.vx*=f;me.vz*=f;}
   else if(me.ground){[me.vx,me.vz]=approach(me.vx,me.vz,wx*maxSpd,wz*maxSpd,(L>0?62:48)*dt);}
   else if(L>0){const sp=Math.max(maxSpd*0.9,speedNow);[me.vx,me.vz]=approach(me.vx,me.vz,wx*sp,wz*sp,15*dt);}
@@ -1403,8 +1408,8 @@ function localTick(dt){
   speedNow=Math.hypot(me.vx,me.vz);
   me.airT=me.ground?0:me.airT+dt;
   // wallrun: jump at a tall wall while moving fast along it. Each wall once per jump; jumping off can chain to another
-  if(me.ground)me.wrLast=null;
-  const wall=alive&&!frozen&&!me.ground&&me.y>0.25?wallNear(me.x,me.z,0.8,me.y):null;
+  if(me.ground){me.wrLast=null;me.kicked=false;}
+  const wall=alive&&!frozen&&!me.ground&&!me.mantle&&me.y>0.25?wallNear(me.x,me.z,0.8,me.y):null;
   if(wall){
     const tx=-wall.nz,tz=wall.nx,along=me.vx*tx+me.vz*tz,push=wx*wall.nx+wz*wall.nz;
     if(!me.wr&&me.wrCd<=0&&wall.b!==me.wrLast&&Math.abs(along)>5&&fz<0&&push<0.4&&me.vy>-7){
@@ -1413,12 +1418,33 @@ function localTick(dt){
       if(me.wrT<=0||Math.abs(along)<3.5||fz>=0||push>0.6){me.wr=0;me.wrCd=0.2;}
       else{const sp=Math.sign(along)*Math.max(Math.abs(along),CFG.sprint*wOf(me.w).move);me.vx=tx*sp-wall.nx*0.5;me.vz=tz*sp-wall.nz*0.5;me.wrNx=wall.nx;me.wrNz=wall.nz;}}
   }else if(me.wr){me.wr=0;me.wrCd=0.2;}
-  if(me.wr&&me.jumpBuf>0){me.vx+=me.wrNx*CFG.wallKick;me.vz+=me.wrNz*CFG.wallKick;me.vy=CFG.jump*0.95;me.wr=0;me.wrCd=0.15;me.jumpBuf=0;tone(220,380,0.08,0.022);}
+  if(me.wr&&me.jumpBuf>0){me.vx+=me.wrNx*CFG.wallKick;me.vz+=me.wrNz*CFG.wallKick;me.vy=CFG.jump*0.95;me.wr=0;me.wrCd=0.15;me.jumpBuf=0;me.kicked=true;tone(220,380,0.08,0.022);}
+  // ledge grab, only after kicking off a wallrun: catch the top edge of a crate ahead and pull up onto it, or hold Shift to vault over
+  if(!me.mantle&&me.kicked&&alive&&!frozen&&!me.ground&&!me.wr&&fz<0&&CFG.grab>0){const lg=ledgeNear(me.x,me.z,0.75,me.y,wx,wz);
+    if(lg){const b=lg.b,dx=-lg.nx,dz=-lg.nz,top=b.y1,m=0.3;
+      const M={t:0,y0:me.y,x0:me.x,z0:me.z,top,ex:lg.cx+lg.nx*0.4,ez:lg.cz+lg.nz*0.4,dx,dz,
+        tx:clamp(lg.cx+dx*0.6,b.x0+m,Math.max(b.x0+m,b.x1-m)),tz:clamp(lg.cz+dz*0.6,b.z0+m,Math.max(b.z0+m,b.z1-m)),over:false,dur:0.42};
+      if(keys.ShiftLeft||keys.ShiftRight){
+        // vault: the crate must be thin along the travel direction, with open floor past the far edge
+        const across=Math.min(dx>1e-3?(b.x1-lg.cx)/dx:dx<-1e-3?(lg.cx-b.x0)/-dx:1e9,dz>1e-3?(b.z1-lg.cz)/dz:dz<-1e-3?(lg.cz-b.z0)/-dz:1e9);
+        const fx2=lg.cx+dx*(across+0.45),fz2=lg.cz+dz*(across+0.45);
+        if(across<=3.2&&Math.abs(fx2)<49&&Math.abs(fz2)<19&&freeAt(fx2+dx*0.6,fz2+dz*0.6)&&!BOXES.some(o=>o!==b&&o.y1>top&&fx2>o.x0-0.4&&fx2<o.x1+0.4&&fz2>o.z0-0.4&&fz2<o.z1+0.4))
+          Object.assign(M,{over:true,tx:fx2,tz:fz2,dur:0.5});}
+      me.mantle=M;me.kicked=false;me.wr=0;me.vy=0;me.slideT=0;me.ground=false;blip(320,0.07,0.05,true);tone(150,230,0.14,0.03);}}
+  if(me.mantle){const M=me.mantle;M.t=Math.min(1,M.t+dt/M.dur);const k=M.t,ease=v=>v*v*(3-2*v);
+    if(M.over){// rise to just above the top at the near edge, then carry across and release past the far edge
+      if(k<0.4){const e=ease(k/0.4);me.y=M.y0+(M.top+0.35-M.y0)*e;me.x=M.x0+(M.ex-M.x0)*e;me.z=M.z0+(M.ez-M.z0)*e;}
+      else{const e=ease((k-0.4)/0.6);me.y=M.top+0.35;me.x=M.ex+(M.tx-M.ex)*e;me.z=M.ez+(M.tz-M.ez)*e;}
+      if(k>=1){me.mantle=null;me.vx=M.dx*7;me.vz=M.dz*7;me.vy=1.5;me.airT=1;}}
+    else{// pull up beside the edge, then step onto the top
+      if(k<0.55){const e=ease(k/0.55);me.y=M.y0+(M.top+0.02-M.y0)*e;me.x=M.x0+(M.ex-M.x0)*e;me.z=M.z0+(M.ez-M.z0)*e;}
+      else{const e=ease((k-0.55)/0.45);me.y=M.top+0.02;me.x=M.ex+(M.tx-M.ex)*e;me.z=M.ez+(M.tz-M.ez)*e;}
+      if(k>=1){me.mantle=null;me.y=M.top;me.vy=0;me.ground=true;me.airT=0;me.vx=M.dx*2;me.vz=M.dz*2;stepSound(false,0.8);}}}
   speedNow=Math.hypot(me.vx,me.vz);
-  if(alive&&!frozen&&me.jumpBuf>0&&me.airT<0.1&&me.vy<=0.01){me.vy=CFG.jump;me.ground=false;me.airT=1;me.jumpBuf=0;me.slideT=0;tone(190,330,0.08,0.022);}
+  if(alive&&!frozen&&!me.mantle&&me.jumpBuf>0&&me.airT<0.1&&me.vy<=0.01){me.vy=CFG.jump;me.ground=false;me.airT=1;me.jumpBuf=0;me.slideT=0;tone(190,330,0.08,0.022);}
   const vyB=me.vy,wasG=me.ground;
-  me.vy-=CFG.grav*(me.wr?CFG.wallGrav:1)*dt;if(me.wr&&me.vy<-1.5)me.vy=-1.5;me.y+=me.vy*dt;const g=groundAt(me.x,me.z,me.y);
-  if(me.y<=g){if(!wasG&&vyB<-3){me.land=Math.min(0.2,-vyB*0.02);blip(170,0.1,0.05,true);me.bloom=Math.min(0.03,me.bloom+0.01);}me.y=g;me.vy=0;me.ground=true;me.wr=0;}else me.ground=me.y-g<0.02;
+  if(!me.mantle){me.vy-=CFG.grav*(me.wr?CFG.wallGrav:1)*dt;if(me.wr&&me.vy<-1.5)me.vy=-1.5;me.y+=me.vy*dt;const g=groundAt(me.x,me.z,me.y);
+  if(me.y<=g){if(!wasG&&vyB<-3){me.land=Math.min(0.2,-vyB*0.02);blip(170,0.1,0.05,true);me.bloom=Math.min(0.03,me.bloom+0.01);}me.y=g;me.vy=0;me.ground=true;me.wr=0;}else me.ground=me.y-g<0.02;}
   me.use=!!keys.KeyF&&alive;
   const leanT=alive&&!frozen&&!sliding&&!sprinting?(keys.KeyE?1:0)-(keys.KeyQ?1:0):0;me.lean+=(leanT-me.lean)*Math.min(1,dt*11);me.give=!!keys.KeyG&&downed;
   // weapon state
@@ -1427,7 +1453,7 @@ function localTick(dt){
   const mv=clamp(speedNow/CFG.speed,0,1.4);
   me.spread=wOf(me.w).spread*(Math.abs(me.lean)*0.004+(0.0022+me.bloom)*(me.crouch?0.6:1)*(1-0.6*me.ads)+mv*0.026*(1-0.5*me.ads)+(me.ground?0:me.wr?0.025:0.05)+(sliding?0.03:0));
   me.fireCd-=dt;if(me.reloadT>0){me.reloadT-=dt;if(me.reloadT<=0){me.reloadT=0;me.ammo=wOf(me.w).mag;snd({noise:1,type:'bandpass',f:2400,dur:0.05,vol:0.06,bus:'weapons'});tone(420,260,0.05,0.04,'weapons');}}
-  const canFire=alive&&S.phase==='live'&&(locked||dragMode)&&me.reloadT<=0&&!P.ak;
+  const canFire=alive&&S.phase==='live'&&(locked||dragMode)&&me.reloadT<=0&&!P.ak&&!me.mantle;
   if(mouseDown&&canFire)me.sprintLock=0.25;
   if(mouseDown&&canFire&&me.fireCd<=0&&me.sprintK<0.4){
     if(me.ammo<=0){startReload();}
@@ -1461,9 +1487,9 @@ function localTick(dt){
   if(Math.abs(camera.fov-me.fov)>0.05){camera.fov=me.fov;camera.updateProjectionMatrix();}
   // viewmodel
   vm.visible=alive;
-  const a=me.ads,sk=me.sprintK*(1-a),rl=me.reloadT>0?Math.sin(Math.PI*(1-me.reloadT/wOf(me.w).reload)):0;
+  const a=me.ads,sk=me.sprintK*(1-a),rl=me.reloadT>0?Math.sin(Math.PI*(1-me.reloadT/wOf(me.w).reload)):0,mh=me.mantle?Math.sin(Math.PI*me.mantle.t):0;
   const bx=Math.cos(me.bob)*0.012*me.bobAmp*(1-0.85*a)*RM,by=Math.abs(Math.sin(me.bob))*0.012*me.bobAmp*(1-0.85*a)*RM;
-  vg.position.set(0.23*(1-a)+bx+sk*0.05-me.swayX*0.012*(1-0.7*a),-0.215+0.121*a-by-rl*0.2-sk*0.07-me.land*0.4*RM+me.swayY*0.008*(1-0.7*a),-0.5+0.0*a+me.kick*0.05*(1-0.4*a));
+  vg.position.set(0.23*(1-a)+bx+sk*0.05-me.swayX*0.012*(1-0.7*a),-0.215+0.121*a-by-rl*0.2-sk*0.07-me.land*0.4*RM-mh*0.22+me.swayY*0.008*(1-0.7*a),-0.5+0.0*a+me.kick*0.05*(1-0.4*a));
   vg.rotation.set(me.kick*0.055*(1-0.6*a)-sk*0.3+rl*0.55+me.swayY*0.03*(1-0.7*a),sk*0.75+me.swayX*0.045*(1-0.7*a),rl*0.45-me.roll*1.5*RM-me.swayX*0.03);
   const fl=me.sinceShot<0.022&&a<0.3;mflash.visible=fl;if(fl){mflash.rotation.z=Math.random()*3;const sc=0.6+Math.random()*0.5;mflash.scale.set(sc,sc,sc);}
   muzzle.intensity=me.sinceShot<0.04?MUZZLE_I:0;
