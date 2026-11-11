@@ -1151,7 +1151,7 @@ function renderClick(seed,k,amp){const sr=actx.sampleRate,r=rng(seed),n=Math.flo
   let pk=0;for(const v of x)pk=Math.max(pk,Math.abs(v));const b=actx.createBuffer(1,n,sr);b.copyToChannel(x.map(v=>v*0.9/pk),0);return b;}
 function gunInit(){if(gunBufs||!actx)return;const sr=actx.sampleRate;gunBufs={};let s=11;
   for(const k in GUN)gunBufs[k]=[0,1,2].map(()=>renderGun(GUN[k],s+=97,sr));
-  clickBufs=[0,1,2,3].map(i=>renderClick(500+i*31,0.7+i*0.18,1));}
+  clickBufs=[0,1,2,3].map(i=>renderClick(500+i*31,0.7+i*0.18,1));boltBufs=[renderBolt(false),renderBolt(true)];}
 /* play a buffer: rate, volume, stereo pan, low-pass (distance), delay (speed of sound), extra room send */
 function playBuf(buf,o){if(!audioInit()||!buf)return;try{const t=actx.currentTime+(o.at||0);
   const s=actx.createBufferSource();s.buffer=buf;s.playbackRate.value=o.rate||1;let node=s;
@@ -1167,14 +1167,26 @@ function shotSound(w,x,z){if(!audioInit())return;gunInit();const v=gunBufs[w]||g
   playBuf(buf,{vol:clamp(0.5*s.vol,0.02,0.3),rate:rate*(1-0.04*far),pan:s.pan,lp:Math.max(1100,16000*Math.exp(-s.d/22)),at:s.d/343,wet:0.12+0.5*far});}
 function clickSound(i,vol,at,rate){if(!audioInit())return;gunInit();playBuf(clickBufs[i%clickBufs.length],{vol,at,rate:rate||1});}
 function dryFire(){clickSound(3,0.12,0,1.3);}
-/* reload: mag release, mag slides out, new mag seats, bolt pulled and slammed home */
-function reloadSound(rt){if(!audioInit())return;gunInit();
-  clickSound(0,0.16,0.02);
-  snd({noise:1,type:'bandpass',q:2.5,f:900,f1:2200,dur:0.16,vol:0.035,bus:'weapons',at:0.1,atk:0.06});
+/* bolt hardware: the bolt catching open on the last round, and slamming home on the bolt release */
+let boltBufs=null;
+function renderBolt(slam){const sr=actx.sampleRate,r=rng(slam?777:333),n=Math.floor(sr*(slam?0.28:0.16)),x=new Float32Array(n);
+  if(slam){addClick(x,sr,0.0,1.0,0.55,0.016,r);addClick(x,sr,0.004,0.7,0.82,0.011,r);addClick(x,sr,0.011,0.35,1.1,0.008,r);
+    let ph=0;for(let i=0;i<n;i++){const t=i/sr;ph+=2*Math.PI*(110+90*Math.exp(-t/0.01))/sr;x[i]+=Math.sin(ph)*0.9*Math.exp(-t/0.04)+r()*0.5*Math.exp(-t/0.004);}}
+  else{addClick(x,sr,0.0,0.8,0.62,0.012,r);addClick(x,sr,0.007,0.55,0.9,0.009,r);
+    let ph=0;for(let i=0;i<n;i++){const t=i/sr;ph+=2*Math.PI*960/sr;x[i]+=Math.sin(ph)*0.25*Math.exp(-t/0.05);}}
+  const k=Math.tanh(1.6);let pk=0;for(let i=0;i<n;i++){x[i]=Math.tanh(1.6*x[i])/k;pk=Math.max(pk,Math.abs(x[i]));}
+  const b=actx.createBuffer(1,n,sr);b.copyToChannel(x.map(v=>v*0.9/pk),0);return b;}
+function boltSound(slam,at,vol){if(!audioInit())return;if(!boltBufs)boltBufs=[renderBolt(false),renderBolt(true)];playBuf(boltBufs[slam?1:0],{vol,at,rate:0.97+Math.random()*0.06});}
+/* last round fired: the bolt locks back on the empty magazine */
+function boltLock(){boltSound(false,0.05,0.3);}
+/* reload: mag release, mag slides out, new mag seats; from empty the bolt release is hit and the bolt slams home */
+function reloadSound(rt,empty){if(!audioInit())return;gunInit();const o=empty?0.12:0;
+  clickSound(0,0.16,o+0.02);
+  snd({noise:1,type:'bandpass',q:2.5,f:900,f1:2200,dur:0.16,vol:0.035,bus:'weapons',at:o+0.1,atk:0.06});
   snd({noise:1,type:'bandpass',q:1.2,f:600,dur:0.09,vol:0.05,bus:'weapons',at:rt*0.5,atk:0.02});
   clickSound(1,0.22,rt*0.55);snd({f:160,f1:90,dur:0.06,vol:0.06,bus:'weapons',at:rt*0.55});
-  clickSound(2,0.16,rt*0.78,0.9);snd({noise:1,type:'bandpass',q:3,f:2800,f1:1600,dur:0.07,vol:0.03,bus:'weapons',at:rt*0.79});
-  clickSound(0,0.24,rt*0.88,0.8);snd({f:140,f1:70,dur:0.07,vol:0.05,bus:'weapons',at:rt*0.88});}
+  if(empty){clickSound(3,0.1,rt*0.8,1.5);boltSound(true,rt*0.84,0.5);}
+  else{snd({noise:1,type:'bandpass',q:1.5,f:500,dur:0.05,vol:0.05,bus:'weapons',at:rt*0.66});clickSound(2,0.12,rt*0.66,0.9);}}
 const STING={go:[[523,0],[784,0.1]],win:[[523,0],[659,0.11],[784,0.22],[1047,0.33]],lose:[[392,0],[330,0.16],[262,0.32]],armed:[[880,0],[660,0.14],[880,0.28],[660,0.42]],defuse:[[660,0],[990,0.12]],capUp:[[587,0],[880,0.1]],capDown:[[440,0],[311,0.12]],up:[[440,0],[660,0.1]],tick:[[1000,0]]};
 function sting(k,at,vol){for(const n of STING[k]||[])snd({f:n[0],dur:k==='tick'?0.05:0.22,vol:vol||0.05,wave:'triangle',bus:'ui',at:(at||0)+n[1],atk:0.008});}
 function boom(x,z){const s=spat(x,z),v=clamp(s.vol*2.5,0.35,1);snd({noise:1,f:1200,f1:70,dur:1.4,vol:0.4*v,bus:'fx',pan:s.pan});snd({f:95,f1:26,dur:1.1,vol:0.4*v,bus:'fx',pan:s.pan});snd({noise:1,type:'bandpass',f:2600,f1:400,dur:0.35,vol:0.2*v,bus:'fx',pan:s.pan});}
@@ -1252,7 +1264,7 @@ function grabMouse(gesture){if(locked)return;if(gesture)grabGesture=true;clearTi
 document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===canvas;if(locked){lockFails=0;dragMode=false;grabGesture=false;clearTimeout(grabTimer);}else lastExit=performance.now();});
 document.addEventListener('pointerlockerror',lockFailed);
 
-function startReload(){if(me.reloadT>0||me.ammo===wOf(me.w).mag)return;me.reloadT=wOf(me.w).reload;reloadSound(me.reloadT);}
+function startReload(){if(me.reloadT>0||me.ammo===wOf(me.w).mag)return;me.reloadT=wOf(me.w).reload;reloadSound(me.reloadT,me.ammo===0);}
 function setWeapon(k){if(!W[k])return;me.wPref=k;try{localStorage.setItem('za-w',k);}catch(e){}
   const s=mySlot();const P=s>=0&&S?S.players[s]:null;
   if(S&&S.phase==='buy'&&P&&P.st==='alive'&&me.w!==k){me.w=k;me.ammo=W[k].mag;me.reloadT=0;showWeapon(k);blip(520,0.06,0.03);}
@@ -1519,7 +1531,7 @@ function localTick(dt){
       me.rcP=Math.min(0.24,me.rcP+0.0105*(1+Math.min(me.burst,7)*0.13)*rk);
       me.rcY+=(RECOIL_X[me.burst%16]*0.0062+(Math.random()-.5)*0.003)*rk;
       me.bloom=Math.min(0.03,me.bloom+0.0042);me.burst++;me.sinceShot=0;me.kick=1;me.shake=Math.min(1,me.shake+0.35);
-      if(me.ammo===0)startReload();
+      if(me.ammo===0){boltLock();startReload();}
     }
   }
   if(me.sinceShot>0.13){const f=Math.exp(-8*dt);me.rcP*=f;me.rcY*=f;}
