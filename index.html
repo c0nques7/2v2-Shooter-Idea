@@ -1181,14 +1181,8 @@ const BOLT_HIT=[0.018,0.082];
 function boltSound(slam,at,vol){if(!audioInit())return;boltInit();if(!boltBufs)return;const i=slam?1:0;playBuf(boltBufs[i],{vol,at:Math.max(0,at-BOLT_HIT[i]),rate:0.97+Math.random()*0.06});}
 /* last round fired: the bolt locks back on the empty magazine */
 function boltLock(){boltSound(false,0.06,0.32);}
-/* reload: mag release, mag slides out, new mag seats; from empty the bolt release is hit and the bolt slams home */
-function reloadSound(rt,empty){if(!audioInit())return;gunInit();const o=empty?0.12:0;
-  clickSound(0,0.16,o+0.02);
-  snd({noise:1,type:'bandpass',q:2.5,f:900,f1:2200,dur:0.16,vol:0.035,bus:'weapons',at:o+0.1,atk:0.06});
-  snd({noise:1,type:'bandpass',q:1.2,f:600,dur:0.09,vol:0.05,bus:'weapons',at:rt*0.5,atk:0.02});
-  clickSound(1,0.22,rt*0.55);snd({f:160,f1:90,dur:0.06,vol:0.06,bus:'weapons',at:rt*0.55});
-  if(empty){clickSound(3,0.06,rt*0.8,1.5);boltSound(true,rt*0.84,0.52);}
-  else{snd({noise:1,type:'bandpass',q:1.5,f:500,dur:0.05,vol:0.05,bus:'weapons',at:rt*0.66});clickSound(2,0.12,rt*0.66,0.9);}}
+/* reload: no synthesized mag sounds, only the recorded bolt slam when reloading from empty */
+function reloadSound(rt,empty){if(!audioInit())return;if(empty)boltSound(true,rt*0.84,0.52);}
 const STING={go:[[523,0],[784,0.1]],win:[[523,0],[659,0.11],[784,0.22],[1047,0.33]],lose:[[392,0],[330,0.16],[262,0.32]],armed:[[880,0],[660,0.14],[880,0.28],[660,0.42]],defuse:[[660,0],[990,0.12]],capUp:[[587,0],[880,0.1]],capDown:[[440,0],[311,0.12]],up:[[440,0],[660,0.1]],tick:[[1000,0]]};
 function sting(k,at,vol){for(const n of STING[k]||[])snd({f:n[0],dur:k==='tick'?0.05:0.22,vol:vol||0.05,wave:'triangle',bus:'ui',at:(at||0)+n[1],atk:0.008});}
 function boom(x,z){const s=spat(x,z),v=clamp(s.vol*2.5,0.35,1);snd({noise:1,f:1200,f1:70,dur:1.4,vol:0.4*v,bus:'fx',pan:s.pan});snd({f:95,f1:26,dur:1.1,vol:0.4*v,bus:'fx',pan:s.pan});snd({noise:1,type:'bandpass',f:2600,f1:400,dur:0.35,vol:0.2*v,bus:'fx',pan:s.pan});}
@@ -1521,7 +1515,7 @@ function localTick(dt){
   me.sprintK+=((sprinting&&speedNow>6.3?1:0)-me.sprintK)*Math.min(1,dt*11);
   const mv=clamp(speedNow/CFG.speed,0,1.4);
   me.spread=wOf(me.w).spread*(Math.abs(me.lean)*0.004+(0.0022+me.bloom)*(me.crouch?0.6:1)*(1-0.6*me.ads)+mv*0.026*(1-0.5*me.ads)+(me.ground?0:me.wr?0.025:0.05)+(sliding?0.03:0));
-  me.fireCd-=dt;if(me.reloadT>0){me.reloadT-=dt;if(me.reloadT<=0){me.reloadT=0;me.ammo=wOf(me.w).mag;snd({noise:1,type:'bandpass',f:2400,dur:0.05,vol:0.06,bus:'weapons'});tone(420,260,0.05,0.04,'weapons');}}
+  me.fireCd-=dt;if(me.reloadT>0){me.reloadT-=dt;if(me.reloadT<=0){me.reloadT=0;me.ammo=wOf(me.w).mag;}}
   const canFire=alive&&S.phase==='live'&&(locked||dragMode)&&me.reloadT<=0&&!P.ak&&!me.mantle;
   if(mouseDown&&canFire)me.sprintLock=0.25;
   if(mouseDown&&canFire&&me.fireCd<=0&&me.sprintK<0.4){
