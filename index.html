@@ -823,16 +823,7 @@ function sponsorTex(sp,W,H,tile){const c=document.createElement('canvas');c.widt
   const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());return t;}
 // backlit boards: the emissive map is the print itself, so they glow at night and read as plain printed boards by day (TOD scales emissives)
 const boardMat=t=>new THREE.MeshStandardMaterial({map:t,emissive:0xffffff,emissiveMap:t,emissiveIntensity:0.55,roughness:0.45,metalness:0});
-const frameMat=new THREE.MeshStandardMaterial({color:lin(0x15161c),roughness:0.5,metalness:0.6});
-(function(){let k=0;
-  // big boards high on the long walls, above the zone labels
-  for(const f of WALL_FACES.slice(0,2))for(const u of [-40,-20,0,20,40]){const sp=SPONSORS[k++%SPONSORS.length];
-    onWall(new THREE.Mesh(new THREE.BoxGeometry(8.5,2.5,0.06),frameMat),f,u,5.75,0.03);
-    onWall(new THREE.Mesh(new THREE.PlaneGeometry(8,2),boardMat(sponsorTex(sp,1024,256))),f,u,5.75,0.065);}
-  // one wide board on each end wall
-  for(const f of WALL_FACES.slice(2)){const sp=SPONSORS[k++%SPONSORS.length];
-    onWall(new THREE.Mesh(new THREE.BoxGeometry(16.6,3.9,0.06),frameMat),f,0,5.4,0.03);
-    onWall(new THREE.Mesh(new THREE.PlaneGeometry(16,3.3),boardMat(sponsorTex(sp,1024,212))),f,0,5.4,0.065);}
+(function(){
   // low perimeter boards along the foot of the long walls, four sponsors per 20 m stretch
   for(const f of WALL_FACES.slice(0,2))for(let i=0;i<5;i++){const set=[0,1,2,3].map(j=>SPONSORS[(i*3+j+(f.v>0?4:0))%SPONSORS.length]);
     const c=document.createElement('canvas');c.width=2048;c.height=82;const g=c.getContext('2d');
