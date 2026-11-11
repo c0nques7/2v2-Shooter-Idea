@@ -141,7 +141,7 @@ body{background:var(--bg);color:var(--fg);overflow:hidden;font-family:var(--disp
 #picker button:disabled{opacity:.42;cursor:not-allowed}
 #picker button.sel{outline:2px solid var(--accent);outline-offset:1px}
 #picker button:focus-visible,#menu button:focus-visible,#menu input:focus-visible,#menu select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-#menu{background:radial-gradient(ellipse at 25% 15%,rgba(255,43,214,.22) 0%,transparent 45%),radial-gradient(ellipse at 85% 90%,rgba(39,230,255,.18) 0%,transparent 50%),var(--bg)}
+#menu{background:radial-gradient(ellipse at 25% 15%,rgba(255,43,214,.16) 0%,transparent 45%),radial-gradient(ellipse at 85% 90%,rgba(39,230,255,.12) 0%,transparent 50%),radial-gradient(ellipse at 50% 50%,rgba(10,7,20,.42) 0%,rgba(10,7,20,.78) 100%),rgba(10,7,20,.3)}
 #menu h1{text-shadow:0 0 18px rgba(95,242,255,.55),2px 0 0 rgba(255,43,214,.7)}
 #score,#zoneline,#banner,.panel{box-shadow:0 0 0 1px rgba(255,43,214,.12),0 0 18px rgba(39,230,255,.12)}
 #hpnum,#ammonum,#score .s{text-shadow:0 0 12px currentColor}
@@ -1839,6 +1839,16 @@ function drawMini(P,myTeam,role){
 function siteFx(){alarm.intensity=S.armed?(1.5+Math.sin(performance.now()/120)*1.2)*SITE_I:0;if(S.armed)alarm.position.set(SITES[S.armed.site].x,2,SITES[S.armed.site].z);
   for(const k of ['A','B']){const m=siteMeshes[k];const armed=S.armed&&S.armed.site===k;m.core.material.emissive.setHex(armed?0x661100:0x000000,THREE.LinearSRGBColorSpace);m.capM.color.copy(lin(armed?0xff2020:NEON.am));m.ring.material.color.copy(lin(armed?0xff2020:NEON.am));}}
 
+/* ---------- menu flyover: a slow camera loop through the arena behind the main menu ----------
+   Two closed splines share one parameter: where the camera is and what it looks at. Every point stays above 3.5 m
+   (all cover is 2.5 m or lower) and inside the outer walls, so the shot never clips geometry. */
+const FLY_POS=new THREE.CatmullRomCurve3([[-45,4,0],[-32,3.6,-12],[-10,4.5,-16],[10,4,-14],[30,5.5,-5],[44,8,10],[22,13,16.5],[-6,17,9],[-34,9,15]].map(a=>new THREE.Vector3(...a)),true,'centripetal');
+const FLY_LOOK=new THREE.CatmullRomCurve3([[-20,1,0],[0,1,-6],[12,1,-8],[22,0.5,-9],[22,0.5,9],[10,0,0],[0,0,0],[-20,0,-4],[-42,1,0]].map(a=>new THREE.Vector3(...a)),true,'centripetal');
+const FLY_LOOP=CALM?240:90,flyP=new THREE.Vector3(),flyL=new THREE.Vector3(),flyLs=new THREE.Vector3(-20,1,0);let flyU=0;
+function flyover(dt){flyU=(flyU+dt/FLY_LOOP)%1;FLY_POS.getPoint(flyU,flyP);FLY_LOOK.getPoint(flyU,flyL);
+  flyLs.lerp(flyL,1-Math.exp(-dt*1.5));camera.position.copy(flyP);camera.lookAt(flyLs);
+  if(Math.abs(camera.fov-62)>0.05){camera.fov=62;camera.updateProjectionMatrix();}vm.visible=false;}
+
 /* ---------- loop ---------- */
 let last=performance.now();
 function frame(now){
@@ -1848,7 +1858,7 @@ function frame(now){
   else if(S||net.mode!=='none'){netTick(dt);}
   if(paused){}
   else if(S){coverTick();localTick(dt);renderOthers(dt);siteFx();hud(dt);audioTick(dt);}
-  else{const t=now/1000;camera.position.set(Math.sin(t*0.08)*30,22,Math.cos(t*0.08)*30);camera.lookAt(0,0,0);vm.visible=false;}
+  else flyover(dt);
   fxTick(dt,now);
   renderScene();
   requestAnimationFrame(frame);
