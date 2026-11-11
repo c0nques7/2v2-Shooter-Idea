@@ -100,7 +100,7 @@ body{background:var(--bg);color:var(--fg);overflow:hidden;font-family:var(--disp
 .setcard .btns{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .setcard .btn{font-size:15px;padding:8px 14px}
 #fps{left:max(12px,env(safe-area-inset-left,0px));bottom:calc(8px + env(safe-area-inset-bottom,0px));font-family:var(--mono);font-size:12px;color:var(--muted);background:rgba(0,0,0,.45);padding:2px 6px;border-radius:4px}
-#lockhint{left:50%;top:62%;transform:translateX(-50%);font-size:16px;background:var(--panel);padding:6px 14px;border-radius:5px}
+#lockhint{left:50%;top:58%;transform:translateX(-50%);font-size:19px;border:1px solid var(--accent);background:var(--panel);padding:6px 14px;border-radius:5px}
 .overlay{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;padding-block:calc(16px + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow:auto}
 #down{background:rgba(60,8,6,.38);pointer-events:none;z-index:6;flex-direction:column;gap:6px;text-align:center}
 #down h2{margin:0;font-size:46px;letter-spacing:.08em;color:#ffb3ab}
@@ -1221,7 +1221,7 @@ document.addEventListener('keydown',e=>{
     else if(!locked)openPause();
     return;}
   if(!$('pause').hidden)return;
-  if(!locked&&!e.repeat)autoLock();
+  if(!locked&&!e.repeat)autoLock(true);
   keys[e.code]=true;
   if(e.code==='KeyR')startReload();
   if(e.code==='KeyT'&&SB.on&&!e.repeat)toggleSB();
@@ -1233,18 +1233,24 @@ window.addEventListener('blur',()=>{for(const k in keys)keys[k]=false;mouseDown=
 canvas.addEventListener('mousedown',e=>{
   if(!$('menu').hidden||!$('pause').hidden)return;
   if(e.button===0)mouseDown=true;if(e.button===2)adsDown=true;
-  if(!locked&&!dragMode)requestLock();
+  if(!locked)grabMouse(true);
 });
 window.addEventListener('mouseup',e=>{if(e.button===0)mouseDown=false;if(e.button===2)adsDown=false;});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('mousemove',e=>{
   if(locked||(dragMode&&e.buttons)){const k=0.0023*OPT.sens*(1-0.32*me.ads)*(1+(OPT.adsSens-1)*me.ads);me.yaw-=e.movementX*k;me.pitch=clamp(me.pitch-e.movementY*k*(OPT.invertY?-1:1),-1.45,1.45);me.swayX=clamp(me.swayX+e.movementX*0.012,-1,1);me.swayY=clamp(me.swayY+e.movementY*0.012,-1,1);}
 });
-function requestLock(){
-  try{const r=canvas.requestPointerLock();if(r&&r.catch)r.catch(()=>{if(!softLock)dragMode=true;});}catch(e){dragMode=true;}
-}
-document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===canvas;});
-document.addEventListener('pointerlockerror',()=>{if(!softLock)dragMode=true;});
+/* Mouse capture. Browsers refuse pointer lock for about a second after the player leaves it with Esc, and only grant it
+   during a click or key press (Esc itself does not count). So: wait out the cooldown instead of failing, retry on the next
+   click or key, and fall back to drag-to-look only when capture keeps failing on real clicks. */
+let lastExit=-1e9,lockFails=0,grabTimer=0,grabGesture=false;
+function requestLock(){grabMouse(true);}
+function lockFailed(){if(locked)return;if(grabGesture&&++lockFails>=3)dragMode=true;grabGesture=false;}
+function grabMouse(gesture){if(locked)return;if(gesture)grabGesture=true;clearTimeout(grabTimer);
+  const wait=lastExit+1150-performance.now();if(wait>0){grabTimer=setTimeout(()=>{if($('menu').hidden&&$('pause').hidden&&!otherOverlay())grabMouse();},wait);return;}
+  try{const r=canvas.requestPointerLock();if(r&&r.catch)r.catch(lockFailed);}catch(e){lockFailed();}}
+document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===canvas;if(locked){lockFails=0;dragMode=false;grabGesture=false;clearTimeout(grabTimer);}else lastExit=performance.now();});
+document.addEventListener('pointerlockerror',lockFailed);
 
 function startReload(){if(me.reloadT>0||me.ammo===wOf(me.w).mag)return;me.reloadT=wOf(me.w).reload;reloadSound(me.reloadT);}
 function setWeapon(k){if(!W[k])return;me.wPref=k;try{localStorage.setItem('za-w',k);}catch(e){}
@@ -1320,7 +1326,7 @@ function buildSB(){
   const eb=mk('div','btns');
   const cp=mk('button','btn','Copy');cp.type='button';cp.addEventListener('click',async()=>{refresh();try{await navigator.clipboard.writeText(ta.value);cp.textContent='Copied';}catch(e){ta.select();cp.textContent='Press Ctrl+C';}setTimeout(()=>cp.textContent='Copy',1500);});
   const rs=mk('button','btn','Reset all');rs.type='button';rs.addEventListener('click',()=>{Object.assign(CFG,CFG0);ZHP0.forEach((v,i)=>ZHP[i]=v);Object.assign(SB,{timer:false,tickets:true,bots:'on',god:false,ammo:false});try{localStorage.removeItem('za-sb');}catch(e){}buildSB();});
-  const cl=mk('button','btn primary','Close');cl.type='button';cl.addEventListener('click',()=>{toggleSB(false);autoLock();});
+  const cl=mk('button','btn primary','Close');cl.type='button';cl.addEventListener('click',()=>{toggleSB(false);autoLock(true);});
   eb.append(cp,rs,cl);el.append(ta,eb);
   el.append(mk('div','note','Paste the copied line in the project chat and I can make it the default.'));
 }
@@ -1391,15 +1397,15 @@ function toggleSettings(force){const el=$('settings');const open=force!==undefin
   if(open){if(locked)document.exitPointerLock();for(const k in keys)keys[k]=false;mouseDown=false;adsDown=false;}
   else autoLock();}
 /* ---------- Esc menu: browsers release the mouse on Esc, so losing pointer lock in play opens it ---------- */
-let pauseAt=0,softLock=false;
+let pauseAt=0;
 function inPlay(){return !!S&&$('menu').hidden;}
-function autoLock(){if(inPlay()&&!locked&&!dragMode&&$('pause').hidden&&!otherOverlay())resumeLock();}
+function autoLock(gesture){if(inPlay()&&!locked&&$('pause').hidden&&!otherOverlay())grabMouse(gesture);}
 function otherOverlay(){return !$('settings').hidden||!$('sbpanel').hidden||!$('dead').hidden;}
 function openPause(){if(!inPlay()||!$('pause').hidden)return;$('pause').hidden=false;pauseAt=performance.now();
   for(const k in keys)keys[k]=false;mouseDown=false;adsDown=false;if(locked)document.exitPointerLock();
   $('pauseS').textContent=net.mode==='solo'?(SB.on?'Sandbox is paused.':'Practice is paused.'):'Online match: the game keeps running while this menu is open.';
   blip(520,0.05,0.03,false,'ui');}
-function resumeLock(){if(locked)return;softLock=true;try{const r=canvas.requestPointerLock();if(r&&r.then)r.then(()=>{softLock=false;},()=>{softLock=false;});else setTimeout(()=>{softLock=false;},600);}catch(e){softLock=false;}}
+function resumeLock(){grabMouse();}
 function closePause(){if($('pause').hidden)return;$('pause').hidden=true;toggleSettings(false);autoLock();blip(660,0.05,0.03,false,'ui');}
 function leaveMatch(){$('pause').hidden=true;toggleSettings(false);toggleSB(false);
   if(net.room){try{net.room.leave().catch(()=>{});}catch(e){}}
@@ -1409,7 +1415,7 @@ function leaveMatch(){$('pause').hidden=true;toggleSettings(false);toggleSB(fals
   for(const a of avatars)a.g.visible=false;
   if(locked)document.exitPointerLock();
   $('menu').hidden=false;$('joinbtn').disabled=!roomNS;applyGfx();}
-$('presume').addEventListener('click',closePause);
+$('presume').addEventListener('click',()=>{closePause();autoLock(true);});
 $('psettings').addEventListener('click',()=>toggleSettings(true));
 $('pleave').addEventListener('click',leaveMatch);
 document.addEventListener('pointerlockchange',()=>{if(!locked&&inPlay()&&!otherOverlay())openPause();});
@@ -1714,7 +1720,7 @@ function hud(dt){
       $('wpick').replaceChildren(...WKEYS.map(k=>{const b=document.createElement('button');b.type='button';b.className='btn'+(me.wPref===k?' primary':'');b.textContent=W[k].name;b.addEventListener('click',()=>setWeapon(k));return b;}));}
   }
   $('lockhint').hidden=locked||!$('menu').hidden||!!dead||!P||!$('settings').hidden||!$('pause').hidden;
-  $('lockmode').textContent=dragMode?'mouse capture is blocked here, so drag with the mouse button held (or use arrow keys) to look':'press any key or click to take control · Esc opens the menu';
+  $('lockmode').textContent=dragMode?'mouse capture is blocked here, so drag with the mouse button held (or use arrow keys) to look':'click or press any key to take back the mouse · Esc opens the menu';
   // net pill
   let np='';
   if(net.mode==='solo')np=SB.on?`Sandbox · bots ${SB.bots==='on'?'fighting':SB.bots} · T opens the tuning panel`:'Practice · you and 3 bots';
