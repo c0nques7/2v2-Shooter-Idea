@@ -98,7 +98,6 @@ Sandbox is a solo test range. Press **T** (or **`**) to open the dev overlay. Ev
 | Cover chipping and collapsing | [75 CC0 breaking/falling/hit sfx](https://opengameart.org/content/75-cc0-breaking-falling-hit-sfx) (`rock_breaking_01`/`03`, `rock_falling_01`/`08`); [Various sound effects](https://opengameart.org/content/various-sound-effects-0) (`break_stone`, `crush`). | rubberduck; Spring Spring (OpenGameArt.org) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | Crowd murmur | [Crowd shouting/speaking ambience](https://opengameart.org/content/crowd-shoutingspeaking-ambience), low/high-passed and level-driven by the match. | StarNinjas (OpenGameArt.org) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | Crowd cheers | [Applause in a large hall or church](https://opengameart.org/content/applause-in-a-large-hall-or-church), a 12 s section swelled in on cheers. | eXpl0it3r (OpenGameArt.org) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
-| Arena ambience (replaces the old synth drone) | [Amb outside 1](https://opengameart.org/content/amb-outside-1), looped with a crossfade. | Kresiek The Furry (OpenGameArt.org) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
 - For headless testing the page exposes `window.__za` (state, player, `CFG`, sandbox settings).
 
 ## Performance notes
