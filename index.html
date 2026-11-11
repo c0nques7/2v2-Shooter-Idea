@@ -1131,7 +1131,9 @@ function buildRifle(parent,shadow,optic){
     const tube=new THREE.Mesh(new THREE.CylinderGeometry(0.024,0.024,0.075,20,1,true),new THREE.MeshStandardMaterial({color:lin(0x202427),roughness:0.4,metalness:0.6,side:THREE.DoubleSide}));tube.rotation.x=Math.PI/2;tube.position.set(0,0.094,-0.02);g.add(tube);
     const lens=new THREE.Mesh(new THREE.CircleGeometry(0.023,20),new THREE.MeshBasicMaterial({color:raw(0x9fd0ff),transparent:true,opacity:0.08,depthWrite:false}));lens.position.set(0,0.094,-0.055);g.add(lens);
     const dot=new THREE.Mesh(new THREE.SphereGeometry(0.0011,8,6),new THREE.MeshBasicMaterial({color:raw(0xff2a2a),toneMapped:false}));dot.position.set(0,0.094,-0.056);g.add(dot);
-  }else{bx(0.012,0.03,0.012,M.gunMetal,0,0.064,0.08,g,false);}
+  }else{bx(0.006,0.03,0.012,M.gunMetal,-0.008,0.049,0.08,g,false);bx(0.006,0.03,0.012,M.gunMetal,0.008,0.049,0.08,g,false);}
+  // ADS lifts the gun so this point (red dot, or front post tip on irons) lands on the camera's center line
+  g.userData.sightY=optic?0.094:0.064;
   const glow=new THREE.MeshBasicMaterial({color:lin(NEON.cy),toneMapped:false});bx(0.058,0.008,0.2,glow,0,0.018,-0.03,g,false);bx(0.038,0.05,0.008,glow,0,-0.12,-0.112,g,false).rotation.x=0.22;bx(0.07,0.006,0.006,glow,0,0.004,-0.44,g,false);
   const tip=new THREE.Object3D();tip.position.set(0,0.006,-0.63);g.add(tip);
   return{g,tip};
@@ -1187,6 +1189,7 @@ function drawLabel(a,text,color){const g=a.c.getContext('2d');g.clearRect(0,0,25
 const vm=new THREE.Group(),vg=new THREE.Group();vm.add(vg);vm.scale.setScalar(0.78);
 const VW={rifle:buildRifle(vg,false,true),smg:buildRifle(vg,false,false),br:buildRifle(vg,false,true)};
 VW.smg.g.scale.set(0.95,0.95,0.72);VW.br.g.scale.set(1.12,1.15,1.18);
+for(const k in VW)VW[k].sightY=VW[k].g.userData.sightY*VW[k].g.scale.y;
 function tintGun(g,hex){const c=lin(hex),cy=lin(NEON.cy);g.traverse(o=>{if(o.material&&o.material.isMeshBasicMaterial&&o.material.color.equals(cy)){o.material=o.material.clone();o.material.color.copy(c);}});}
 tintGun(VW.smg.g,NEON.am);tintGun(VW.br.g,NEON.mg);
 let vRifle=VW.rifle;
@@ -1758,7 +1761,7 @@ function localTick(dt){
   vm.visible=alive;
   const a=me.ads,sk=me.sprintK*(1-a),rl=me.reloadT>0?Math.sin(Math.PI*(1-me.reloadT/wOf(me.w).reload)):0,mh=me.mantle?Math.sin(Math.PI*me.mantle.t):0;
   const bx=Math.cos(me.bob)*0.012*me.bobAmp*(1-0.85*a)*RM,by=Math.abs(Math.sin(me.bob))*0.012*me.bobAmp*(1-0.85*a)*RM;
-  vg.position.set(0.23*(1-a)+bx+sk*0.05-me.swayX*0.012*(1-0.7*a),-0.215+0.121*a-by-rl*0.2-sk*0.07-me.land*0.4*RM-mh*0.22+me.swayY*0.008*(1-0.7*a),-0.5+0.0*a+me.kick*0.05*(1-0.4*a));
+  vg.position.set(0.23*(1-a)+bx+sk*0.05-me.swayX*0.012*(1-0.7*a),-0.215+(0.215-vRifle.sightY)*a-by-rl*0.2-sk*0.07-me.land*0.4*RM-mh*0.22+me.swayY*0.008*(1-0.7*a),-0.5+0.0*a+me.kick*0.05*(1-0.4*a));
   vg.rotation.set(me.kick*0.055*(1-0.6*a)-sk*0.3+rl*0.55+me.swayY*0.03*(1-0.7*a),sk*0.75+me.swayX*0.045*(1-0.7*a),rl*0.45-me.roll*1.5*RM-me.swayX*0.03);
   const fl=me.sinceShot<0.022&&a<0.3;mflash.visible=fl;if(fl){mflash.rotation.z=Math.random()*3;const sc=0.6+Math.random()*0.5;mflash.scale.set(sc,sc,sc);}
   muzzle.intensity=me.sinceShot<0.04?MUZZLE_I:0;
