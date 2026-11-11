@@ -114,6 +114,7 @@ body{background:var(--bg);color:var(--fg);overflow:hidden;font-family:var(--disp
 #pause{z-index:13;background:rgba(5,4,12,.62);flex-direction:column}
 #pause .setcard{width:min(520px,100%)}
 #pause .pbtns{display:flex;flex-direction:column;gap:8px}
+#prestart.warn{border-color:#ff5d73;color:#ff9aa8}
 #pause .keys{margin-top:4px}
 #settings{z-index:14;background:rgba(5,4,12,.55);align-items:flex-start;user-select:text;-webkit-user-select:text}
 .setcard{width:min(900px,100%);margin:auto;background:var(--panel-solid);border:1px solid var(--line);border-radius:8px;padding:16px 18px;display:flex;flex-direction:column;gap:12px;box-shadow:0 0 0 1px rgba(255,43,214,.12),0 0 24px rgba(39,230,255,.14)}
@@ -231,7 +232,7 @@ input,select{font:inherit;font-size:16px;color:var(--fg);background:#0b0f12;bord
   <div class="setcard">
     <div class="hd"><b>Menu</b><span><kbd>Esc</kbd> closes</span></div>
     <div class="sub" id="pauseS" style="color:var(--muted);font-size:15px"></div>
-    <div class="pbtns"><button class="btn primary" type="button" id="presume">Resume</button><button class="btn" type="button" id="psettings">Settings</button><button class="btn" type="button" id="pleave">Leave match</button></div>
+    <div class="pbtns"><button class="btn primary" type="button" id="presume">Resume</button><button class="btn" type="button" id="psettings">Settings</button><button class="btn" type="button" id="prestart">Restart match</button><button class="btn" type="button" id="pleave">Leave match</button></div>
     <div class="keys"><span><kbd>WASD</kbd> move</span><span><kbd>Left click</kbd> fire</span><span><kbd>Shift</kbd> sprint</span><span><kbd>Right click</kbd> aim</span><span><kbd>Space</kbd> jump</span><span><kbd>C</kbd> crouch, slide</span><span><kbd>Q</kbd> <kbd>E</kbd> lean</span><span><kbd>F</kbd> revive, arm, defuse</span><span><kbd>R</kbd> reload</span><span><kbd>G</kbd> give up when down</span><span><kbd>O</kbd> settings</span><span><kbd>Esc</kbd> this menu</span></div>
   </div>
 </div>
@@ -427,7 +428,7 @@ let diffMul=1;
 function mkPlayer(s,prev){return{s,team:s%2,bot:prev?prev.bot:true,peer:prev?prev.peer:null,name:prev?prev.name:BOTN[s],hp:100,st:'alive',x:0,y:0,z:0,yaw:0,pitch:0,dhp:0,downT:0,deadT:0,ak:null,at:-1,ap:0,sp:0,spx:0,spz:0,spyaw:0,sh:0,use:false,give:false,pick:-1,lastZ:-1,w:'rifle',wr:0,prot:0};}
 function newMatch(){
   const prev=S?S.players:null;
-  S={round:1,phase:'buy',t:CFG.buy,timer:CFG.roundTime,score:[0,0],tickets:[CFG.tickets,CFG.tickets],armed:null,last:null,feed:[],clock:S?S.clock:0,diff:diffMul,botSite:['A','A'],sudden:false,
+  S={mid:(S&&S.mid||0)+1,round:1,phase:'buy',t:CFG.buy,timer:CFG.roundTime,score:[0,0],tickets:[CFG.tickets,CFG.tickets],armed:null,last:null,feed:[],clock:S?S.clock:0,diff:diffMul,botSite:['A','A'],sudden:false,
      players:[0,1,2,3].map(i=>mkPlayer(i,prev&&prev[i]))};
   startRound();
 }
@@ -2106,13 +2107,25 @@ function autoLock(gesture){if(inPlay()&&!locked&&$('pause').hidden&&!otherOverla
 function otherOverlay(){return !$('settings').hidden||!$('sbpanel').hidden||!$('dead').hidden;}
 function openPause(){if(!inPlay()||!$('pause').hidden)return;closeWheel(false);$('pause').hidden=false;pauseAt=performance.now();
   for(const k in keys)keys[k]=false;mouseDown=false;adsDown=false;if(locked)document.exitPointerLock();
+  restartArm=0;restartUI();
   $('pauseS').textContent=net.mode==='solo'?(SB.on?'Sandbox is paused.':'Practice is paused.'):'Online match: the game keeps running while this menu is open.';
   blip(520,0.05,0.03,false,'ui');}
 function resumeLock(){grabMouse();}
+/* restart: the host builds a fresh match (scores, zones, HP, cover, timers, spawns) and online clients pick it up from the next state packet */
+let restartArm=0;
+function canRestart(){return !!S&&(net.mode==='solo'||(net.mode==='online'&&net.host));}
+function restartUI(){const b=$('prestart');if(!b)return;const ok=canRestart();b.disabled=!ok;b.classList.toggle('warn',ok&&restartArm>performance.now());
+  b.textContent=!ok?'Restart match (host only)':restartArm>performance.now()?'Click again to restart':'Restart match';}
+function restartMatch(){if(!canRestart())return;restartArm=0;closeWheel(false);
+  newMatch();S.diff=diffMul;for(const k in botMem)delete botMem[k];feed(SB.on?'Sandbox restarted':'Match restarted');
+  if(net.mode==='online'&&net.room){stateT=0;}
+  newMatchLocal();me.mid=S.mid;closePause();autoLock(true);}
+/* local side of a new match, for whoever sees S.mid change: reopen the start weapon pick and restart the match music after the next FIGHT */
+function newMatchLocal(){WH.auto=false;if(WH.open)closeWheel(false);me.round=0;MM.go=false;MM.on=false;if(MM.src){try{MM.src.stop();}catch(e){}MM.src.disconnect();MM.src=null;}}
 function closePause(){if($('pause').hidden)return;$('pause').hidden=true;toggleSettings(false);autoLock();blip(660,0.05,0.03,false,'ui');}
 function leaveMatch(){closeWheel(false);WH.auto=false;$('pause').hidden=true;toggleSettings(false);toggleSB(false);
   if(net.room){try{net.room.leave().catch(()=>{});}catch(e){}}
-  net.mode='none';net.room=null;net.host=false;net.hostPeer=null;net.myPeer=null;S=null;if(SB.on)sbDefaults();SB.on=false;me.sp=-1;me.round=0;coverTick();
+  net.mode='none';net.room=null;net.host=false;net.hostPeer=null;net.myPeer=null;S=null;if(SB.on)sbDefaults();SB.on=false;me.sp=-1;me.round=0;me.mid=0;coverTick();
   for(const id of ['topbar','mini','vitals','ammo','cross','netpill','banner','prompt','ring','lockhint','down','dead','fps'])$(id).hidden=true;
   $('feed').replaceChildren();$('feed').dataset.k='';$('confirm').style.opacity=0;$('flash').style.opacity=0;$('hitmark').style.opacity=0;
   for(const a of avatars)a.g.visible=false;
@@ -2120,6 +2133,7 @@ function leaveMatch(){closeWheel(false);WH.auto=false;$('pause').hidden=true;tog
   $('menu').hidden=false;$('joinbtn').disabled=!roomNS;applyGfx();}
 $('presume').addEventListener('click',()=>{closePause();autoLock(true);});
 $('psettings').addEventListener('click',()=>toggleSettings(true));
+$('prestart').addEventListener('click',()=>{if(!canRestart())return;if(restartArm>performance.now())restartMatch();else{restartArm=performance.now()+3000;restartUI();setTimeout(restartUI,3050);blip(440,0.05,0.03,false,'ui');}});
 $('pleave').addEventListener('click',leaveMatch);
 document.addEventListener('pointerlockchange',()=>{if(WH.open){$('wheel').classList.toggle('free',!locked);wheelUI.dot.style.display=locked?'':'none';}if(!locked&&inPlay()&&!otherOverlay())openPause();});
 
@@ -2137,6 +2151,7 @@ function localTick(dt){
   const s=mySlot();const P=s>=0?S.players[s]:null;
   if(!P){camera.position.set(0,45,34);camera.rotation.set(-0.95,0,0);vm.visible=false;return;}
   if(P.sp!==me.sp){if(me.sp>=0&&!locked)me.wantLock=true;me.sp=P.sp;me.x=P.spx;me.z=P.spz;me.y=0;me.vy=0;me.yaw=P.spyaw;me.pitch=0;me.w=me.wPref;showWeapon(me.w);me.ammo=wOf(me.w).mag;me.reloadT=0;me.pick=-1;me.give=false;me.vx=me.vz=0;me.rcP=me.rcY=me.bloom=0;me.slideT=0;me.wr=0;me.wrLast=null;me.kicked=false;me.mantle=null;}
+  if(S.mid!==me.mid){me.mid=S.mid;newMatchLocal();}
   if(S.round!==me.round){me.round=S.round;me.w=me.wPref;showWeapon(me.w);me.ammo=wOf(me.w).mag;}
   const alive=P.st==='alive',downed=P.st==='down';
   const frozen=S.phase==='buy'||S.phase==='over';
