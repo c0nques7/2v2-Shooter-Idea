@@ -70,6 +70,13 @@ Sandbox is a solo test range. Press **T** to open the tuning panel, change rules
 - The effect composer's render targets are flagged like WebXR targets so materials tone-map as they render, which keeps `toneMapped:false` neon fully saturated under bloom. A small sRGB pass does the final output.
 - The arena walls are 8 m tall, with grandstands behind both long walls. The crowd (about 2,300 fans) is one `InstancedMesh` animated in its vertex shader. Fans sway, cheer for their team's downs, revives, center captures, charge arms and round wins, and start a wave every so often. **Crowd size** in Settings scales the fan count, down to none.
 - Fonts from Google Fonts.
+- Gunshots, clicks and the rest of the sound are synthesized in code. The two bolt sounds are real recordings, embedded in `index.html` as base64 WAV (`BOLT_WAV`).
+
+## Sound credits
+
+| Sound | Source | Author | License |
+| --- | --- | --- | --- |
+| Bolt catch (last round fired) and bolt slam (bolt release after an empty reload) | [Equipment Clicks III](https://opengameart.org/content/equipment-clicks-iii), `equipment_clicks3.wav`, recorded by cycling a real bolt-action rifle. Catch is 0.875 to 1.05 s, slam is 1.45 to 1.72 s; both high-passed at 70 Hz, given a +5 dB low shelf at 300 Hz, faded and peak-normalized. | LFA (OpenGameArt.org) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
 - For headless testing the page exposes `window.__za` (state, player, `CFG`, sandbox settings).
 
 ## Performance notes
