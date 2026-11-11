@@ -1801,7 +1801,7 @@ function openWheel(mode){if(WH.open&&WH.mode===mode)return;WH.open=true;WH.mode=
   $('wheel').classList.toggle('free',!locked);wheelUI.refresh();wheelUI.set(me.wPref,null);$('wheel').hidden=false;wheelTitle();}
 function closeWheel(commit){if(!WH.open)return;const k=WH.hov,mode=WH.mode;WH.open=false;WH.mode='';$('wheel').hidden=true;
   if(commit&&k){const was=me.w;setWeapon(k);if(me.w===was&&mode==='hold')blip(520,0.04,0.02);}
-  if(commit&&mode==='start'&&net.mode==='solo'&&S&&S.phase==='buy'&&S.round===1)S.t=Math.min(S.t,1.2);
+  if(commit&&mode==='start'&&net.mode==='solo'&&S&&S.phase==='buy'&&S.round===1)S.t=Math.min(S.t,3.25);/* leave room for the full 3-2-1-Fight call */
   if(!locked)autoLock();}
 function wheelTitle(){if(!S)return;const s=mySlot();const P=s>=0?S.players[s]:null;const role=P?roleOf(P.team,S.round):null;
   $('wheelT').textContent=WH.mode==='start'?`${role==='atk'?'You attack':'You defend'} · starts in ${Math.ceil(S.t)}`:'Switch weapon';}
