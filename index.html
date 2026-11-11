@@ -372,7 +372,7 @@ function findPath(sx,sz,tx,tz){
 let S=null;
 const botMem={};
 let diffMul=1;
-function mkPlayer(s,prev){return{s,team:s%2,bot:prev?prev.bot:true,peer:prev?prev.peer:null,name:prev?prev.name:BOTN[s],hp:100,st:'alive',x:0,y:0,z:0,yaw:0,pitch:0,dhp:0,downT:0,deadT:0,ak:null,at:-1,ap:0,sp:0,spx:0,spz:0,spyaw:0,sh:0,use:false,give:false,pick:-1,lastZ:-1,w:'rifle'};}
+function mkPlayer(s,prev){return{s,team:s%2,bot:prev?prev.bot:true,peer:prev?prev.peer:null,name:prev?prev.name:BOTN[s],hp:100,st:'alive',x:0,y:0,z:0,yaw:0,pitch:0,dhp:0,downT:0,deadT:0,ak:null,at:-1,ap:0,sp:0,spx:0,spz:0,spyaw:0,sh:0,use:false,give:false,pick:-1,lastZ:-1,w:'rifle',wr:0};}
 function newMatch(){
   const prev=S?S.players:null;
   S={round:1,phase:'buy',t:CFG.buy,timer:CFG.roundTime,score:[0,0],tickets:[CFG.tickets,CFG.tickets],armed:null,last:null,feed:[],clock:S?S.clock:0,diff:diffMul,botSite:['A','A'],sudden:false,
@@ -383,7 +383,7 @@ function feed(m){S.feed.push({t:+S.clock.toFixed(2),m});if(S.feed.length>6)S.fee
 function spawnAt(p,zi,role){
   p.lastZ=zi;p.x=ZX[zi];p.z=p.s<2?-14:14;p.y=0;p.st='alive';p.hp=retHP(p.team,role,zi);if(p.bot)p.w=WKEYS[(Math.random()*3)|0];p.ak=null;p.ap=0;p.at=-1;p.pick=-1;p.give=false;
   p.spyaw=role==='atk'?-Math.PI/2:Math.PI/2;p.yaw=p.spyaw;p.pitch=0;p.spx=p.x;p.spz=p.z;p.sp++;
-  const m=botMem[p.s];if(m){m.path=null;}
+  p.wr=0;const m=botMem[p.s];if(m){m.path=null;m.wr=0;m.vy=0;m.kvx=m.kvz=0;}
 }
 function damageCover(ci,d){if(!S||S.phase!=='live'||!S.cover||!(ci>=0&&ci<S.cover.length))return;if(S.cover[ci]>0)S.cover[ci]=Math.max(0,S.cover[ci]-d);}
 function startRound(){
@@ -478,8 +478,9 @@ function actions(p,dt,role){
 function turnTo(a,b,max){let d=b-a;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;return a+clamp(d,-max,max);}
 function angDiff(a,b){let d=b-a;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;return Math.abs(d);}
 function botThink(b,dt){
-  const m=botMem[b.s]||(botMem[b.s]={path:null,pathT:0,pg:null,seeT:0,tgtS:-1,fireCd:0,burst:0,strafeT:0,strafeDir:1,giveT:0,stuckT:0,lx:0,lz:0});
+  const m=botMem[b.s]||(botMem[b.s]={path:null,pathT:0,pg:null,seeT:0,tgtS:-1,fireCd:0,burst:0,strafeT:0,strafeDir:1,giveT:0,stuckT:0,lx:0,lz:0,wr:0,wrT:0,wrB:null,wrCd:2,vy:0,kvx:0,kvz:0,tx:0,tz:0,nx:0,nz:0});
   b.use=false;
+  if(b.st!=='alive'||S.phase!=='live'){m.wr=0;b.wr=0;m.kvx=m.kvz=0;if(b.y>0){m.vy-=CFG.grav*dt;b.y+=m.vy*dt;const g=groundAt(b.x,b.z,b.y);if(b.y<=g){b.y=g;m.vy=0;}}}
   if(SB.on&&SB.bots==='off'){if(b.st!=='dead'){b.st='dead';b.hp=0;b.deadT=0;b.ak=null;b.ap=0;}return;}
   if(b.st==='down'){const mate=S.players.find(o=>o.team===b.team&&o!==b);if(!mate||mate.st!=='alive'){m.giveT+=dt;if(m.giveT>2.5)b.give=true;}else{m.giveT=0;b.give=false;}return;}
   if(b.st!=='alive'){b.give=false;return;}
@@ -515,8 +516,29 @@ function botThink(b,dt){
     const adv=(role==='atk'&&!armed)||goal===mate?0.55:0;
     mvx=mvx*adv+px*m.strafeDir*0.8;mvz=mvz*adv+pz*m.strafeDir*0.8;
   }
+  // wallrun: running along a tall wall with room ahead, a bot sometimes jumps onto it (more often in a fight) and may kick off at the end
+  m.wrCd-=dt;
+  const air=m.wr||m.vy!==0||b.y>groundAt(b.x,b.z,b.y)+0.01;
+  const L0=Math.hypot(mvx,mvz);
+  if(!air&&!b.use&&m.wrCd<=0&&L0>0.5){const wl=wallNear(b.x,b.z,1.6,b.y+0.5);
+    if(wl){const al=(mvx*-wl.nz+mvz*wl.nx)/L0;
+      if(Math.abs(al)>0.85){m.wrCd=2+Math.random()*3;const sg=Math.sign(al),tx=-wl.nz*sg,tz=wl.nx*sg,run=CFG.sprint*CFG.wallRun*0.7;let ok=run>=4&&Math.random()<(tgt?0.6:0.25);
+        for(let d=1;ok&&d<=run;d++){const qx=b.x+tx*d,qz=b.z+tz*d,q=wallNear(qx,qz,1.8,b.y+0.5);if(!q||q.b!==wl.b||!freeAt(qx,qz))ok=false;}
+        if(ok){m.wr=1;m.wrT=CFG.wallRun;m.wrB=wl.b;m.vy=3;m.tx=tx;m.tz=tz;m.nx=wl.nx;m.nz=wl.nz;b.wr=(Math.cos(Math.atan2(-tx,-tz))*wl.nx-Math.sin(Math.atan2(-tx,-tz))*wl.nz)>0?-1:1;}}}}
+  if(m.wr){mvx=m.tx;mvz=m.tz;}
   const L=Math.hypot(mvx,mvz);
-  if(L>0.01){const sp=6*dt/Math.max(1,L);const pos={x:b.x,z:b.z};moveCircle(pos,mvx*sp,mvz*sp,0.4,0);b.x=pos.x;b.z=pos.z;
+  if(m.wr){const sp=CFG.sprint*wOf(b.w).move;m.wrT-=dt;
+    const pos={x:b.x,z:b.z};moveCircle(pos,(m.tx*sp-m.nx*4)*dt,(m.tz*sp-m.nz*4)*dt,0.4,b.y);b.x=pos.x;b.z=pos.z;
+    m.vy=Math.max(-1.5,m.vy-CFG.grav*CFG.wallGrav*dt);b.y=Math.max(0,b.y+m.vy*dt);
+    const wl=wallNear(b.x,b.z,1.6,b.y);
+    if(!wl||wl.b!==m.wrB||m.wrT<=0||b.y<=0){m.wr=0;b.wr=0;m.wrCd=3+Math.random()*4;m.kvx=m.tx*sp*0.8;m.kvz=m.tz*sp*0.8;
+      // kick off only toward open floor, so bots don't land on crates they can't path from
+      const kx=m.tx*sp+m.nx*CFG.wallKick,kz=m.tz*sp+m.nz*CFG.wallKick;
+      if(b.y>0.3&&Math.random()<(tgt?0.7:0.4)&&freeAt(b.x+kx*0.75,b.z+kz*0.75)&&segClear(b.x,b.z,b.x+kx*0.75,b.z+kz*0.75)){m.kvx=kx;m.kvz=kz;m.vy=CFG.jump*0.95;}
+      m.path=null;}}
+  else if(air){const pos={x:b.x,z:b.z};moveCircle(pos,m.kvx*dt,m.kvz*dt,0.4,b.y);b.x=pos.x;b.z=pos.z;
+    m.vy-=CFG.grav*dt;b.y+=m.vy*dt;const g=groundAt(b.x,b.z,b.y);if(b.y<=g){b.y=g;m.vy=0;m.kvx=m.kvz=0;}}
+  else if(L>0.01){const sp=6*dt/Math.max(1,L);const pos={x:b.x,z:b.z};moveCircle(pos,mvx*sp,mvz*sp,0.4,b.y);b.x=pos.x;b.z=pos.z;
     if(hyp(b.x,b.z,m.lx,m.lz)<0.3*dt*6&&!tgt){m.stuckT+=dt;if(m.stuckT>0.8){m.path=null;m.stuckT=0;const ox=b.x,oz=b.z;moveCircle(pos,(Math.random()-.5)*1.2,(Math.random()-.5)*1.2,0.4,0);b.x=pos.x;b.z=pos.z;if(!freeAt(b.x,b.z)){b.x=ox;b.z=oz;}}}else m.stuckT=0;}
   m.lx=b.x;m.lz=b.z;
   let want=b.yaw;
@@ -527,7 +549,7 @@ function botThink(b,dt){
   if(tgt&&m.seeT>0.6/(S.diff||1)&&m.fireCd<=0&&!b.use&&angDiff(b.yaw,want)<0.25){
     m.burst++;const bw=wOf(b.w);m.fireCd=m.burst%5===0?0.7:0.2*bw.cd/0.12;b.sh++;
     const d=dist(b,tgt);let ph=clamp(0.34-d*0.005,0.08,0.34)*(S.diff||1);if(tgt.st==='down')ph=0.65;
-    if(Math.random()<ph)damage(tgt,wDmg(b.w,Math.random()<0.12,d),b);
+    if(air)ph*=0.6;if(Math.random()<ph)damage(tgt,wDmg(b.w,Math.random()<0.12,d),b);
     else{const tx=tgt.x+(Math.random()-.5)*1.8,ty=tgt.y+0.2+Math.random()*1.3,tz=tgt.z+(Math.random()-.5)*1.8,ey=b.y+1.5,ddx=tx-b.x,ddy=ty-ey,ddz=tz-b.z,LL=Math.hypot(ddx,ddy,ddz);rayWorld(b.x,ey,b.z,ddx/LL,ddy/LL,ddz/LL,LL+4);if(rayHitBox&&rayHitBox.ci!=null)damageCover(rayHitBox.ci,CFG.dmg);}
   }
 }
@@ -581,7 +603,7 @@ function syncRoster(){
 function packState(){
   const r=v=>typeof v==='number'?Math.round(v*100)/100:v;
   const o={...S,t:r(S.t),timer:r(S.timer),clock:r(S.clock),armed:S.armed?{site:S.armed.site,t:r(S.armed.t)}:null,
-    players:S.players.map(p=>({s:p.s,team:p.team,bot:p.bot,peer:p.peer,name:p.name,hp:r(p.hp),st:p.st,x:r(p.x),y:r(p.y),z:r(p.z),yaw:r(p.yaw),pitch:r(p.pitch),dhp:r(p.dhp),downT:r(p.downT),deadT:r(p.deadT),ak:p.ak,at:p.at,ap:r(p.ap),lastZ:p.lastZ,w:p.w,sp:p.sp,spx:p.spx,spz:p.spz,spyaw:r(p.spyaw),sh:p.sh}))};
+    players:S.players.map(p=>({s:p.s,team:p.team,bot:p.bot,peer:p.peer,name:p.name,hp:r(p.hp),st:p.st,x:r(p.x),y:r(p.y),z:r(p.z),yaw:r(p.yaw),pitch:r(p.pitch),dhp:r(p.dhp),downT:r(p.downT),deadT:r(p.deadT),ak:p.ak,at:p.at,ap:r(p.ap),lastZ:p.lastZ,w:p.w,sp:p.sp,spx:p.spx,spz:p.spz,spyaw:r(p.spyaw),sh:p.sh,wr:p.wr|0}))};
   return o;
 }
 function onRemoteState(msg){
@@ -1500,7 +1522,7 @@ function renderOthers(dt){
   for(let i=0;i<4;i++){
     const p=S.players[i],a=avatars[i];
     if(i===s){a.g.visible=false;a.blob.visible=false;continue;}
-    let x=p.x,y=p.y,z=p.z,yaw=p.yaw,pitch=p.pitch,sh=p.sh;a.crouch=false;let ln=0,wr=0;
+    let x=p.x,y=p.y,z=p.z,yaw=p.yaw,pitch=p.pitch,sh=p.sh;a.crouch=false;let ln=0,wr=p.wr||0;
     if(!p.bot&&net.mode==='online'){const pr=presenceOf(p.peer);if(pr&&Array.isArray(pr.p)){x=+pr.p[0]||0;y=+pr.p[1]||0;z=+pr.p[2]||0;yaw=+pr.yw||0;pitch=+pr.pt||0;sh=pr.sh|0;a.crouch=!!pr.c;ln=clamp(+pr.l||0,-1,1);wr=clamp(+pr.wr||0,-1,1);}}a.wrK=(a.wrK||0)+(wr-(a.wrK||0))*Math.min(1,dt*10);a.lean=(a.lean||0)+(ln-(a.lean||0))*Math.min(1,dt*14);
     if(!a.init||hyp(a.rx,a.rz,x,z)>6){a.rx=x;a.ry=y;a.rz=z;a.ryaw=yaw;a.init=true;a.lastSh=sh;}
     const ox=a.rx,oz=a.rz;
