@@ -41,7 +41,8 @@ A keyboard and mouse are required.
 - Holding the center zone for a few seconds unlocks a center spawn with bonus HP. Kills heal you.
 - Weapons: rifle, SMG, battle rifle. A weapon wheel opens at match start (the first freeze lasts 8 s; in Practice it ends once you lock in) and sits on the respawn screen for picking your next life's weapon.
 - **Breakable cover:** cover chips, cracks, breaks down to half height, crumbles, and finally collapses into rubble as it takes fire. Rubble rebuilds itself 5 to 10 seconds later (random per piece): a wireframe cage draws in, then the solid block fills from the ground up over the last 1.8 seconds. It turns solid at the end of the fill, and anyone standing in it is pushed out of the nearest side. The host runs the timers, so everyone in an online match sees the same rebuild.
-- **Arena layout:** each home base is a spawn room behind two solid 3.2 m walls (a screen with a doorway, and a baffle in front of the doorway), so neither spawn has a line of sight to the other; you leave through a short channel onto the north or south lane. These base walls can't be destroyed or climbed, but you can wallrun on them. The midfield is breakable cover in three lanes (north, center, south), with tall lane breakers between the respawn points and cover around each site.
+- **Arena layout:** each home base is a spawn room behind a solid 3.2 m screen, so neither spawn has a line of sight to the other. Two solid baffles outside the doorway split the way out into three exits (north lane, center, south lane). These base walls can't be destroyed or climbed, but you can wallrun on them. The midfield is breakable cover in three lanes, with tall lane breakers between the respawn points and cover around each site.
+- **Spawn shield:** for 3 s after any spawn you take no damage. The shield ends early the moment you damage an enemy.
 - **Wallrun:** jump at an arena wall or a tall (2.5 m) crate while holding W and moving along it. You run for up to 1.3 s with light gravity. Jump to kick off, and you can chain to another wall. Each wall works once per jump, and you get it back on landing.
 - **Ledge grab:** whenever you're in the air (a jump, a fall, a jump out of a slide, or a wall kick), hold W into a crate whose top is within reach (2.3 m above your feet) and you grab the edge and pull up onto it. Hold Shift as you grab to vault over instead, landing on the far side, when the crate is at most about 3 m thick and the floor beyond is clear. It never works on the arena walls, and you can't fire while climbing.
 
@@ -57,6 +58,7 @@ Current default numbers (from `CFG` in `index.html`):
 | Bleed out | 8 s |
 | Revive | 2.5 s |
 | Respawn | 4 s |
+| Spawn shield | 3 s |
 | Heal on kill | 25 HP |
 | Rifle damage / headshot | 25 / 50 |
 | Wallrun time / gravity / kick | 1.3 s / 0.22x / 7 m/s |

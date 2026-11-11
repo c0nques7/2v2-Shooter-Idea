@@ -298,7 +298,7 @@ const ZHP=[100,80,60,45,30];
 const ZX=[-46,-20,0,20,46];
 const TEAMN=['Blue','Orange'];
 const BOTN=['Bot Ash','Bot Rook','Bot Vex','Bot Juno'];
-const CFG={roundTime:75,buy:3,post:3,overT:10,fuse:25,arm:5,defuse:7,revive:2.5,bleed:8,respawn:4,tickets:4,downHP:30,winScore:4,killHeal:25,block:15,dmg:25,head:50,fireCd:0.12,mag:24,reload:1.8,buy1:8,speed:6,sprint:9.5,crawl:1.8,jump:6.5,grav:18,wallRun:1.3,wallGrav:0.22,wallKick:7,grab:2.3,regenMin:5,regenMax:10};
+const CFG={roundTime:75,buy:3,post:3,overT:10,fuse:25,arm:5,defuse:7,revive:2.5,bleed:8,respawn:4,tickets:4,downHP:30,winScore:4,killHeal:25,block:15,dmg:25,head:50,fireCd:0.12,mag:24,reload:1.8,buy1:8,speed:6,sprint:9.5,crawl:1.8,jump:6.5,grav:18,wallRun:1.3,wallGrav:0.22,wallKick:7,grab:2.3,regenMin:5,regenMax:10,spawnProt:3};
 const SITES={A:{x:22,z:-9},B:{x:22,z:9}};
 /* weapons: the rifle reads CFG so the sandbox sliders tune it. near/far = full damage up to near m, down to fall x at far m */
 const W={
@@ -322,18 +322,20 @@ const hpColor=h=>h>=80?'#35ffa0':h>=45?'#ffc23d':'#ff3d6e';
 /* ---------- arena ---------- */
 const BOXES=[];
 function addBox(x,z,w,d,h,wall){BOXES.push({x0:x-w/2,x1:x+w/2,z0:z-d/2,z1:z+d/2,y0:0,y1:h,wall:!!wall});}
-/* Layout. Each home base is a sealed spawn room: a solid screen with a gap (|z|<7.5) at x=±42 and a solid baffle (|z|<9.5) at x=±36
-   that overlaps the gap, so no straight line from outside reaches the spawn room; players leave through a short channel and come
-   out on the north or south lane. Solids (3.2 m, indestructible, not climbable) only sit in the bases; the midfield is breakable cover
-   arranged in three lanes with lane breakers between the respawn points. Mirrored through the center ((x,z) -> (-x,-z)), except a few
+/* Layout. Each home base is a spawn room behind a solid screen at x=±42 with a 12 m doorway (|z|<6). Both spawn points sit behind
+   the screen, far enough from the doorway that no line from outside reaches them. Outside the doorway two solid baffles at x=±36
+   (2.5<|z|<11) split the way out into three exits (north lane, center, south lane), so two enemies can't watch every exit, and each
+   exit has a crate just outside it. A short wing wall inside each doorway edge keeps anyone peeking through the doorway from seeing the
+   spawn points. Solids (3.2 m, indestructible, not climbable) only sit in the bases; the midfield is breakable
+   cover in three lanes with lane breakers between the respawn points. Mirrored through the center ((x,z) -> (-x,-z)), except a few
    south-lane pieces kept low or nudged off the menu flyover's low pass. */
 function addSolid(x,z,w,d,h){addBox(x,z,w,d,h,1);BOXES[BOXES.length-1].solid=true;}
 const SOLID_H=3.2;
-for(const sx of [-1,1]){addSolid(sx*42,13.75,1.2,12.5,SOLID_H);addSolid(sx*42,-13.75,1.2,12.5,SOLID_H);addSolid(sx*36,0,1.2,19,SOLID_H);}
+for(const sx of [-1,1]){addSolid(sx*42,13,1.2,14,SOLID_H);addSolid(sx*42,-13,1.2,14,SOLID_H);addSolid(sx*36,6.75,1.2,8.5,SOLID_H);addSolid(sx*36,-6.75,1.2,8.5,SOLID_H);addSolid(sx*44.1,6.6,3,1.2,SOLID_H);addSolid(sx*44.1,-6.6,3,1.2,SOLID_H);}
 [[25.5,-10.5,2,2,2.5],[25.5,10.5,2,2,2.5],[22,-4.6,4,1.2,2.5],[22,4.6,4,1.2,2.5],[18.5,-8,1.5,2.5,1],[18.5,8,1.5,2.5,1],
- [30,-16.5,2,3,1],[10,14,2,3,2.5],[12,-1.5,1.2,4,2.5],[16,6.5,2.5,1.5,1],[31.5,6,1.5,3,1],[31.5,-6,1.5,3,1],[6,-9.5,3,1.2,2.5],[28,0,2,2,1]
+ [10,14,2,3,2.5],[12,-1.5,1.2,4,2.5],[16,6.5,2.5,1.5,1],[31.5,15,1.5,5,2.5],[31.5,-15,1.5,5,2.5],[31.5,0,1.5,5,2.5],[6,-9.5,3,1.2,2.5],[28,-2,2,2,1]
 ].forEach(b=>{addBox(b[0],b[1],b[2],b[3],b[4]);addBox(-b[0],-b[1],b[2],b[3],b[4]);});
-addBox(30,15,2,4,2.5);addBox(-30,-17,2,4,2.5);addBox(0,0,2,2,2.5);addBox(-3.5,6.5,4,1.2,1);addBox(3.5,-6.5,4,1.2,1);
+addBox(0,0,2,2,2.5);addBox(-3.5,6.5,4,1.2,1);addBox(3.5,-6.5,4,1.2,1);
 const WALL_H=8;
 addBox(-51,0,2,44,WALL_H,1);addBox(51,0,2,44,WALL_H,1);addBox(0,-21,104,2,WALL_H,1);addBox(0,21,104,2,WALL_H,1);
 
@@ -411,7 +413,7 @@ function findPath(sx,sz,tx,tz){
 let S=null;
 const botMem={};
 let diffMul=1;
-function mkPlayer(s,prev){return{s,team:s%2,bot:prev?prev.bot:true,peer:prev?prev.peer:null,name:prev?prev.name:BOTN[s],hp:100,st:'alive',x:0,y:0,z:0,yaw:0,pitch:0,dhp:0,downT:0,deadT:0,ak:null,at:-1,ap:0,sp:0,spx:0,spz:0,spyaw:0,sh:0,use:false,give:false,pick:-1,lastZ:-1,w:'rifle',wr:0};}
+function mkPlayer(s,prev){return{s,team:s%2,bot:prev?prev.bot:true,peer:prev?prev.peer:null,name:prev?prev.name:BOTN[s],hp:100,st:'alive',x:0,y:0,z:0,yaw:0,pitch:0,dhp:0,downT:0,deadT:0,ak:null,at:-1,ap:0,sp:0,spx:0,spz:0,spyaw:0,sh:0,use:false,give:false,pick:-1,lastZ:-1,w:'rifle',wr:0,prot:0};}
 function newMatch(){
   const prev=S?S.players:null;
   S={round:1,phase:'buy',t:CFG.buy,timer:CFG.roundTime,score:[0,0],tickets:[CFG.tickets,CFG.tickets],armed:null,last:null,feed:[],clock:S?S.clock:0,diff:diffMul,botSite:['A','A'],sudden:false,
@@ -423,7 +425,7 @@ function spawnAt(p,zi,role){
   p.lastZ=zi;p.x=ZX[zi];p.z=p.s<2?-14:14;p.y=0;p.st='alive';p.hp=retHP(p.team,role,zi);if(p.bot)p.w=WKEYS[(Math.random()*3)|0];p.ak=null;p.ap=0;p.at=-1;p.pick=-1;p.give=false;
   p.spyaw=zi===homeZ(role)?Math.atan2(-(ZX[zi]+(zi?-6:6)-p.x),-(0-p.z)):role==='atk'?-Math.PI/2:Math.PI/2;// home spawns face the spawn-room exit
   p.yaw=p.spyaw;p.pitch=0;p.spx=p.x;p.spz=p.z;p.sp++;
-  p.wr=0;const m=botMem[p.s];if(m){m.path=null;m.wr=0;m.vy=0;m.kvx=m.kvz=0;}
+  p.prot=CFG.spawnProt;p.wr=0;const m=botMem[p.s];if(m){m.path=null;m.wr=0;m.vy=0;m.kvx=m.kvz=0;}
 }
 function damageCover(ci,d){if(!S||S.phase!=='live'||!S.cover||!(ci>=0&&ci<S.cover.length))return;if(S.cover[ci]>0){S.cover[ci]=Math.max(0,S.cover[ci]-d);if(S.cover[ci]<=0){if(!S.regen)S.regen=COVER.map(()=>0);S.regen[ci]=CFG.regenMin+Math.random()*Math.max(0,CFG.regenMax-CFG.regenMin);}}}
 /* rebuilt cover turns solid in one step, so anyone standing in it is pushed out of the nearest side (guests do the same for themselves in resolveCircle) */
@@ -446,6 +448,8 @@ function die(p,a,why){p.st='dead';p.hp=0;p.deadT=CFG.respawn;p.ak=null;p.ap=0;p.
 function damage(t,dmg,a){
   if(!S||S.phase!=='live'||!t||!a||t.team===a.team)return;
   if(SB.on&&SB.god&&!t.bot)return;
+  if(a.prot>0)a.prot=0; // the spawn shield ends the moment you hurt someone
+  if(t.prot>0&&t.st==='alive')return;
   if(t.st==='alive'){t.hp-=dmg;t.ak=null;t.ap=0;if(t.hp<=0)down(t,a);}
   else if(t.st==='down'){t.dhp-=dmg;if(t.dhp<=0)die(t,a);}
 }
@@ -469,7 +473,7 @@ function liveTick(dt){
   if(S.armed){S.armed.t-=dt;if(S.armed.t<=0){S.armed.t=0;endRound(S.players.find(p=>roleOf(p.team,S.round)==='atk').team,'charge detonated');return;}}
   else if(!SB.on||SB.timer){S.timer-=dt;if(S.timer<=0){S.timer=0;endRound(S.players.find(p=>roleOf(p.team,S.round)==='def').team,'time ran out');return;}}
   for(const p of S.players){
-    const role=roleOf(p.team,S.round);
+    const role=roleOf(p.team,S.round);if(p.prot>0)p.prot=Math.max(0,p.prot-dt);
     if(p.st==='down'){
       const helped=S.players.some(r=>r.ak==='rev'&&r.at===p.s);
       if(!helped)p.downT-=dt;
@@ -648,7 +652,7 @@ function syncRoster(){
 function packState(){
   const r=v=>typeof v==='number'?Math.round(v*100)/100:v;
   const o={...S,t:r(S.t),timer:r(S.timer),clock:r(S.clock),armed:S.armed?{site:S.armed.site,t:r(S.armed.t)}:null,regen:(S.regen||[]).map(r),
-    players:S.players.map(p=>({s:p.s,team:p.team,bot:p.bot,peer:p.peer,name:p.name,hp:r(p.hp),st:p.st,x:r(p.x),y:r(p.y),z:r(p.z),yaw:r(p.yaw),pitch:r(p.pitch),dhp:r(p.dhp),downT:r(p.downT),deadT:r(p.deadT),ak:p.ak,at:p.at,ap:r(p.ap),lastZ:p.lastZ,w:p.w,sp:p.sp,spx:p.spx,spz:p.spz,spyaw:r(p.spyaw),sh:p.sh,wr:p.wr|0}))};
+    players:S.players.map(p=>({s:p.s,team:p.team,bot:p.bot,peer:p.peer,name:p.name,hp:r(p.hp),st:p.st,x:r(p.x),y:r(p.y),z:r(p.z),yaw:r(p.yaw),pitch:r(p.pitch),dhp:r(p.dhp),downT:r(p.downT),deadT:r(p.deadT),ak:p.ak,at:p.at,ap:r(p.ap),lastZ:p.lastZ,w:p.w,sp:p.sp,spx:p.spx,spz:p.spz,spyaw:r(p.spyaw),sh:p.sh,wr:p.wr|0,prot:r(p.prot||0)}))};
   return o;
 }
 function onRemoteState(msg){
@@ -1625,7 +1629,7 @@ const CFG0={...CFG},ZHP0=[...ZHP];
 const SB_KNOBS=[
  ['Gunplay',[['dmg','Rifle body damage',5,100,1],['head','Rifle head damage',5,200,1],['fireCd','Rifle seconds between shots',0.03,0.5,0.01],['mag','Rifle magazine',1,100,1],['reload','Rifle reload (s)',0.3,5,0.1]]],
  ['Movement',[['speed','Walk speed (m/s)',2,12,0.1],['sprint','Sprint speed (m/s)',3,16,0.1],['crawl','Downed crawl (m/s)',0,6,0.1],['jump','Jump strength',2,14,0.1],['grav','Gravity',5,40,0.5],['wallRun','Wallrun time (s)',0,4,0.1],['wallGrav','Wallrun gravity (x normal)',0,1,0.02],['wallKick','Wall jump push (m/s)',0,15,0.5],['grab','Ledge grab reach above feet (m)',0,3.5,0.1]]],
- ['Down and return',[['downHP','Downed HP',1,100,1],['bleed','Bleed-out (s)',1,30,0.5],['revive','Revive (s)',0.5,10,0.1],['respawn','Respawn wait (s)',0,20,0.5],['killHeal','HP gained for a down',0,100,5],['block','Spawn block radius (m)',0,40,1],['tickets','Respawns per team (next round)',0,20,1]]],
+ ['Down and return',[['downHP','Downed HP',1,100,1],['bleed','Bleed-out (s)',1,30,0.5],['revive','Revive (s)',0.5,10,0.1],['respawn','Respawn wait (s)',0,20,0.5],['spawnProt','Spawn shield (s)',0,10,0.5],['killHeal','HP gained for a down',0,100,5],['block','Spawn block radius (m)',0,40,1],['tickets','Respawns per team (next round)',0,20,1]]],
  ['Objective',[['roundTime','Round length (s, next round)',20,300,5],['arm','Arm time (s)',0.5,15,0.5],['defuse','Defuse time (s)',0.5,15,0.5],['fuse','Fuse (s)',5,90,1]]],
  ['Cover',[['regenMin','Rebuild delay, shortest (s)',2,30,0.5],['regenMax','Rebuild delay, longest (s)',2,30,0.5]]]];
 function sbSave(){try{const d={};for(const k in CFG0)if(CFG[k]!==CFG0[k])d[k]=CFG[k];localStorage.setItem('za-sb',JSON.stringify({cfg:d,zhp:[...ZHP],sb:{timer:SB.timer,tickets:SB.tickets,bots:SB.bots,god:SB.god,ammo:SB.ammo}}));}catch(e){}}
@@ -2045,7 +2049,7 @@ function hud(dt){
     const hp=P.st==='alive'?Math.max(0,Math.round(P.hp)):0;$('hpnum').textContent=hp;$('hpfill').style.width=hp+'%';$('hpfill').style.background=hpColor(hp);
     const zi=zoneOf(me.x);const rh=returnHP(role,zi);
     $('zoneline').innerHTML='';const b=document.createElement('b');b.textContent=zoneName(role,zi);const sp=document.createElement('span');sp.textContent=' · come back here at ';const h=document.createElement('b');h.textContent=rh+' HP';h.style.color=hpColor(rh);
-    $('zoneline').append(b,sp,h);
+    $('zoneline').append(b,sp,h);if(P.st==='alive'&&P.prot>0&&S.phase==='live'){const sh=document.createElement('b');sh.textContent=' · Spawn shield '+P.prot.toFixed(1)+'s';sh.style.color='var(--accent)';$('zoneline').append(sh);}
     $('ammonum').textContent=me.reloadT>0?'··':me.ammo;$('ammosub').textContent=me.reloadT>0?'Reloading':wOf(me.w).name+' · R to reload';
   }
   // prompt + ring
