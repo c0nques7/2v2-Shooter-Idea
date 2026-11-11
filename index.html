@@ -889,7 +889,7 @@ function coverTick(){const arr=S&&S.cover;let ch=false;
 /* wall labels per zone */
 const wallLabels=[];
 for(let i=0;i<5;i++){const c=document.createElement('canvas');c.width=512;c.height=128;const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;const mat=new THREE.MeshBasicMaterial({map:t,transparent:true,toneMapped:false});
-  for(const side of [-1,1]){const pl=new THREE.Mesh(new THREE.PlaneGeometry(10,2.5),mat);pl.position.set(-40+i*20,2.3,side*19.94);pl.rotation.y=side>0?Math.PI:0;scene.add(pl);}
+  for(const side of [-1,1]){const pl=new THREE.Mesh(new THREE.PlaneGeometry(10,2.5),mat);pl.position.set(-40+i*20,6.35,side*19.94);pl.rotation.y=side>0?Math.PI:0;scene.add(pl);}
   wallLabels.push({c,tex:t});}
 /* sites */
 const siteMeshes={};
