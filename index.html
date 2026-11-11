@@ -779,6 +779,10 @@ const SITE_I=7,MUZZLE_I=5;
 const hemi=new THREE.HemisphereLight(lin(0x7f8fe0),lin(0x3a1a4a),0.62*Math.PI);scene.add(hemi);
 const sun=new THREE.DirectionalLight(lin(0xaab8ff),1.15*Math.PI);sun.position.set(-35,48,22);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
 Object.assign(sun.shadow.camera,{left:-62,right:62,top:46,bottom:-46,near:1,far:140});sun.shadow.bias=-0.0004;sun.shadow.normalBias=0.035;scene.add(sun,sun.target);
+/* softer bloom for the floor and wall lights: these materials write LIGHT_BLOOM into alpha, and the bloom pass's bright-pass
+   scales each pixel by its alpha (everything else writes 1), so their glow halo is cut without dimming the lights themselves */
+const LIGHT_BLOOM=0.5;
+function softBloom(m){m.onBeforeCompile=sh=>{sh.fragmentShader=sh.fragmentShader.replace('#include <dithering_fragment>','#include <dithering_fragment>\n\tgl_FragColor.a*='+LIGHT_BLOOM.toFixed(3)+';');};m.needsUpdate=true;return m;}
 const lamps=[];
 // Neon wall lamps. Their light is painted on as additive glow pools on the floor and wall instead of 8 real point lights,
 // which every lit pixel had to loop over (about 40% of the frame on integrated GPUs).
@@ -788,7 +792,7 @@ const plateMat=new THREE.MeshStandardMaterial({color:lin(0x1a1626),roughness:0.5
 const POOL_FLOOR=0.6,POOL_WALL=0.65;
 function lightPool(col,w,h,op){return new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:poolTex,color:lin(col),transparent:true,opacity:op,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false}));}
 [-39,-13,13,39].forEach((x,i)=>{for(const z of [-17,17]){const col=(i+(z>0?1:0))%2?NEON.mg:NEON.cy;const sz=Math.sign(z);
-  const tube=new THREE.Mesh(new THREE.BoxGeometry(4,0.14,0.14),new THREE.MeshBasicMaterial({color:lin(col),toneMapped:false}));tube.position.set(x,3.4,sz*19.88);scene.add(tube);
+  const tube=new THREE.Mesh(new THREE.BoxGeometry(4,0.14,0.14),softBloom(new THREE.MeshBasicMaterial({color:lin(col),toneMapped:false})));tube.position.set(x,3.4,sz*19.88);scene.add(tube);
   const plate=new THREE.Mesh(new THREE.BoxGeometry(4.4,0.5,0.06),plateMat);plate.position.set(x,3.4,sz*19.96);scene.add(plate);
   const floor=lightPool(col,27,32,POOL_FLOOR);floor.rotation.x=-Math.PI/2;floor.position.set(x,0.025,sz*19.9);
   const wall=lightPool(col,24,9,POOL_WALL);wall.position.set(x,3.4,sz*19.97);if(sz>0)wall.rotation.y=Math.PI;scene.add(floor,wall);lamps.push({tube,floor,wall});}});
@@ -809,20 +813,22 @@ const highE=lineCanvas(256,(g,s)=>{g.fillStyle='#fff';g.fillRect(16,s*0.2,s-32,4
 const wallC=grainCanvas(512,'#262836',12,(g,s)=>{g.fillStyle='rgba(0,0,0,.4)';for(let x=0;x<s;x+=128)g.fillRect(x,0,5,s);g.fillRect(0,s*0.62,s,8);});
 const wallE=lineCanvas(512,(g,s)=>{g.fillStyle='#fff';g.fillRect(0,s*0.62+1,s,5);for(let x=20;x<s;x+=128){g.fillRect(x,s*0.3,40,3);g.fillRect(x,s*0.3+8,22,3);}});
 const floorMats=[];
-for(let i=0;i<5;i++){const m=new THREE.MeshStandardMaterial({color:0xffffff,map:tex(floorC,5,10),emissive:lin(NEON.cy),emissiveMap:tex(floorE,5,10),emissiveIntensity:0.85,roughness:0.62,metalness:0.25});floorMats.push(m);const pl=new THREE.Mesh(new THREE.PlaneGeometry(20,40),m);pl.rotation.x=-Math.PI/2;pl.position.set(-40+i*20,0,0);pl.receiveShadow=true;scene.add(pl);}
+for(let i=0;i<5;i++){const m=new THREE.MeshStandardMaterial({color:0xffffff,map:tex(floorC,5,10),emissive:lin(NEON.cy),emissiveMap:tex(floorE,5,10),emissiveIntensity:0.85,roughness:0.62,metalness:0.25});softBloom(m);floorMats.push(m);const pl=new THREE.Mesh(new THREE.PlaneGeometry(20,40),m);pl.rotation.x=-Math.PI/2;pl.position.set(-40+i*20,0,0);pl.receiveShadow=true;scene.add(pl);}
 const stripMat=new THREE.MeshBasicMaterial({color:lin(0xffffff),toneMapped:false});
-for(const x of [-30,-10,10,30]){const s=new THREE.Mesh(new THREE.PlaneGeometry(0.2,40),stripMat);s.rotation.x=-Math.PI/2;s.position.set(x,0.015,0);scene.add(s);
-  for(const z of [-19.6,19.6]){const p=new THREE.Mesh(new THREE.BoxGeometry(0.12,WALL_H-0.4,0.12),stripMat);p.position.set(x,(WALL_H-0.4)/2,z);scene.add(p);}}
+const stripFloor=softBloom(stripMat.clone());
+for(const x of [-30,-10,10,30]){const s=new THREE.Mesh(new THREE.PlaneGeometry(0.2,40),stripFloor);s.rotation.x=-Math.PI/2;s.position.set(x,0.015,0);scene.add(s);
+  for(const z of [-19.6,19.6]){const p=new THREE.Mesh(new THREE.BoxGeometry(0.12,WALL_H-0.4,0.12),stripFloor);p.position.set(x,(WALL_H-0.4)/2,z);scene.add(p);}}
 /* walls */
 const wallMats=[];
 for(const b of BOXES){if(!b.wall)continue;const w=b.x1-b.x0,h=b.y1-b.y0,d=b.z1-b.z0,rp=Math.max(1,Math.round(Math.max(w,d)/8));
-  const m=new THREE.MeshStandardMaterial({map:tex(wallC,rp,h/4),emissive:lin(NEON.vi),emissiveMap:tex(wallE,rp,h/4),emissiveIntensity:1,roughness:0.7,metalness:0.15});wallMats.push(m);
+  const m=new THREE.MeshStandardMaterial({map:tex(wallC,rp,h/4),emissive:lin(NEON.vi),emissiveMap:tex(wallE,rp,h/4),emissiveIntensity:1,roughness:0.7,metalness:0.15});softBloom(m);wallMats.push(m);
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);mesh.position.set((b.x0+b.x1)/2,h/2,(b.z0+b.z1)/2);mesh.castShadow=true;mesh.receiveShadow=true;scene.add(mesh);}
 const stripCy=new THREE.MeshBasicMaterial({color:lin(NEON.cy),toneMapped:false}),stripMg=new THREE.MeshBasicMaterial({color:lin(NEON.mg),toneMapped:false});
 // base solids get a violet neon outline so they read as permanent structure, not breakable cover
 for(const b of BOXES){if(!b.solid)continue;const e=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(b.x1-b.x0,b.y1,b.z1-b.z0)),new THREE.LineBasicMaterial({color:lin(NEON.vi),toneMapped:false}));e.position.set((b.x0+b.x1)/2,b.y1/2,(b.z0+b.z1)/2);scene.add(e);}
-for(const z of [-19.9,19.9]){const s=new THREE.Mesh(new THREE.BoxGeometry(100,0.1,0.1),z<0?stripCy:stripMg);s.position.set(0,WALL_H-0.05,z);scene.add(s);}
-for(const x of [-49.9,49.9]){const s=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.1,40),x<0?stripMg:stripCy);s.position.set(x,WALL_H-0.05,0);scene.add(s);}
+const stripTopCy=softBloom(stripCy.clone()),stripTopMg=softBloom(stripMg.clone());
+for(const z of [-19.9,19.9]){const s=new THREE.Mesh(new THREE.BoxGeometry(100,0.1,0.1),z<0?stripTopCy:stripTopMg);s.position.set(0,WALL_H-0.05,z);scene.add(s);}
+for(const x of [-49.9,49.9]){const s=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.1,40),x<0?stripTopMg:stripTopCy);s.position.set(x,WALL_H-0.05,0);scene.add(s);}
 /* glass canopy: clear glass rises GLASS_H above the concrete walls, then turns 90 degrees into a flat roof that seals the arena.
    The outer wall boxes are raised to ROOF_Y for collision (bullets, movement, wallrun); the roof is a ceiling plane in rayWorld
    and the player's vertical move. Rain stops on the roof: drops bead and splash on it and streak down the side panes. */
@@ -1134,6 +1140,7 @@ const FilmShader={uniforms:{tDiffuse:{value:null},amt:{value:0.6},time:{value:0}
     // OutputPass. Flagging the composer targets like WebXR's makes materials tone-map into them, as r128 did.
     for(const rt of [composer.renderTarget1,composer.renderTarget2]){rt.isXRRenderTarget=true;rt.texture.colorSpace=THREE.LinearSRGBColorSpace;}
     composer.addPass(new RenderPass(scene,camera));bloomPass=new UnrealBloomPass(new THREE.Vector2(innerWidth/2,innerHeight/2),0.4125,0.55,0.8);composer.addPass(bloomPass);
+    {const hp=bloomPass.materialHighPassFilter;hp.fragmentShader=hp.fragmentShader.replace('gl_FragColor = mix( outputColor, texel, alpha );','gl_FragColor = mix( outputColor, texel, alpha ); gl_FragColor.rgb *= clamp( texel.a, 0.0, 1.0 );');hp.needsUpdate=true;}
     // The film pass also encodes sRGB, so it always runs (at amt 0 it is a plain sRGB pass); FXAA then works on the sRGB image.
     filmPass=new ShaderPass(FilmShader);composer.addPass(filmPass);
     fxaaPass=new FXAAPass();composer.addPass(fxaaPass);}catch(e){composer=null;bloomPass=fxaaPass=filmPass=null;}})();
