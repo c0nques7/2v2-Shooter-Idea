@@ -347,6 +347,7 @@ for(const sx of [-1,1]){addSolid(sx*42,13,1.2,14,SOLID_H);addSolid(sx*42,-13,1.2
 addBox(0,0,2,2,2.5);addBox(-3.5,6.5,4,1.2,1);addBox(3.5,-6.5,4,1.2,1);
 const WALL_H=8;
 addBox(-51,0,2,44,WALL_H,1);addBox(51,0,2,44,WALL_H,1);addBox(0,-21,104,2,WALL_H,1);addBox(0,21,104,2,WALL_H,1);
+const GLASS_H=4.5,ROOF_Y=WALL_H+GLASS_H,ROOF_HIT={glass:true};BOXES.slice(-4).forEach(o=>{o.outer=true;});
 
 function rayBox(ox,oy,oz,dx,dy,dz,b,maxT){
   let tmin=0,tmax=maxT;const o=[ox,oy,oz],d=[dx,dy,dz],lo=[b.x0,b.y0,b.z0],hi=[b.x1,b.y1,b.z1];
@@ -358,7 +359,8 @@ function rayBox(ox,oy,oz,dx,dy,dz,b,maxT){
   return tmin;
 }
 let rayHitBox=null;
-function rayWorld(ox,oy,oz,dx,dy,dz,maxT){let best=maxT;rayHitBox=null;for(const b of BOXES){if(b.y1<=0.01)continue;const t=rayBox(ox,oy,oz,dx,dy,dz,b,best);if(t>=0&&t<best){best=t;rayHitBox=b;}}if(oy+dy*best<0&&dy<0){const tg=-oy/dy;if(tg<best){best=tg;rayHitBox=null;}}return best;}
+function rayWorld(ox,oy,oz,dx,dy,dz,maxT){let best=maxT;rayHitBox=null;for(const b of BOXES){if(b.y1<=0.01)continue;const t=rayBox(ox,oy,oz,dx,dy,dz,b,best);if(t>=0&&t<best){best=t;rayHitBox=b;}}if(oy+dy*best<0&&dy<0){const tg=-oy/dy;if(tg<best){best=tg;rayHitBox=null;}}
+  if(dy>0&&oy<ROOF_Y){const tr=(ROOF_Y-oy)/dy;if(tr<best){best=tr;rayHitBox=ROOF_HIT;}}return best;}
 /* destructible cover: full, damaged (half height), rubble. Rubble rebuilds itself after CFG.regenMin..regenMax seconds (S.regen holds the countdown per cover) */
 const COVER=BOXES.filter(b=>!b.wall);COVER.forEach((b,i)=>{b.ci=i;b.h0=b.y1;b.max=b.y1<1.5?150:300;b.stage=0;});
 const coverStage=(b,hp)=>hp<=0?2:hp<=b.max/2?1:0;
@@ -654,7 +656,7 @@ function syncRoster(){
     const role=roleOf(p.team,S.round);spawnAt(p,homeZ(role),role);p.hp=100;
   }
   for(const p of S.players){if(p.bot)continue;const inp=presenceOf(p.peer);if(!inp)continue;
-    if(Array.isArray(inp.p)&&p.st!=='dead'){p.x=clamp(+inp.p[0]||0,-50,50);p.y=clamp(+inp.p[1]||0,0,WALL_H);p.z=clamp(+inp.p[2]||0,-20,20);}
+    if(Array.isArray(inp.p)&&p.st!=='dead'){p.x=clamp(+inp.p[0]||0,-50,50);p.y=clamp(+inp.p[1]||0,0,ROOF_Y);p.z=clamp(+inp.p[2]||0,-20,20);}
     p.yaw=+inp.yw||0;p.pitch=+inp.pt||0;p.use=!!inp.u;p.give=!!inp.g;p.pick=Number.isInteger(inp.k)?inp.k:-1;if(W[inp.w])p.w=inp.w;
     if(typeof inp.n==='string')p.name=inp.n.replace(/[^\w .'-]/g,'').slice(0,16)||'Player';}
 }
@@ -820,6 +822,76 @@ const stripCy=new THREE.MeshBasicMaterial({color:lin(NEON.cy),toneMapped:false})
 for(const b of BOXES){if(!b.solid)continue;const e=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(b.x1-b.x0,b.y1,b.z1-b.z0)),new THREE.LineBasicMaterial({color:lin(NEON.vi),toneMapped:false}));e.position.set((b.x0+b.x1)/2,b.y1/2,(b.z0+b.z1)/2);scene.add(e);}
 for(const z of [-19.9,19.9]){const s=new THREE.Mesh(new THREE.BoxGeometry(100,0.1,0.1),z<0?stripCy:stripMg);s.position.set(0,WALL_H-0.05,z);scene.add(s);}
 for(const x of [-49.9,49.9]){const s=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.1,40),x<0?stripMg:stripCy);s.position.set(x,WALL_H-0.05,0);scene.add(s);}
+/* glass canopy: clear glass rises GLASS_H above the concrete walls, then turns 90 degrees into a flat roof that seals the arena.
+   The outer wall boxes are raised to ROOF_Y for collision (bullets, movement, wallrun); the roof is a ceiling plane in rayWorld
+   and the player's vertical move. Rain stops on the roof: drops bead and splash on it and streak down the side panes. */
+const GLASS=(function(){
+  const X=50.1,Z=20.1,Y0=WALL_H,Y1=ROOF_Y;
+  // drop map: R = drop shape, G = per-drop phase (splash timing), B = static beads
+  const c=document.createElement('canvas');c.width=c.height=512;const g=c.getContext('2d');g.fillStyle='#000';g.fillRect(0,0,512,512);
+  g.globalCompositeOperation='lighter';
+  for(let i=0;i<900;i++){const x=Math.random()*512,y=Math.random()*512,r=1.2+Math.random()*2.6,ph=Math.floor(Math.random()*255);
+    const gr=g.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,`rgb(255,${ph},0)`);gr.addColorStop(0.7,`rgb(150,${ph},0)`);gr.addColorStop(1,'rgb(0,0,0)');
+    g.globalCompositeOperation='source-over';g.fillStyle=gr;g.beginPath();g.arc(x,y,r,0,7);g.fill();}
+  g.globalCompositeOperation='lighter';
+  for(let i=0;i<1400;i++){const x=Math.random()*512,y=Math.random()*512,r=0.6+Math.random()*1.4;g.fillStyle=`rgba(0,0,${120+Math.random()*135|0},1)`;g.beginPath();g.arc(x,y,r,0,7);g.fill();}
+  const dropT=new THREE.CanvasTexture(c);dropT.wrapS=dropT.wrapT=THREE.RepeatWrapping;dropT.anisotropy=4;
+  // streak map for the side panes: thin runs of water, R = streak, B = beads
+  const s=document.createElement('canvas');s.width=256;s.height=512;const h=s.getContext('2d');h.fillStyle='#000';h.fillRect(0,0,256,512);
+  for(let i=0;i<70;i++){const x=Math.random()*256,y=Math.random()*512,L=40+Math.random()*160,w=0.8+Math.random()*1.4;const gr=h.createLinearGradient(0,y,0,y+L);
+    gr.addColorStop(0,'rgba(255,0,0,0)');gr.addColorStop(0.85,'rgba(255,0,0,.8)');gr.addColorStop(1,'rgba(255,0,0,1)');h.fillStyle=gr;
+    for(const dy of [0,-512,512])h.fillRect(x,y+dy,w,L);}
+  h.globalCompositeOperation='lighter';for(let i=0;i<500;i++){h.fillStyle=`rgba(0,0,${100+Math.random()*155|0},1)`;h.beginPath();h.arc(Math.random()*256,Math.random()*512,0.6+Math.random()*1.2,0,7);h.fill();}
+  const streakT=new THREE.CanvasTexture(s);streakT.wrapS=streakT.wrapT=THREE.RepeatWrapping;
+  const U={uTime:{value:0},uRain:{value:1},uTint:{value:lin(0xa8d8ff)},uSheen:{value:lin(0xc9b8ff)},uDrop:{value:lin(0xd8ecff)},uOp:{value:0.07},uFr:{value:0.2},uDropOp:{value:0.5},
+    uDrops:{value:dropT},uStreaks:{value:streakT},uRoof:{value:1}};
+  const mk=roof=>new THREE.ShaderMaterial({uniforms:Object.assign({},THREE.UniformsLib.fog,U,{uRoof:{value:roof?1:0}}),fog:true,transparent:true,depthWrite:false,side:THREE.DoubleSide,
+    vertexShader:`varying vec3 vW;varying vec3 vN;varying vec2 vUv;
+#include <fog_pars_vertex>
+void main(){vUv=uv;vec4 w=modelMatrix*vec4(position,1.0);vW=w.xyz;vN=normalize(mat3(modelMatrix)*normal);vec4 mvPosition=viewMatrix*w;gl_Position=projectionMatrix*mvPosition;
+#include <fog_vertex>
+}`,
+    fragmentShader:`uniform float uTime,uRain,uOp,uDropOp,uRoof,uFr;uniform vec3 uTint,uSheen,uDrop;uniform sampler2D uDrops,uStreaks;varying vec3 vW;varying vec3 vN;varying vec2 vUv;
+#include <fog_pars_fragment>
+void main(){vec3 V=normalize(cameraPosition-vW);float ndv=abs(dot(normalize(vN),V));float fr=pow(1.0-ndv,5.0);
+  vec3 col=uTint;float a=uOp+fr*uFr;col=mix(col,uSheen,fr);
+  float wet=0.0;
+  if(uRoof>0.5){vec4 d=texture2D(uDrops,vW.xz*0.16);vec4 d2=texture2D(uDrops,vW.xz*0.11+vec2(0.37,0.61));
+    float l1=fract(d.g-uTime*0.9),l2=fract(d2.g-uTime*0.7+0.5);
+    wet=d.r*pow(1.0-l1,6.0)*1.4+d2.r*pow(1.0-l2,6.0)*1.2+max(d.b,d2.b)*0.16;}
+  else{float u=(abs(vN.x)>0.5?vW.z:vW.x)*0.09;float v=vW.y*0.12;
+    float s1=texture2D(uStreaks,vec2(u,v*0.5+uTime*0.22)).r,s2=texture2D(uStreaks,vec2(u*1.3+0.4,v*0.7+uTime*0.35)).r;float b=texture2D(uStreaks,vec2(u*1.7,v)).b;
+    wet=(s1+s2)*0.5+b*0.16;}
+  wet*=uRain;col=mix(col,uDrop,clamp(wet,0.0,1.0));a+=wet*uDropOp;
+  gl_FragColor=vec4(col,clamp(a,0.0,0.9));
+#include <tonemapping_fragment>
+#include <colorspace_fragment>
+#include <fog_fragment>
+}`});
+  const roofM=mk(true),sideM=mk(false),grp=new THREE.Group();
+  const pane=(w,hh,x,y,z,ry,m,rx)=>{const p=new THREE.Mesh(new THREE.PlaneGeometry(w,hh),m);p.position.set(x,y,z);p.rotation.set(rx||0,ry||0,0);p.renderOrder=3;grp.add(p);return p;};
+  const H=Y1-Y0,ym=(Y0+Y1)/2;
+  pane(2*X,H,0,ym,-Z,0,sideM);pane(2*X,H,0,ym,Z,Math.PI,sideM);pane(2*Z,H,-X,ym,0,Math.PI/2,sideM);pane(2*Z,H,X,ym,0,-Math.PI/2,sideM);
+  pane(2*X,2*Z,0,Y1,0,0,roofM,Math.PI/2);
+  // steel frame: posts every 5 m, a ring beam where the walls turn into the roof, roof trusses every 10 m across and lighter glazing bars between
+  const geos=[],bar=(w,hh,d,x,y,z)=>{const b=new THREE.BoxGeometry(w,hh,d);b.translate(x,y,z);geos.push(b);};
+  for(let x=-X;x<=X+0.01;x+=5)for(const z of [-Z,Z])bar(0.14,H,0.14,x,ym,z);
+  for(let z=-Z+5;z<Z-0.01;z+=5)for(const x of [-X,X])bar(0.14,H,0.14,x,ym,z);
+  for(const z of [-Z,Z])bar(2*X+0.4,0.4,0.4,0,Y1,z);for(const x of [-X,X])bar(0.4,0.4,2*Z+0.4,x,Y1,0);
+  for(const z of [-Z,Z])bar(2*X,0.12,0.12,0,Y0+0.06,z);for(const x of [-X,X])bar(0.12,0.12,2*Z,x,Y0+0.06,0);
+  for(let x=-X+10;x<X-0.01;x+=10)bar(0.3,0.55,2*Z,x,Y1+0.1,0);
+  for(let x=-X+5;x<X-0.01;x+=10)bar(0.1,0.12,2*Z,x,Y1+0.02,0);
+  for(const z of [-10,0,10])bar(2*X,0.12,0.12,0,Y1+0.02,z);
+  const frameM=new THREE.MeshStandardMaterial({color:lin(0x2b2f3c),roughness:0.45,metalness:0.7});
+  const frame=new THREE.Mesh(mergeGeometries(geos),frameM);frame.castShadow=true;frame.receiveShadow=true;grp.add(frame);
+  // a thin neon line along the roof edge so the canopy reads at night
+  for(const z of [-Z+0.22,Z-0.22]){const e=new THREE.Mesh(new THREE.BoxGeometry(2*X,0.06,0.06),z<0?stripCy:stripMg);e.position.set(0,Y1-0.22,z);grp.add(e);}
+  scene.add(grp);
+  return{U,frameM,
+    tod(day){U.uTint.value.copy(lin(day?0xdfeefa:0x34466e));U.uSheen.value.copy(lin(day?0xffffff:0x7a5cc0));U.uDrop.value.copy(lin(day?0xf2f7fb:0xb8d4ff));
+      U.uOp.value=day?0.05:0.05;U.uFr.value=day?0.28:0.16;U.uDropOp.value=day?0.4:0.32;frameM.color.copy(lin(day?0x8a919c:0x2b2f3c));}};
+})();
+for(const b of BOXES)if(b.outer)b.y1=ROOF_Y;
 /* wall dressing: made-up sponsor boards and wear (cracks, chipped concrete, scorch, bullet pocks, grime) so the walls aren't uniform.
    Everything is a flat plane just in front of a wall's inner face. Faces: long walls at z=±20, end walls at x=±50. */
 const WALL_FACES=[{ax:'z',v:-20,n:1,len:100},{ax:'z',v:20,n:-1,len:100},{ax:'x',v:-50,n:1,len:40},{ax:'x',v:50,n:-1,len:40}];
@@ -1078,9 +1150,11 @@ const rain=new THREE.LineSegments(rainGeo,new THREE.LineBasicMaterial({color:lin
 let rainT=0;
 function rainTick(dt){if(!rain.visible)return;rainT+=dt;const n=rainGeo.drawRange.count/2,cx=camera.position.x,cz=camera.position.z,R=36,H=26;
   for(let i=0;i<n;i++){const sx=rainSeed[i*3],sy=rainSeed[i*3+1],sz=rainSeed[i*3+2];
-    const x=cx+(((sx*R-cx)%R)+R)%R-R/2,z=cz+(((sz*R-cz)%R)+R)%R-R/2,y=(((sy*H-rainT*(20+8*sx))%H)+H)%H,j=i*6;
+    const x=cx+(((sx*R-cx)%R)+R)%R-R/2,z=cz+(((sz*R-cz)%R)+R)%R-R/2,j=i*6;let y=(((sy*H-rainT*(20+8*sx))%H)+H)%H;if(x>-50.3&&x<50.3&&z>-20.3&&z<20.3)y+=ROOF_Y;
+    
     rainPos[j]=x;rainPos[j+1]=y;rainPos[j+2]=z;rainPos[j+3]=x+0.07;rainPos[j+4]=y+0.75;rainPos[j+5]=z+0.02;}
   rainGeo.attributes.position.needsUpdate=true;}
+function glassTick(dt){GLASS.U.uTime.value=(GLASS.U.uTime.value+dt)%1000;}
 const holos=[];
 (function(){const defs=[['ZONE//ARENA','2V2 · ATTACK · DEFEND',NEON.cy],['RETURN HP','100 · 80 · 60 · 45 · 30',NEON.mg],['HOLD CENTER','+10 HP SPAWN',NEON.am],['ARM THE CHARGE','SITE A · SITE B',NEON.vi]];
   defs.forEach((d,i)=>{const c=document.createElement('canvas');c.width=512;c.height=256;const g=c.getContext('2d'),cc='#'+d[2].toString(16).padStart(6,'0');
@@ -1188,7 +1262,7 @@ function crowdCheer(kind,force){if(!actx||!LOOPB.A||!LOOPB.B)return;const now=ac
   else{one('B',0.5);one('A',0.4,0.2);one('swell',0.5,0.1,0.6);}}
 let flk={i:-1,t:0,next:3},fpsN=0,fpsT=0;const CALM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 function fxTick(dt,now){
-  rainTick(dt);marksTick(dt);
+  rainTick(dt);glassTick(dt);marksTick(dt);
   const t=now/1000,calm=CALM;crowdTick(dt,t);
   holos.forEach((m,i)=>{m.material.opacity=TOD.holo*(0.46+0.06*Math.sin(t*2.3+i*1.7)-(!calm&&Math.random()<0.006?0.3:0));});
   if(!calm){flk.next-=dt;if(flk.next<=0&&flk.i<0){flk.i=Math.floor(Math.random()*lamps.length);flk.t=0.18+Math.random()*0.25;flk.next=4+Math.random()*7;}
@@ -1224,7 +1298,7 @@ function applyTod(){const k=TODS[OPT.tod]?OPT.tod:'night';if(TOD.cur===k)return;
   for(const v of coverVis)v.hp=-2;coverTick();
   for(const L of lamps){L.floor.visible=L.wall.visible=P.pool>0;}
   for(const m of wallMats)m.color.setScalar(P.wall);
-  rain.material.color.copy(lin(P.rain));rain.material.opacity=P.rainOp;}
+  rain.material.color.copy(lin(P.rain));rain.material.opacity=P.rainOp;GLASS.tod(day);}
 function applyGfx(){
   const sh=OPT.shadows|0,en=sh>0,size=[0,1024,2048,4096][sh]||2048,chg=renderer.shadowMap.enabled!==en;
   renderer.shadowMap.enabled=en;sun.castShadow=en;
@@ -1239,7 +1313,7 @@ function applyGfx(){
   if(filmPass)filmPass.uniforms.amt.value=OPT.film;
   if(OPT.fog>0.01){scene.fog.near=TOD.fogN/Math.max(0.5,OPT.fog);scene.fog.far=TOD.fogN+TOD.fogF/OPT.fog;}else{scene.fog.near=9000;scene.fog.far=10000;}
   crowd.count=Math.round(crowd.userData.N*OPT.crowd);crowd.visible=crowd.count>0;
-  rain.visible=!!OPT.rain;rainGeo.setDrawRange(0,Math.round(RAIN_N*0.7)*2);
+  rain.visible=!!OPT.rain;GLASS.U.uRain.value=OPT.rain?1:0;rainGeo.setDrawRange(0,Math.round(RAIN_N*0.7)*2);
   $('fps').hidden=!OPT.fps;
   resize();
 }
@@ -2089,7 +2163,7 @@ function localTick(dt){
   speedNow=Math.hypot(me.vx,me.vz);
   if(alive&&!frozen&&!me.mantle&&me.jumpBuf>0&&me.airT<0.1&&me.vy<=0.01){me.vy=CFG.jump;me.ground=false;me.airT=1;me.jumpBuf=0;me.slideT=0;footstep('push',clamp(speedNow/CFG.sprint,0,1));}
   const vyB=me.vy,wasG=me.ground;
-  if(!me.mantle){me.vy-=CFG.grav*(me.wr?CFG.wallGrav:1)*dt;if(me.wr&&me.vy<-1.5)me.vy=-1.5;me.y+=me.vy*dt;const g=groundAt(me.x,me.z,me.y);
+  if(!me.mantle){me.vy-=CFG.grav*(me.wr?CFG.wallGrav:1)*dt;if(me.wr&&me.vy<-1.5)me.vy=-1.5;me.y+=me.vy*dt;if(me.y>ROOF_Y-1.85){me.y=ROOF_Y-1.85;if(me.vy>0)me.vy=0;}const g=groundAt(me.x,me.z,me.y);
   if(me.y<=g){if(!wasG&&vyB<-3){me.land=Math.min(0.2,-vyB*0.02);footstep('land',clamp((-vyB-3)/9,0,1));me.bloom=Math.min(0.03,me.bloom+0.01);}me.y=g;me.vy=0;me.ground=true;me.wr=0;}else me.ground=me.y-g<0.02;}
   me.use=!!keys.KeyF&&alive;
   const leanT=alive&&!frozen&&!sliding&&!sprinting?(keys.KeyE?1:0)-(keys.KeyQ?1:0):0;me.lean+=(leanT-me.lean)*Math.min(1,dt*11);me.give=!!keys.KeyG&&downed;
@@ -2169,7 +2243,7 @@ function fire(s){
     spawnSparks(hx,hy,hz,S.players[hit].team===0?0x9cc0ff:0xffbf94,head?9:5,dx,dy,dz);
     _v.set(hx,hy+0.25,hz).project(camera);
     if(_v.z<1){const el=document.createElement('span');el.textContent=dmg;if(head)el.className='head';el.style.left=((_v.x*0.5+0.5)*innerWidth+(Math.random()-.5)*26)+'px';el.style.top=((-_v.y*0.5+0.5)*innerHeight)+'px';$('dmg').appendChild(el);setTimeout(()=>el.remove(),620);}
-  }else if(best<119){mark(hx,hy,hz,dx,dy,dz,hb&&hb.ci!=null?(hb.h0>=1.5?NEON.mg:NEON.cy):0xffa040);impactSound(hx,hz,1);if(hb&&hb.ci!=null){sendCover(hb.ci);if(Math.random()<0.4)spawnDebris(hx-dx*0.05,hy,hz-dz*0.05,hb.h0>=1.5,0.6);spawnSparks(hx,hy,hz,hb.h0>=1.5?NEON.mg:NEON.cy,6,dx,dy,dz);}else spawnSparks(hx,hy,hz,0xbfe9ff,4,dx,dy,dz);}
+  }else if(best<119){mark(hx,hy,hz,dx,dy,dz,hb&&hb.ci!=null?(hb.h0>=1.5?NEON.mg:NEON.cy):hb===ROOF_HIT||hy>WALL_H?0xcfeeff:0xffa040);impactSound(hx,hz,1);if(hb&&hb.ci!=null){sendCover(hb.ci);if(Math.random()<0.4)spawnDebris(hx-dx*0.05,hy,hz-dz*0.05,hb.h0>=1.5,0.6);spawnSparks(hx,hy,hz,hb.h0>=1.5?NEON.mg:NEON.cy,6,dx,dy,dz);}else spawnSparks(hx,hy,hz,0xbfe9ff,4,dx,dy,dz);}
 }
 const chEl=['chT','chB','chL','chR'].map($);
 function feelHud(dt){
@@ -2349,8 +2423,8 @@ function siteFx(){alarm.intensity=S.armed?(1.5+Math.sin(performance.now()/120)*1
 
 /* ---------- menu flyover: a slow camera loop through the arena behind the main menu ----------
    Two closed splines share one parameter: where the camera is and what it looks at. Every point stays at least 1.7 m
-   clear of all geometry (cover is 2.5 m or lower, the base solids 3.2 m) and inside the outer walls, so the shot never clips. */
-const FLY_POS=new THREE.CatmullRomCurve3([[-45,5,0],[-32,5,-12],[-10,4.5,-16],[10,4,-14],[30,5.5,-5],[44,8,10],[22,13,16.5],[-6,17,9],[-34,9,15]].map(a=>new THREE.Vector3(...a)),true,'centripetal');
+   clear of all geometry (cover is 2.5 m or lower, the base solids 3.2 m) and inside the outer walls and at least 2 m under the glass roof (12.5 m), so the shot never clips. */
+const FLY_POS=new THREE.CatmullRomCurve3([[-45,5,0],[-32,5,-12],[-10,4.5,-16],[10,4,-14],[30,5.5,-5],[44,8,10],[22,10,15.5],[-6,10.5,8],[-34,8.5,14.5]].map(a=>new THREE.Vector3(...a)),true,'centripetal');
 const FLY_LOOK=new THREE.CatmullRomCurve3([[-20,1,0],[0,1,-6],[12,1,-8],[22,0.5,-9],[22,0.5,9],[10,0,0],[0,0,0],[-20,0,-4],[-42,1,0]].map(a=>new THREE.Vector3(...a)),true,'centripetal');
 const FLY_LOOP=CALM?240:90,flyP=new THREE.Vector3(),flyL=new THREE.Vector3(),flyLs=new THREE.Vector3(-20,1,0);let flyU=0;
 function flyover(dt){flyU=(flyU+dt/FLY_LOOP)%1;FLY_POS.getPoint(flyU,flyP);FLY_LOOK.getPoint(flyU,flyL);
