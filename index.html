@@ -322,8 +322,18 @@ const hpColor=h=>h>=80?'#35ffa0':h>=45?'#ffc23d':'#ff3d6e';
 /* ---------- arena ---------- */
 const BOXES=[];
 function addBox(x,z,w,d,h,wall){BOXES.push({x0:x-w/2,x1:x+w/2,z0:z-d/2,z1:z+d/2,y0:0,y1:h,wall:!!wall});}
-[[35,-7,2,4,2.5],[35,7,3,2,1],[25,-18,3,3,1],[25,18,3,3,2.5],[25,-6,4,2,1],[25,6,2,2,2.5],[12,-8,2,5,2.5],[12,8,3,2,1],[46,-9,1.5,3,1],[46,9,1.5,3,1],[15,-15,2,2,1]].forEach(b=>{addBox(b[0],b[1],b[2],b[3],b[4]);addBox(-b[0],-b[1],b[2],b[3],b[4]);});
-addBox(0,-7,6,2,1);addBox(0,7,6,2,1);addBox(0,-18,4,3,2.5);addBox(0,18,4,3,2.5);addBox(0,0,2,2,2.5);
+/* Layout. Each home base is a sealed spawn room: a solid screen with a gap (|z|<7.5) at x=±42 and a solid baffle (|z|<9.5) at x=±36
+   that overlaps the gap, so no straight line from outside reaches the spawn room; players leave through a short channel and come
+   out on the north or south lane. Solids (3.2 m, indestructible, not climbable) only sit in the bases; the midfield is breakable cover
+   arranged in three lanes with lane breakers between the respawn points. Mirrored through the center ((x,z) -> (-x,-z)), except a few
+   south-lane pieces kept low or nudged off the menu flyover's low pass. */
+function addSolid(x,z,w,d,h){addBox(x,z,w,d,h,1);BOXES[BOXES.length-1].solid=true;}
+const SOLID_H=3.2;
+for(const sx of [-1,1]){addSolid(sx*42,13.75,1.2,12.5,SOLID_H);addSolid(sx*42,-13.75,1.2,12.5,SOLID_H);addSolid(sx*36,0,1.2,19,SOLID_H);}
+[[25.5,-10.5,2,2,2.5],[25.5,10.5,2,2,2.5],[22,-4.6,4,1.2,2.5],[22,4.6,4,1.2,2.5],[18.5,-8,1.5,2.5,1],[18.5,8,1.5,2.5,1],
+ [30,-16.5,2,3,1],[10,14,2,3,2.5],[12,-1.5,1.2,4,2.5],[16,6.5,2.5,1.5,1],[31.5,6,1.5,3,1],[31.5,-6,1.5,3,1],[6,-9.5,3,1.2,2.5],[28,0,2,2,1]
+].forEach(b=>{addBox(b[0],b[1],b[2],b[3],b[4]);addBox(-b[0],-b[1],b[2],b[3],b[4]);});
+addBox(30,15,2,4,2.5);addBox(-30,-17,2,4,2.5);addBox(0,0,2,2,2.5);addBox(-3.5,6.5,4,1.2,1);addBox(3.5,-6.5,4,1.2,1);
 const WALL_H=8;
 addBox(-51,0,2,44,WALL_H,1);addBox(51,0,2,44,WALL_H,1);addBox(0,-21,104,2,WALL_H,1);addBox(0,21,104,2,WALL_H,1);
 
@@ -411,7 +421,8 @@ function newMatch(){
 function feed(m){S.feed.push({t:+S.clock.toFixed(2),m});if(S.feed.length>6)S.feed.shift();}
 function spawnAt(p,zi,role){
   p.lastZ=zi;p.x=ZX[zi];p.z=p.s<2?-14:14;p.y=0;p.st='alive';p.hp=retHP(p.team,role,zi);if(p.bot)p.w=WKEYS[(Math.random()*3)|0];p.ak=null;p.ap=0;p.at=-1;p.pick=-1;p.give=false;
-  p.spyaw=role==='atk'?-Math.PI/2:Math.PI/2;p.yaw=p.spyaw;p.pitch=0;p.spx=p.x;p.spz=p.z;p.sp++;
+  p.spyaw=zi===homeZ(role)?Math.atan2(-(ZX[zi]+(zi?-6:6)-p.x),-(0-p.z)):role==='atk'?-Math.PI/2:Math.PI/2;// home spawns face the spawn-room exit
+  p.yaw=p.spyaw;p.pitch=0;p.spx=p.x;p.spz=p.z;p.sp++;
   p.wr=0;const m=botMem[p.s];if(m){m.path=null;m.wr=0;m.vy=0;m.kvx=m.kvz=0;}
 }
 function damageCover(ci,d){if(!S||S.phase!=='live'||!S.cover||!(ci>=0&&ci<S.cover.length))return;if(S.cover[ci]>0)S.cover[ci]=Math.max(0,S.cover[ci]-d);}
@@ -787,6 +798,8 @@ for(const b of BOXES){if(!b.wall)continue;const w=b.x1-b.x0,h=b.y1-b.y0,d=b.z1-b
   const m=new THREE.MeshStandardMaterial({map:tex(wallC,rp,h/4),emissive:lin(NEON.vi),emissiveMap:tex(wallE,rp,h/4),emissiveIntensity:1,roughness:0.7,metalness:0.15});wallMats.push(m);
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);mesh.position.set((b.x0+b.x1)/2,h/2,(b.z0+b.z1)/2);mesh.castShadow=true;mesh.receiveShadow=true;scene.add(mesh);}
 const stripCy=new THREE.MeshBasicMaterial({color:lin(NEON.cy),toneMapped:false}),stripMg=new THREE.MeshBasicMaterial({color:lin(NEON.mg),toneMapped:false});
+// base solids get a violet neon outline so they read as permanent structure, not breakable cover
+for(const b of BOXES){if(!b.solid)continue;const e=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(b.x1-b.x0,b.y1,b.z1-b.z0)),new THREE.LineBasicMaterial({color:lin(NEON.vi),toneMapped:false}));e.position.set((b.x0+b.x1)/2,b.y1/2,(b.z0+b.z1)/2);scene.add(e);}
 for(const z of [-19.9,19.9]){const s=new THREE.Mesh(new THREE.BoxGeometry(100,0.1,0.1),z<0?stripCy:stripMg);s.position.set(0,WALL_H-0.05,z);scene.add(s);}
 for(const x of [-49.9,49.9]){const s=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.1,40),x<0?stripMg:stripCy);s.position.set(x,WALL_H-0.05,0);scene.add(s);}
 /* wall dressing: made-up sponsor boards and wear (cracks, chipped concrete, scorch, bullet pocks, grime) so the walls aren't uniform.
@@ -1942,7 +1955,7 @@ function drawMini(P,myTeam,role){
   const g=miniC,sc=4.4;g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,440,176);g.setTransform(1,0,0,1,220,88);
   for(let i=0;i<5;i++){const hp=role?returnHP(role,i):60;g.fillStyle=hpColor(hp);g.globalAlpha=0.22;g.fillRect((-50+i*20)*sc,-20*sc,20*sc,40*sc);}
   g.globalAlpha=1;g.fillStyle='#9aa4ab';
-  for(const b of BOXES){if(b.wall||b.y1<=0.01)continue;g.globalAlpha=b.stage===1?0.5:1;g.fillRect(b.x0*sc,b.z0*sc,(b.x1-b.x0)*sc,(b.z1-b.z0)*sc);}
+  for(const b of BOXES){if((b.wall&&!b.solid)||b.y1<=0.01)continue;g.globalAlpha=b.solid?0.85:b.stage===1?0.5:1;g.fillRect(b.x0*sc,b.z0*sc,(b.x1-b.x0)*sc,(b.z1-b.z0)*sc);}
   g.globalAlpha=1;
   for(const k of ['A','B']){const s=SITES[k];const armed=S.armed&&S.armed.site===k;g.strokeStyle=armed&&(S.clock*2|0)%2?'#e3584d':'#ffd27a';g.lineWidth=3;g.beginPath();g.arc(s.x*sc,s.z*sc,3*sc,0,Math.PI*2);g.stroke();g.fillStyle='#ffd27a';g.font='bold 20px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(k,s.x*sc,s.z*sc);}
   const s=mySlot();
@@ -1957,9 +1970,9 @@ function siteFx(){alarm.intensity=S.armed?(1.5+Math.sin(performance.now()/120)*1
   for(const k of ['A','B']){const m=siteMeshes[k];const armed=S.armed&&S.armed.site===k;m.core.material.emissive.setHex(armed?0x661100:0x000000,THREE.LinearSRGBColorSpace);m.capM.color.copy(lin(armed?0xff2020:NEON.am));m.ring.material.color.copy(lin(armed?0xff2020:NEON.am));}}
 
 /* ---------- menu flyover: a slow camera loop through the arena behind the main menu ----------
-   Two closed splines share one parameter: where the camera is and what it looks at. Every point stays above 3.5 m
-   (all cover is 2.5 m or lower) and inside the outer walls, so the shot never clips geometry. */
-const FLY_POS=new THREE.CatmullRomCurve3([[-45,4,0],[-32,3.6,-12],[-10,4.5,-16],[10,4,-14],[30,5.5,-5],[44,8,10],[22,13,16.5],[-6,17,9],[-34,9,15]].map(a=>new THREE.Vector3(...a)),true,'centripetal');
+   Two closed splines share one parameter: where the camera is and what it looks at. Every point stays at least 1.7 m
+   clear of all geometry (cover is 2.5 m or lower, the base solids 3.2 m) and inside the outer walls, so the shot never clips. */
+const FLY_POS=new THREE.CatmullRomCurve3([[-45,5,0],[-32,5,-12],[-10,4.5,-16],[10,4,-14],[30,5.5,-5],[44,8,10],[22,13,16.5],[-6,17,9],[-34,9,15]].map(a=>new THREE.Vector3(...a)),true,'centripetal');
 const FLY_LOOK=new THREE.CatmullRomCurve3([[-20,1,0],[0,1,-6],[12,1,-8],[22,0.5,-9],[22,0.5,9],[10,0,0],[0,0,0],[-20,0,-4],[-42,1,0]].map(a=>new THREE.Vector3(...a)),true,'centripetal');
 const FLY_LOOP=CALM?240:90,flyP=new THREE.Vector3(),flyL=new THREE.Vector3(),flyLs=new THREE.Vector3(-20,1,0);let flyU=0;
 function flyover(dt){flyU=(flyU+dt/FLY_LOOP)%1;FLY_POS.getPoint(flyU,flyP);FLY_LOOK.getPoint(flyU,flyL);
