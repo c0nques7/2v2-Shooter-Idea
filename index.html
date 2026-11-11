@@ -1797,7 +1797,6 @@ function devFooter(el,mk){el.append(mk('h3','','Save and export'));
   ab('Save',b=>{devSave();b.textContent='Saved';setTimeout(()=>b.textContent='Save',1200);},'primary');
   ab('Revert to saved',()=>{Object.assign(CFG,CFG0);ZHP0.forEach((v,i)=>ZHP[i]=v);sbLoad();devLoad();buildSB();});
   ab('Copy JSON',async b=>{refresh();try{await navigator.clipboard.writeText(ta.value);b.textContent='Copied';}catch(e){ta.select();b.textContent='Press Ctrl+C';}setTimeout(()=>b.textContent='Copy JSON',1500);});
-  ab('Download',()=>{refresh();const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([ta.value],{type:'application/json'}));a.download='zone-arena-tuning.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);});
   ab('Load pasted',b=>{try{const d=JSON.parse(ta.value);devApply(d);if(d.cfg&&typeof d.cfg==='object'){Object.assign(CFG,CFG0);for(const k in d.cfg)if(k in CFG0&&num(d.cfg[k]))CFG[k]=d.cfg[k];}
       if(Array.isArray(d.returnHP)&&d.returnHP.length===5)d.returnHP.forEach((v,i)=>{if(isFinite(+v))ZHP[i]=clamp(+v,1,100);});buildSB();}catch(e){b.textContent='Not valid JSON';setTimeout(()=>b.textContent='Load pasted',1500);}});
   el.append(ta,eb);

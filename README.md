@@ -74,7 +74,7 @@ Sandbox is a solo test range. Press **T** (or **`**) to open the dev overlay. Ev
 - **Weapons:** damage, fire rate, magazine, reload, spread, recoil, move speed and damage falloff for each weapon.
 - **Objects:** click a piece of cover in the view (or aim at it and press T) to select it, then move, resize, change height and HP. Edits mirror to the twin piece on the other side by default. Break, repair, go there, reset.
 
-**Save** keeps all of it in this browser (`localStorage` keys `za-sb` and `za-dev`) for the next sandbox session; **Copy JSON** / **Download** export every change from the defaults, and **Load pasted** applies JSON pasted into the box. Paste the JSON in the project chat to have it baked into the defaults.
+**Save** keeps all of it in this browser (`localStorage` keys `za-sb` and `za-dev`) for the next sandbox session; **Copy JSON** exports every change from the defaults, and **Load pasted** applies JSON pasted into the box. Paste the JSON in the project chat to have it baked into the defaults.
 
 ## Tech notes
 
