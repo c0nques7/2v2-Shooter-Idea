@@ -629,7 +629,7 @@ const me={x:0,y:0,z:0,vy:0,yaw:0,pitch:0,ground:true,use:false,pick:-1,give:fals
 const keys={};let mouseDown=false,adsDown=false,locked=false,dragMode=false;
 
 /* ---------- settings (graphics, sound, controls), saved per browser ---------- */
-const OPT0={preset:'high',res:1,shadows:2,bloom:1,fxaa:true,film:0.6,rain:true,particles:1,marks:true,crowd:1,fog:1,bright:1,fov:78,shake:1,fps:false,
+const OPT0={preset:'high',res:1,autoRes:true,shadows:2,bloom:1,fxaa:true,film:0.6,rain:true,particles:1,marks:true,crowd:1,fog:1,bright:1,fov:78,shake:1,fps:false,
   vMaster:0.8,vWeapons:0.9,vFx:0.9,vSteps:0.8,vUi:0.8,vAmb:0.6,reverb:0.4,sens:1,adsSens:1,invertY:false};
 const PRESETS={low:{res:0.75,shadows:0,bloom:0,fxaa:false,film:0,rain:false,particles:0.5,marks:false,crowd:0.35},
   medium:{res:1,shadows:1,bloom:1,fxaa:true,film:0.4,rain:true,particles:1,marks:true,crowd:0.7},
@@ -644,10 +644,13 @@ function saveOpt(){try{localStorage.setItem('za-opt',JSON.stringify(OPT));}catch
 
 /* ---------- three.js scene: neon night arena ---------- */
 const canvas=$('view');
-const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
+// No canvas MSAA: with post-processing on, FXAA does the anti-aliasing and the MSAA resolve was wasted bandwidth.
+const renderer=new THREE.WebGLRenderer({canvas,antialias:false,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.75));
 renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFShadowMap;
+// Only static geometry casts sun shadows (soldiers get blob shadows), so the shadow map is redrawn only when cover changes.
+renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;
 const lin=h=>new THREE.Color(h);
 const raw=h=>new THREE.Color().setHex(h,THREE.LinearSRGBColorSpace);
 const NEON={cy:0x27e6ff,mg:0xff2bd6,am:0xffb020,vi:0x8a5cff};
@@ -665,23 +668,32 @@ const camera=new THREE.PerspectiveCamera(78,1,0.03,500);camera.rotation.order='Y
   const winTex=[NEON.cy,NEON.mg,NEON.am,0xdfe6ff].map(col=>{const c=document.createElement('canvas');c.width=64;c.height=128;const g=c.getContext('2d');g.fillStyle='#07060d';g.fillRect(0,0,64,128);const cc='#'+col.toString(16).padStart(6,'0');
     for(let y=4;y<128;y+=8)for(let x=4;x<64;x+=8){if(Math.random()<0.34){g.globalAlpha=0.35+Math.random()*0.65;g.fillStyle=Math.random()<0.8?cc:'#ffffff';g.fillRect(x,y,4,5);}}g.globalAlpha=1;const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.colorSpace=THREE.SRGBColorSpace;t.magFilter=THREE.NearestFilter;return t;});
   let seed=7;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
+  const winMat=winTex.map(t=>new THREE.MeshBasicMaterial({map:t,color:raw(0x9a9a9a)})),neonMat={};
   for(let i=0;i<54;i++){const a=i/54*Math.PI*2+rnd()*0.08,r=85+rnd()*70,w=9+rnd()*14,d=9+rnd()*14,h=22+rnd()*70+(i%9===0?45:0);
-    const t=winTex[i%4].clone();t.needsUpdate=true;t.repeat.set(Math.round(w/8),Math.round(h/16));
-    const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshBasicMaterial({map:t,color:raw(0x9a9a9a)}));m.position.set(Math.cos(a)*r*1.25,h/2-3,Math.sin(a)*r);m.rotation.y=rnd()*0.6;scene.add(m);
-    if(i%3===0){const col=[NEON.mg,NEON.cy,NEON.am][i%9/3|0];const s=new THREE.Mesh(new THREE.BoxGeometry(0.7,h*0.55,0.7),new THREE.MeshBasicMaterial({color:lin(col),toneMapped:false}));s.position.set(m.position.x-Math.cos(a)*(w/2+0.6),h*0.55,m.position.z-Math.sin(a)*(d/2+0.6));scene.add(s);}}
+    const geo=new THREE.BoxGeometry(w,h,d),uv=geo.attributes.uv,rx=Math.round(w/8),ry=Math.round(h/16);for(let k=0;k<uv.count;k++)uv.setXY(k,uv.getX(k)*rx,uv.getY(k)*ry);
+    const m=new THREE.Mesh(geo,winMat[i%4]);m.position.set(Math.cos(a)*r*1.25,h/2-3,Math.sin(a)*r);m.rotation.y=rnd()*0.6;scene.add(m);
+    if(i%3===0){const col=[NEON.mg,NEON.cy,NEON.am][i%9/3|0];const s=new THREE.Mesh(new THREE.BoxGeometry(0.7,h*0.55,0.7),neonMat[col]||(neonMat[col]=new THREE.MeshBasicMaterial({color:lin(col),toneMapped:false})));s.position.set(m.position.x-Math.cos(a)*(w/2+0.6),h*0.55,m.position.z-Math.sin(a)*(d/2+0.6));scene.add(s);}}
 })();
 /* r155+ lighting is physically based: ambient and directional intensities are r128 values times PI, and point lights
-   fall off with inverse square instead of a linear ramp to their range, so their intensities are matched by eye. */
-const LAMP_I=22,SITE_I=7,MUZZLE_I=5;
+   fall off with inverse square instead of a linear ramp to their range, so their intensities are matched by eye.
+   Point lights are kept to two (muzzle flash, armed-site alarm) because each one costs every lit pixel. */
+const SITE_I=7,MUZZLE_I=5;
 scene.add(new THREE.HemisphereLight(lin(0x7f8fe0),lin(0x3a1a4a),0.62*Math.PI));
 const sun=new THREE.DirectionalLight(lin(0xaab8ff),1.15*Math.PI);sun.position.set(-35,48,22);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
 Object.assign(sun.shadow.camera,{left:-62,right:62,top:46,bottom:-46,near:1,far:140});sun.shadow.bias=-0.0004;sun.shadow.normalBias=0.035;scene.add(sun,sun.target);
 const lamps=[];
-// Neon wall lamps: each point light sits at a visible tube on the side wall, so its floor reflection lines up with a real object.
+// Neon wall lamps. Their light is painted on as additive glow pools on the floor and wall instead of 8 real point lights,
+// which every lit pixel had to loop over (about 40% of the frame on integrated GPUs).
+const poolTex=(function(){const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d'),gr=g.createRadialGradient(64,64,0,64,64,64);
+  [[0,1],[0.2,0.72],[0.4,0.42],[0.6,0.2],[0.8,0.06],[1,0]].forEach(([o,a])=>gr.addColorStop(o,`rgba(255,255,255,${a})`));g.fillStyle=gr;g.fillRect(0,0,128,128);return new THREE.CanvasTexture(c);})();
+const plateMat=new THREE.MeshStandardMaterial({color:lin(0x1a1626),roughness:0.5,metalness:0.6});
+const POOL_FLOOR=0.6,POOL_WALL=0.65;
+function lightPool(col,w,h,op){return new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:poolTex,color:lin(col),transparent:true,opacity:op,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false}));}
 [-39,-13,13,39].forEach((x,i)=>{for(const z of [-17,17]){const col=(i+(z>0?1:0))%2?NEON.mg:NEON.cy;const sz=Math.sign(z);
   const tube=new THREE.Mesh(new THREE.BoxGeometry(4,0.14,0.14),new THREE.MeshBasicMaterial({color:lin(col),toneMapped:false}));tube.position.set(x,3.4,sz*19.88);scene.add(tube);
-  const plate=new THREE.Mesh(new THREE.BoxGeometry(4.4,0.5,0.06),new THREE.MeshStandardMaterial({color:lin(0x1a1626),roughness:0.5,metalness:0.6}));plate.position.set(x,3.4,sz*19.96);scene.add(plate);
-  const pl=new THREE.PointLight(lin(col),LAMP_I,34,1);pl.position.set(x,3.4,sz*19.4);scene.add(pl);lamps.push({tube,pl});}});
+  const plate=new THREE.Mesh(new THREE.BoxGeometry(4.4,0.5,0.06),plateMat);plate.position.set(x,3.4,sz*19.96);scene.add(plate);
+  const floor=lightPool(col,27,32,POOL_FLOOR);floor.rotation.x=-Math.PI/2;floor.position.set(x,0.025,sz*19.9);
+  const wall=lightPool(col,24,9,POOL_WALL);wall.position.set(x,3.4,sz*19.97);if(sz>0)wall.rotation.y=Math.PI;scene.add(floor,wall);lamps.push({tube,floor,wall});}});
 
 /* procedural textures */
 function grainCanvas(size,base,amt,draw){const c=document.createElement('canvas');c.width=c.height=size;const g=c.getContext('2d');g.fillStyle=base;g.fillRect(0,0,size,size);
@@ -731,7 +743,7 @@ function coverTick(){const arr=S&&S.cover;let ch=false;
   for(const v of coverVis){const hp=arr&&arr[v.b.ci]!=null?arr[v.b.ci]:v.b.max;if(hp===v.hp)continue;v.hp=hp;
     const st=coverStage(v.b,hp);const f=clamp(hp/v.b.max,0,1);v.edge.material.color.copy(lin(0xff3030).lerp(lin(v.neon),f));v.mesh.material.emissiveIntensity=0.35+0.75*f;
     if(st!==v.stage){const burst=v.stage>=0&&st>v.stage;v.stage=st;v.b.stage=st;v.b.y1=coverHeight(v.b,st);setCoverVis(v,st,burst);ch=true;}}
-  if(ch)rebuildGrid();}
+  if(ch){rebuildGrid();renderer.shadowMap.needsUpdate=true;}}
 /* wall labels per zone */
 const wallLabels=[];
 for(let i=0;i<5;i++){const c=document.createElement('canvas');c.width=512;c.height=128;const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;const mat=new THREE.MeshBasicMaterial({map:t,transparent:true,toneMapped:false});
@@ -749,28 +761,27 @@ for(const k of ['A','B']){const s=SITES[k];
   const capM=new THREE.MeshBasicMaterial({color:lin(NEON.am),toneMapped:false});const cap=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,0.06,6),capM);cap.position.set(s.x,1.09,s.z);scene.add(cap);
   const beam=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,2.2,6),new THREE.MeshBasicMaterial({color:lin(NEON.am),transparent:true,opacity:0.35,toneMapped:false,depthWrite:false}));beam.position.set(s.x,2.2,s.z);scene.add(beam);
   for(let j=0;j<3;j++){const fin=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.8,0.5),core.material);fin.position.set(s.x+Math.cos(j*2.094)*0.5,0.45,s.z+Math.sin(j*2.094)*0.5);fin.rotation.y=-j*2.094;fin.castShadow=true;scene.add(fin);}
-  const light=new THREE.PointLight(raw(0xff4433),0,14,1);light.position.set(s.x,2,s.z);scene.add(light);
-  siteMeshes[k]={ring,core,light,capM};}
+  siteMeshes[k]={ring,core,capM};}
+const alarm=new THREE.PointLight(raw(0xff4433),0,14,1);alarm.position.set(SITES.A.x,2,SITES.A.z);scene.add(alarm);
 /* post-processing: bloom, anti-aliasing and lens effects when the helper scripts loaded */
 let composer=null,bloomPass=null,fxaaPass=null,filmPass=null;
 const FilmShader={uniforms:{tDiffuse:{value:null},amt:{value:0.6},time:{value:0}},
   vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
   fragmentShader:['uniform sampler2D tDiffuse;uniform float amt;uniform float time;varying vec2 vUv;',
     'void main(){vec2 c=vUv-0.5;float r2=dot(c,c);vec2 o=c*r2*0.02*amt;',
-    'vec3 col=vec3(texture2D(tDiffuse,vUv+o).r,texture2D(tDiffuse,vUv).g,texture2D(tDiffuse,vUv-o).b);',
+    'vec3 col=sRGBTransferOETF(vec4(texture2D(tDiffuse,vUv+o).r,texture2D(tDiffuse,vUv).g,texture2D(tDiffuse,vUv-o).b,1.0)).rgb;',
     'col*=1.0-amt*0.6*smoothstep(0.12,0.5,r2);',
     'float n=fract(sin(dot(vUv*vec2(1361.0,977.0)+fract(time)*37.0,vec2(12.9898,78.233)))*43758.5453)-0.5;col+=n*0.03*amt;',
     'gl_FragColor=vec4(col,1.0);}'].join('\n')};
-const SRGBShader={uniforms:{tDiffuse:{value:null}},vertexShader:FilmShader.vertexShader,
-  fragmentShader:'uniform sampler2D tDiffuse;varying vec2 vUv;void main(){gl_FragColor=sRGBTransferOETF(texture2D(tDiffuse,vUv));}'};
 (function(){
   try{composer=new EffectComposer(renderer);
     // Since r153 materials only tone-map when drawing to the screen, so toneMapped:false neon would be tone-mapped by an
     // OutputPass. Flagging the composer targets like WebXR's makes materials tone-map into them, as r128 did.
     for(const rt of [composer.renderTarget1,composer.renderTarget2]){rt.isXRRenderTarget=true;rt.texture.colorSpace=THREE.LinearSRGBColorSpace;}
-    composer.addPass(new RenderPass(scene,camera));bloomPass=new UnrealBloomPass(new THREE.Vector2(innerWidth/2,innerHeight/2),0.4125,0.55,0.8);composer.addPass(bloomPass);composer.addPass(new ShaderPass(SRGBShader));
-    fxaaPass=new FXAAPass();composer.addPass(fxaaPass);
-    filmPass=new ShaderPass(FilmShader);composer.addPass(filmPass);}catch(e){composer=null;bloomPass=fxaaPass=filmPass=null;}})();
+    composer.addPass(new RenderPass(scene,camera));bloomPass=new UnrealBloomPass(new THREE.Vector2(innerWidth/2,innerHeight/2),0.4125,0.55,0.8);composer.addPass(bloomPass);
+    // The film pass also encodes sRGB, so it always runs (at amt 0 it is a plain sRGB pass); FXAA then works on the sRGB image.
+    filmPass=new ShaderPass(FilmShader);composer.addPass(filmPass);
+    fxaaPass=new FXAAPass();composer.addPass(fxaaPass);}catch(e){composer=null;bloomPass=fxaaPass=filmPass=null;}})();
 function resize(){const w=window.innerWidth,h=window.innerHeight;renderer.setSize(w,h,false);if(composer)composer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();}
 window.addEventListener('resize',resize);resize();
 function usePost(){return composer&&(OPT.bloom>0.01||(OPT.fxaa&&fxaaPass)||OPT.film>0.01);}
@@ -797,11 +808,12 @@ const holos=[];
     const m=new THREE.Mesh(new THREE.PlaneGeometry(16,8),new THREE.MeshBasicMaterial({map:t,transparent:true,opacity:0.5,blending:THREE.AdditiveBlending,depthWrite:false,fog:false,toneMapped:false}));
     const sz=i<2?-1:1;m.position.set(i%2?24:-24,23,sz*37);if(sz>0)m.rotation.y=Math.PI;m.rotation.x=sz>0?0.14:0.14;scene.add(m);holos.push(m);});})();
 const marks=[];let markTex=null;
-function mark(x,y,z,dx,dy,dz,color){if(!OPT.marks)return;
+function mark(x,y,z,dx,dy,dz,color,warm){if(!OPT.marks&&!warm)return;
   if(!markTex){const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),gr=g.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(0.22,'rgba(255,255,255,.55)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,64,64);markTex=new THREE.CanvasTexture(c);}
   let m=marks.find(q=>q.t<=0);
   if(!m){if(marks.length>=48)m=marks.reduce((a,b)=>a.t<b.t?a:b);else{m={s:new THREE.Sprite(new THREE.SpriteMaterial({map:markTex,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,fog:false})),t:0,life:1};scene.add(m.s);marks.push(m);}}
-  m.s.material.color.copy(lin(color));m.s.position.set(x-dx*0.04,y-dy*0.04,z-dz*0.04);m.s.visible=true;m.t=m.life=3.2;}
+  m.s.material.color.copy(lin(color));m.s.position.set(x-dx*0.04,y-dy*0.04,z-dz*0.04);m.s.visible=!warm;m.t=m.life=warm?0:3.2;}
+mark(0,-50,0,0,1,0,0xffffff,true);
 function marksTick(dt){for(const m of marks){if(m.t<=0)continue;m.t-=dt;if(m.t<=0){m.s.visible=false;continue;}const k=m.t/m.life,sc=0.09+0.14*k;m.s.material.opacity=k*k;m.s.scale.set(sc,sc,1);}}
 /* grandstands and crowd: tiered stands rise behind both long walls so the crowd shows over the top */
 const TEAMC=[0x1f8fff,0xff6a1a];
@@ -823,7 +835,7 @@ const CROWD_U={uTime:{value:0},uHype:{value:0},uWave:{value:-99},uWaveOn:{value:
 const crowd=(function(){
   const part=(g,x,y,z,shade,id)=>{g.translate(x,y,z);const n=g.attributes.position.count;g.setAttribute('color',new THREE.Float32BufferAttribute(new Array(n*3).fill(shade),3));g.setAttribute('part',new THREE.Float32BufferAttribute(new Array(n).fill(id),1));return g;};
   const geo=mergeGeometries([part(new THREE.BoxGeometry(0.34,0.78,0.22),0,0.39,0,0.22,0),part(new THREE.BoxGeometry(0.46,0.6,0.27),0,1.08,0,1,0),
-    part(new THREE.SphereGeometry(0.13,7,5),0,1.53,0.01,1,1),part(new THREE.BoxGeometry(0.11,0.58,0.11),-0.29,1.03,0,0.9,2),part(new THREE.BoxGeometry(0.11,0.58,0.11),0.29,1.03,0,0.9,2)]);
+    part(new THREE.SphereGeometry(0.13,6,4),0,1.53,0.01,1,1),part(new THREE.BoxGeometry(0.11,0.58,0.11),-0.29,1.03,0,0.9,2),part(new THREE.BoxGeometry(0.11,0.58,0.11),0.29,1.03,0,0.9,2)]);
   const seats=[];
   for(let side=0;side<2;side++){const sz=side?1:-1;
     for(let r=0;r<ST.rows;r++)for(let sc=0;sc<8;sc++){const fan=(sc+side)%2;
@@ -833,7 +845,7 @@ const crowd=(function(){
   for(let i=seats.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[seats[i],seats[j]]=[seats[j],seats[i]];}
   const N=seats.length,skin=new Float32Array(N*3),seed=new Float32Array(N*4);
   const SKIN=[0xffdbac,0xf1c27d,0xe0ac69,0xc68642,0x8d5524,0x5c3a1e].map(lin),NEUTRAL=[0x1d1f26,0xd8dbe2,0x3a3f4a].map(lin);
-  const mat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.8,metalness:0.05});
+  const mat=new THREE.MeshLambertMaterial({vertexColors:true});
   const mesh=new THREE.InstancedMesh(geo,mat,N);mesh.frustumCulled=false;
   const o=new THREE.Object3D(),c=new THREE.Color();
   seats.forEach((st,i)=>{o.position.set(st.x,st.y,st.z);o.rotation.set(0,st.yaw,0);o.scale.setScalar(0.92+Math.random()*0.16);o.updateMatrix();mesh.setMatrixAt(i,o.matrix);
@@ -849,10 +861,10 @@ float crowdEx(){return clamp(max(uTeam[int(aSeed.y)],uSec[int(aSeed.z)])+uHype,0
 float crowdWave(){float d=(instanceMatrix[3].x-uWave)/3.;return uWaveOn*exp(-d*d);}
 float crowdArm(float ex,float wv){return clamp(ex*(0.7+0.3*aSeed.w)+wv,0.,1.)*2.7+step(0.05,ex)*sin(uTime*(8.+aSeed.w*4.)+aSeed.x*6.283)*0.3*ex;}
 vec3 crowdRot(vec3 v,float a){float c=cos(a),s=sin(a);return vec3(v.x,v.y*c+v.z*s,-v.y*s+v.z*c);}`)
-    .replace('#include <beginnormal_vertex>','#include <beginnormal_vertex>\nif(part>1.5)objectNormal=crowdRot(objectNormal,crowdArm(crowdEx(),crowdWave()));')
+    .replace('#include <beginnormal_vertex>','#include <beginnormal_vertex>\nfloat cEx=crowdEx(),cWv=crowdWave(),cArm=crowdArm(cEx,cWv);if(part>1.5)objectNormal=crowdRot(objectNormal,cArm);')
     .replace('#include <begin_vertex>',`#include <begin_vertex>
-{float ex=crowdEx(),wv=crowdWave(),ph=aSeed.x*6.283,r=aSeed.w;
- if(part>1.5){vec3 piv=vec3(0.,1.32,0.);transformed=piv+crowdRot(transformed-piv,crowdArm(ex,wv));}
+{float ex=cEx,wv=cWv,ph=aSeed.x*6.283,r=aSeed.w;
+ if(part>1.5){vec3 piv=vec3(0.,1.32,0.);transformed=piv+crowdRot(transformed-piv,cArm);}
  transformed.y+=ex*max(0.,sin(uTime*(6.+r*3.)+ph))*0.32+wv*0.4+sin(uTime*(1.1+r)+ph)*0.02*(1.-ex);
  transformed.x+=sin(uTime*(0.8+r*0.5)+ph)*0.05*transformed.y*(1.-ex);}`)
     .replace('#include <color_vertex>','#include <color_vertex>\nif(part>0.5&&part<1.5)vColor.rgb=aSkin;');};
@@ -883,19 +895,29 @@ function fxTick(dt,now){
   const t=now/1000,calm=CALM;crowdTick(dt,t);
   holos.forEach((m,i)=>{m.material.opacity=0.46+0.06*Math.sin(t*2.3+i*1.7)-(!calm&&Math.random()<0.006?0.3:0);});
   if(!calm){flk.next-=dt;if(flk.next<=0&&flk.i<0){flk.i=Math.floor(Math.random()*lamps.length);flk.t=0.18+Math.random()*0.25;flk.next=4+Math.random()*7;}
-    if(flk.i>=0){const L=lamps[flk.i];flk.t-=dt;const on=flk.t<=0||Math.random()<0.55;L.pl.intensity=on?LAMP_I:LAMP_I/6;L.tube.visible=on;if(flk.t<=0)flk.i=-1;}}
-  if(OPT.fps){fpsN++;fpsT+=dt;if(fpsT>=0.5){$('fps').textContent=Math.round(fpsN/fpsT)+' fps';fpsN=0;fpsT=0;}}
+    if(flk.i>=0){const L=lamps[flk.i];flk.t-=dt;const on=flk.t<=0||Math.random()<0.55;const f=on?1:1/6;L.floor.material.opacity=POOL_FLOOR*f;L.wall.material.opacity=POOL_WALL*f;L.tube.visible=on;if(flk.t<=0)flk.i=-1;}}
+  if(OPT.fps){fpsN++;fpsT+=dt;if(fpsT>=0.5){$('fps').textContent=Math.round(fpsN/fpsT)+' fps'+(OPT.autoRes&&DR.scale<1?` · ${Math.round(DR.scale*100)}% res`:'');fpsN=0;fpsT=0;}}
 }
+/* auto resolution: every half second, lower the render scale when frames are slow and step it back up when there is headroom.
+   GPU cost goes with pixel count, so a slow frame scales by sqrt(target/actual). After a drop, wait before trying higher again. */
+const DR={scale:1,acc:0,n:0,hold:0};
+function setPixelRatio(){const pr=clamp(Math.min(window.devicePixelRatio||1,1.75)*OPT.res*(OPT.autoRes?DR.scale:1),0.3,2.5);renderer.setPixelRatio(pr);if(composer)composer.setPixelRatio(pr);}
+// Long frames count too (a GPU that falls behind shows up as occasional very long frames); only a gap over 1 s, like a tab switch, is skipped.
+function dynResTick(raw){if(!OPT.autoRes||raw>1)return;DR.acc+=raw;DR.n++;DR.hold-=raw;if(DR.acc<0.5)return;
+  const ft=DR.acc/DR.n;DR.acc=DR.n=0;let s=DR.scale;
+  if(ft>1/45)s=Math.max(0.5,s*clamp(Math.sqrt((1/50)/ft),0.7,0.95));else if(ft<1/48&&DR.hold<=0)s=Math.min(1,s+0.05);
+  s=Math.round(s*20)/20;if(s!==DR.scale){if(s<DR.scale)DR.hold=4;DR.scale=s;setPixelRatio();resize();}}
 function applyGfx(){
   const sh=OPT.shadows|0,en=sh>0,size=[0,1024,2048,4096][sh]||2048,chg=renderer.shadowMap.enabled!==en;
   renderer.shadowMap.enabled=en;sun.castShadow=en;
+  renderer.shadowMap.needsUpdate=true;
   if(en&&sun.shadow.mapSize.x!==size){sun.shadow.mapSize.set(size,size);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null;}}
   if(chg)scene.traverse(o=>{if(o.material&&o.material.isMeshStandardMaterial)o.material.needsUpdate=true;});
-  const pr=clamp(Math.min(window.devicePixelRatio||1,1.75)*OPT.res,0.4,2.5);renderer.setPixelRatio(pr);if(composer)composer.setPixelRatio(pr);
+  setPixelRatio();
   renderer.toneMappingExposure=1.15*OPT.bright;
   if(bloomPass){bloomPass.enabled=OPT.bloom>0.01;bloomPass.strength=0.4125*OPT.bloom;}
   if(fxaaPass)fxaaPass.enabled=!!OPT.fxaa;
-  if(filmPass){filmPass.enabled=OPT.film>0.01;filmPass.uniforms.amt.value=OPT.film;}
+  if(filmPass)filmPass.uniforms.amt.value=OPT.film;
   if(OPT.fog>0.01){scene.fog.near=45/Math.max(0.5,OPT.fog);scene.fog.far=45+145/OPT.fog;}else{scene.fog.near=9000;scene.fog.far=10000;}
   crowd.count=Math.round(crowd.userData.N*OPT.crowd);crowd.visible=crowd.count>0;
   rain.visible=!!OPT.rain;rainGeo.setDrawRange(0,Math.round(RAIN_N*0.7)*2);
@@ -977,7 +999,9 @@ function buildSoldier(team){
   limb([-0.27,0.48,0],[-0.2,0.3,-0.27],0.12,MAT.fabric,spine);limb([-0.2,0.3,-0.27],lH,0.1,MAT.fabric,spine);
   bx(0.08,0.09,0.09,MAT.glove,...rH,spine);bx(0.08,0.09,0.09,MAT.glove,...lH,spine);
   const flash=new THREE.Mesh(new THREE.SphereGeometry(0.09,8,6),new THREE.MeshBasicMaterial({color:raw(0xffd59a),transparent:true,opacity:0.9,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false}));flash.visible=false;rifle.tip.add(flash);
-  return{root,model,hips,spine,head,legs,rifle,armor,flash};
+  root.traverse(o=>{o.castShadow=false;});
+  const blob=new THREE.Mesh(new THREE.PlaneGeometry(1.3,1.3),new THREE.MeshBasicMaterial({map:poolTex,color:0x000000,transparent:true,opacity:0.55,depthWrite:false}));blob.rotation.x=-Math.PI/2;scene.add(blob);
+  return{root,model,hips,spine,head,legs,rifle,armor,flash,blob};
 }
 const avatars=[0,1,2,3].map(i=>{
   const sd=buildSoldier(i%2);const g=sd.root;
@@ -1003,14 +1027,19 @@ const flashMat=new THREE.MeshBasicMaterial({color:raw(0xffe2a8),transparent:true
 const mflash=new THREE.Group();for(let i=0;i<3;i++){const q=new THREE.Mesh(new THREE.PlaneGeometry(0.1,0.03),flashMat);q.rotation.z=i*Math.PI/3;mflash.add(q);}mflash.visible=false;vg.add(mflash);
 function showWeapon(k){for(const key of WKEYS)VW[key].g.visible=key===k;vRifle=VW[k]||VW.rifle;vtip=vRifle.tip;vRifle.g.updateMatrix();mflash.position.copy(vtip.position).applyMatrix4(vRifle.g.matrix);mflash.position.z-=0.03;}
 showWeapon('rifle');
-const muzzle=new THREE.PointLight(raw(0xffd29a),0,7,1);muzzle.position.set(0.2,-0.1,-0.9);vm.add(muzzle);camera.add(vm);scene.add(camera);
+// The muzzle light hangs off the camera, not the viewmodel: hiding the viewmodel (menu, death) would change the light count and recompile every lit shader.
+const muzzle=new THREE.PointLight(raw(0xffd29a),0,7,1);muzzle.position.set(0.156,-0.078,-0.702);camera.add(vm,muzzle);scene.add(camera);
 /* impact sparks */
 const sparks=[];const sparkGeo=new THREE.BoxGeometry(0.045,0.045,0.045);
+sparks.push({m:new THREE.Mesh(sparkGeo,new THREE.MeshBasicMaterial({color:0xffffff,transparent:true})),t:0,vx:0,vy:0,vz:0});sparks[0].m.visible=false;scene.add(sparks[0].m);
 function spawnSparks(x,y,z,color,n,dx,dy,dz){n=Math.max(1,Math.round(n*OPT.particles));for(let i=0;i<n;i++){let p=sparks.find(q=>q.t<=0);if(!p){if(sparks.length>=70*Math.max(1,OPT.particles))return;p={m:new THREE.Mesh(sparkGeo,new THREE.MeshBasicMaterial({color:0xffffff,transparent:true})),t:0,vx:0,vy:0,vz:0};scene.add(p.m);sparks.push(p);}
   p.m.material.color.setHex(color,THREE.LinearSRGBColorSpace);p.m.position.set(x,y,z);p.m.visible=true;p.t=0.22+Math.random()*0.18;p.vx=-dx*3+(Math.random()-.5)*5;p.vy=-dy*3+Math.random()*3.5;p.vz=-dz*3+(Math.random()-.5)*5;}}
 /* tracers */
-const tracers=[];
-function tracer(ax,ay,az,bx,by,bz,color){const geo=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(ax,ay,az),new THREE.Vector3(bx,by,bz)]);const l=new THREE.Line(geo,new THREE.LineBasicMaterial({color:raw(color),transparent:true,opacity:0.85}));scene.add(l);tracers.push({l,t:0.09});}
+// A fixed pool: creating and disposing a material per shot released its shader, so the next shot recompiled it mid-match.
+const tracers=[];for(let i=0;i<24;i++){const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(6),3));
+  const l=new THREE.Line(geo,new THREE.LineBasicMaterial({transparent:true,opacity:0.85}));l.visible=false;l.frustumCulled=false;scene.add(l);tracers.push({l,t:0});}
+function tracer(ax,ay,az,bx,by,bz,color){const tr=tracers.reduce((a,b)=>a.t<b.t?a:b),pos=tr.l.geometry.attributes.position;pos.setXYZ(0,ax,ay,az);pos.setXYZ(1,bx,by,bz);pos.needsUpdate=true;
+  tr.l.material.color.setHex(color,THREE.LinearSRGBColorSpace);tr.l.material.opacity=0.85;tr.l.visible=true;tr.t=0.09;}
 
 let labelRole=null;
 function refreshZoneLook(role){
@@ -1239,6 +1268,7 @@ const pct=v=>Math.round(v*100)+'%';
 const SET=[
   ['g','preset','Quality preset','sel',[['low','Low (fastest)'],['medium','Medium'],['high','High'],['ultra','Ultra'],['custom','Custom']]],
   ['g','res','Resolution scale','rng',0.5,1.5,0.05,pct],
+  ['g','autoRes','Auto resolution: lower the render scale when the frame rate drops','chk'],
   ['g','shadows','Shadows','sel',[[0,'Off'],[1,'Low'],[2,'High'],[3,'Ultra']]],
   ['g','bloom','Neon glow','rng',0,2,0.05,pct],
   ['g','film','Lens effects: vignette, grain, colour fringe','rng',0,1,0.05,pct],
@@ -1469,7 +1499,7 @@ function renderOthers(dt){
   const k=1-Math.exp(-dt*14),kk=Math.min(1,dt*10);
   for(let i=0;i<4;i++){
     const p=S.players[i],a=avatars[i];
-    if(i===s){a.g.visible=false;continue;}
+    if(i===s){a.g.visible=false;a.blob.visible=false;continue;}
     let x=p.x,y=p.y,z=p.z,yaw=p.yaw,pitch=p.pitch,sh=p.sh;a.crouch=false;let ln=0,wr=0;
     if(!p.bot&&net.mode==='online'){const pr=presenceOf(p.peer);if(pr&&Array.isArray(pr.p)){x=+pr.p[0]||0;y=+pr.p[1]||0;z=+pr.p[2]||0;yaw=+pr.yw||0;pitch=+pr.pt||0;sh=pr.sh|0;a.crouch=!!pr.c;ln=clamp(+pr.l||0,-1,1);wr=clamp(+pr.wr||0,-1,1);}}a.wrK=(a.wrK||0)+(wr-(a.wrK||0))*Math.min(1,dt*10);a.lean=(a.lean||0)+(ln-(a.lean||0))*Math.min(1,dt*14);
     if(!a.init||hyp(a.rx,a.rz,x,z)>6){a.rx=x;a.ry=y;a.rz=z;a.ryaw=yaw;a.init=true;a.lastSh=sh;}
@@ -1479,6 +1509,7 @@ function renderOthers(dt){
     a.g.visible=p.st!=='dead';
     if(a.wk!==p.w){a.wk=p.w;const sc=p.w==='smg'?[0.95,0.95,0.72]:p.w==='br'?[1.12,1.15,1.18]:[1,1,1];a.rifle.g.scale.set(...sc);}
     a.g.position.set(a.rx,a.ry,a.rz);a.g.rotation.set(0,a.ryaw,-a.wrK*0.35);
+    {const gy=groundAt(a.rx,a.rz,a.ry+0.05),h=Math.max(0,a.ry-gy);a.blob.visible=a.g.visible;a.blob.position.set(a.rx,gy+0.02,a.rz);a.blob.scale.setScalar(1+h*0.25+a.downK*0.6);a.blob.material.opacity=0.55/(1+h);}
     // locomotion
     const vx=(a.rx-ox)/Math.max(dt,1e-3),vz=(a.rz-oz)/Math.max(dt,1e-3);
     const fwd=-(vx*Math.sin(a.ryaw)+vz*Math.cos(a.ryaw));
@@ -1516,7 +1547,7 @@ function hud(dt){
   hitT-=dt;flashT-=dt;$('hitmark').style.opacity=hitT>0?1:0;$('flash').style.opacity=flashT>0?Math.min(1,flashT*2.5):0;
   for(const p of sparks){if(p.t<=0)continue;p.t-=dt;if(p.t<=0){p.m.visible=false;continue;}p.vy-=14*dt;p.m.position.x+=p.vx*dt;p.m.position.y=Math.max(0.02,p.m.position.y+p.vy*dt);p.m.position.z+=p.vz*dt;p.m.material.opacity=Math.min(1,p.t*5);}
   feelHud(dt);
-  for(let i=tracers.length-1;i>=0;i--){const t=tracers[i];t.t-=dt;t.l.material.opacity=Math.max(0,t.t/0.09);if(t.t<=0){scene.remove(t.l);t.l.geometry.dispose();t.l.material.dispose();tracers.splice(i,1);}}
+  for(const t of tracers){if(t.t<=0)continue;t.t-=dt;t.l.material.opacity=Math.max(0,t.t/0.09);if(t.t<=0)t.l.visible=false;}
   hudT-=dt;if(hudT>0)return;hudT=1/15;
   const s=mySlot(),P=s>=0?S.players[s]:null;
   const myTeam=P?P.team:0,role=P?roleOf(P.team,S.round):null;
@@ -1610,12 +1641,13 @@ function drawMini(P,myTeam,role){
 }
 
 /* ---------- sites visuals ---------- */
-function siteFx(){for(const k of ['A','B']){const m=siteMeshes[k];const armed=S.armed&&S.armed.site===k;m.light.intensity=armed?(1.5+Math.sin(performance.now()/120)*1.2)*SITE_I:0;m.core.material.emissive.setHex(armed?0x661100:0x000000,THREE.LinearSRGBColorSpace);m.capM.color.copy(lin(armed?0xff2020:NEON.am));m.ring.material.color.copy(lin(armed?0xff2020:NEON.am));}}
+function siteFx(){alarm.intensity=S.armed?(1.5+Math.sin(performance.now()/120)*1.2)*SITE_I:0;if(S.armed)alarm.position.set(SITES[S.armed.site].x,2,SITES[S.armed.site].z);
+  for(const k of ['A','B']){const m=siteMeshes[k];const armed=S.armed&&S.armed.site===k;m.core.material.emissive.setHex(armed?0x661100:0x000000,THREE.LinearSRGBColorSpace);m.capM.color.copy(lin(armed?0xff2020:NEON.am));m.ring.material.color.copy(lin(armed?0xff2020:NEON.am));}}
 
 /* ---------- loop ---------- */
 let last=performance.now();
 function frame(now){
-  const dt=Math.min(0.05,(now-last)/1000);last=now;
+  const raw=(now-last)/1000,dt=Math.min(0.05,raw);last=now;dynResTick(raw);
   const paused=!$('pause').hidden&&net.mode==='solo';
   if(paused){}
   else if(S||net.mode!=='none'){netTick(dt);}
@@ -1626,8 +1658,24 @@ function frame(now){
   renderScene();
   requestAnimationFrame(frame);
 }
+/* Draw-call merging: under every node, plain sibling meshes that share a material and shadow/visibility flags become one mesh.
+   Animated groups (soldier joints, guns, cover rubble) keep their transforms, and anything changed individually at runtime
+   has its own material, so it is left alone. Takes a soldier from ~57 draws to ~15 and the static arena from hundreds to tens. */
+function mergeChildren(root){const nodes=[];root.traverse(n=>nodes.push(n));let saved=0;
+  for(const n of nodes){const groups=new Map();
+    for(const c of n.children){if(!c.isMesh||c.isInstancedMesh||c.children.length||Array.isArray(c.material))continue;
+      const k=c.material.uuid+'|'+(+c.castShadow)+(+c.receiveShadow)+(+c.visible)+c.renderOrder;if(!groups.has(k))groups.set(k,[]);groups.get(k).push(c);}
+    for(const list of groups.values()){if(list.length<2)continue;
+      let geos=list.map(c=>{c.updateMatrix();const g=c.geometry.clone().applyMatrix4(c.matrix);for(const a of Object.keys(g.attributes))if(!['position','normal','uv'].includes(a))g.deleteAttribute(a);return g;});
+      if(geos.some(g=>!g.index))geos=geos.map(g=>g.index?g.toNonIndexed():g);
+      const merged=mergeGeometries(geos);if(!merged)continue;
+      const m=new THREE.Mesh(merged,list[0].material);Object.assign(m,{castShadow:list[0].castShadow,receiveShadow:list[0].receiveShadow,visible:list[0].visible,renderOrder:list[0].renderOrder});
+      for(const c of list)n.remove(c);n.add(m);saved+=list.length-1;}}
+  return saved;}
+mergeChildren(scene);
 refreshZoneLook('atk');
-requestAnimationFrame(frame);
-window.__za={openPause:()=>openPause(),closePause:()=>closePause(),leaveMatch:()=>leaveMatch(),get S(){return S;},me,net,botMem,CFG,SB,OPT,AU,get actx(){return actx;},mySlot:()=>mySlot()};
+// Compile every material's shader up front (in parallel where the browser supports it) so nothing compiles on the first shot or spawn.
+renderer.compileAsync(scene,camera).catch(()=>{}).finally(()=>requestAnimationFrame(frame));
+window.__za={gfx:{renderer,scene,camera,applyGfx,DR},openPause:()=>openPause(),closePause:()=>closePause(),leaveMatch:()=>leaveMatch(),get S(){return S;},me,net,botMem,CFG,SB,OPT,AU,get actx(){return actx;},mySlot:()=>mySlot()};
 })();
 </script>

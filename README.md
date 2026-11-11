@@ -64,8 +64,20 @@ Sandbox is a solo test range. Press **T** to open the tuning panel, change rules
 ## Tech notes
 
 - Three.js r186 and its postprocessing addons (bloom, FXAA) from jsDelivr, mapped to `three` and `three/addons/` by the import map in `index.html`.
-- Lighting uses Three.js's physically based units. Point light intensities (`LAMP_I`, `SITE_I`, `MUZZLE_I`) were matched by eye to the old r128 look.
+- Lighting uses Three.js's physically based units, matched by eye to the old r128 look. Only two point lights exist (muzzle flash, armed-site alarm, `MUZZLE_I` and `SITE_I`) because each one costs every lit pixel. The neon wall lamps' light is painted on as additive glow pools (`POOL_FLOOR`, `POOL_WALL`).
 - The effect composer's render targets are flagged like WebXR targets so materials tone-map as they render, which keeps `toneMapped:false` neon fully saturated under bloom. A small sRGB pass does the final output.
 - The arena walls are 8 m tall, with grandstands behind both long walls. The crowd (about 2,300 fans) is one `InstancedMesh` animated in its vertex shader. Fans sway, cheer for their team's downs, revives, center captures, charge arms and round wins, and start a wave every so often. **Crowd size** in Settings scales the fan count, down to none.
 - Fonts from Google Fonts.
 - For headless testing the page exposes `window.__za` (state, player, `CFG`, sandbox settings).
+
+## Performance notes
+
+The game is GPU-bound on integrated graphics at high resolutions, so most of the work goes into per-pixel cost:
+
+- **Auto resolution** (Settings, on by default) lowers the render scale when the frame rate drops below about 45 fps and raises it again when there is headroom. The FPS readout shows the current scale.
+- **Point lights** are kept to two. The wall lamps use painted glow pools.
+- **The sun shadow map** is redrawn only when cover changes, because only static geometry casts. Soldiers get soft blob shadows.
+- **Draw calls:** `mergeChildren` merges sibling meshes that share a material, which takes about 650 draws per frame down to about 250. Anything that changes at runtime has its own material, so it is never merged.
+- **No mid-match shader compiles:** every shader is compiled with `compileAsync` before the first frame, tracers are a fixed pool, and the muzzle light lives on the camera so the light count never changes.
+- **Post-processing:** the film pass also does the sRGB output, and the canvas has no MSAA, because FXAA handles anti-aliasing. The Low preset skips post-processing entirely, so it has no anti-aliasing.
+
