@@ -73,13 +73,16 @@ Sandbox is a solo test range. Press **T** to open the tuning panel, change rules
 - **Time of day** in Settings switches between Night (the neon look, the default) and Day: a clear blue sky with sun and clouds, sunlit city towers, lighter haze and toned-down neon. Rain is a separate on/off toggle and works with either. Low LED boards along the foot of the long walls carry made-up sponsors (backlit at night), and the walls have procedural wear: cracks, chipped concrete, scorch marks, bullet pocks, drips and floor grime. The choice is per player and saved in the browser.
 - The arena walls are 8 m tall, with grandstands behind both long walls. The crowd (about 2,300 fans) is one `InstancedMesh` animated in its vertex shader. Fans sway, cheer for their team's downs, revives, center captures, charge arms and round wins, and start a wave every so often. **Crowd size** in Settings scales the fan count, down to none.
 - Fonts from Google Fonts.
-- Gunshots, clicks and the rest of the sound are synthesized in code. The two bolt sounds are real recordings, embedded in `index.html` as base64 WAV (`BOLT_WAV`).
+- Gunshots, clicks and the rest of the sound are synthesized in code. The bolt sounds, footsteps and the slide are real recordings, embedded in `index.html` as base64 WAV (`BOLT_WAV`, `STEP_WAV`, `SLIDE_WAV`).
+- Footsteps change with how you move: walking, sprinting (louder, quicker), crouch-walking (very quiet and muffled), wallrunning (lighter, thinner steps), jumping (a push-off step) and landing (both feet, heavier the further you fell). Other players' footsteps, slides and landings are positional: panned, quieter and duller with distance, and delayed by the speed of sound, so you can hear where someone is. Crouch-walking enemies are only audible up close. The Footsteps slider in Settings controls all of them.
 
 ## Sound credits
 
 | Sound | Source | Author | License |
 | --- | --- | --- | --- |
 | Bolt catch (last round fired) and bolt slam (bolt release after an empty reload) | [Equipment Clicks III](https://opengameart.org/content/equipment-clicks-iii), `equipment_clicks3.wav`, recorded by cycling a real bolt-action rifle. Catch is 0.875 to 1.05 s, slam is 1.45 to 1.72 s; both high-passed at 70 Hz, given a +5 dB low shelf at 300 Hz, faded and peak-normalized. | LFA (OpenGameArt.org) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| Footsteps (all movement modes, yours and other players') | [Fantozzi's Footsteps (Grass/Sand & Stone)](https://opengameart.org/content/fantozzis-footsteps-grasssand-stone), the six stone steps (`Fantozzi-StoneL1`–`L3`, `R1`–`R3`). Each mixed to mono, cut from just before the heel strike to 0.26 s, faded, peak-normalized, 24 kHz. Pitch, volume and filtering per movement mode are applied in code. | Fantozzi (originally on freesound.org pack 10338) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| Slide | [Scrapes](https://opengameart.org/content/scrapes), `scrape-1.ogg`, an object dragged across a cinder block. Mono, cut to 0.95 s from the start of the scrape, 0.3 s fade, peak-normalized, 24 kHz; low-passed at 5.2 kHz in code. | AntumDeluge (OpenGameArt.org) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
 - For headless testing the page exposes `window.__za` (state, player, `CFG`, sandbox settings).
 
 ## Performance notes
