@@ -1384,7 +1384,7 @@ function localTick(dt){
   const alive=P.st==='alive',downed=P.st==='down';
   const frozen=S.phase==='buy'||S.phase==='over';
   if(keys.ArrowLeft)me.yaw+=2.2*dt;if(keys.ArrowRight)me.yaw-=2.2*dt;if(keys.ArrowUp)me.pitch=clamp(me.pitch+1.6*dt,-1.45,1.45);if(keys.ArrowDown)me.pitch=clamp(me.pitch-1.6*dt,-1.45,1.45);
-  me.sinceShot+=dt;me.sprintLock-=dt;me.slideCd-=dt;me.jumpBuf-=dt;me.wrCd-=dt;
+  me.sinceShot+=dt;me.sprintLock-=dt;me.slideCd-=dt;me.jumpBuf-=dt;me.wrCd-=dt;me.grabCd=(me.grabCd||0)-dt;
   const canMove=(alive||downed)&&!frozen;
   let fx=0,fz=0;if(canMove){if(keys.KeyW)fz-=1;if(keys.KeyS)fz+=1;if(keys.KeyA)fx-=1;if(keys.KeyD)fx+=1;}
   const L=Math.hypot(fx,fz);if(L>0){fx/=L;fz/=L;}
@@ -1419,8 +1419,9 @@ function localTick(dt){
       else{const sp=Math.sign(along)*Math.max(Math.abs(along),CFG.sprint*wOf(me.w).move);me.vx=tx*sp-wall.nx*0.5;me.vz=tz*sp-wall.nz*0.5;me.wrNx=wall.nx;me.wrNz=wall.nz;}}
   }else if(me.wr){me.wr=0;me.wrCd=0.2;}
   if(me.wr&&me.jumpBuf>0){me.vx+=me.wrNx*CFG.wallKick;me.vz+=me.wrNz*CFG.wallKick;me.vy=CFG.jump*0.95;me.wr=0;me.wrCd=0.15;me.jumpBuf=0;me.kicked=true;tone(220,380,0.08,0.022);}
-  // ledge grab, only after kicking off a wallrun: catch the top edge of a crate ahead and pull up onto it, or hold Shift to vault over
-  if(!me.mantle&&me.kicked&&alive&&!frozen&&!me.ground&&!me.wr&&fz<0&&CFG.grab>0){const lg=ledgeNear(me.x,me.z,0.75,me.y,wx,wz);
+  // ledge grab: any time you are airborne and not wallrunning (jump, fall, slide-jump, wall kick) and pushing forward into a crate,
+  // catch the top edge and pull up onto it, or hold Shift to vault over
+  if(!me.mantle&&me.grabCd<=0&&alive&&!frozen&&!me.ground&&!me.wr&&fz<0&&CFG.grab>0){const lg=ledgeNear(me.x,me.z,0.75,me.y,wx,wz);
     if(lg){const b=lg.b,dx=-lg.nx,dz=-lg.nz,top=b.y1,m=0.3;
       const M={t:0,y0:me.y,x0:me.x,z0:me.z,top,ex:lg.cx+lg.nx*0.4,ez:lg.cz+lg.nz*0.4,dx,dz,
         tx:clamp(lg.cx+dx*0.6,b.x0+m,Math.max(b.x0+m,b.x1-m)),tz:clamp(lg.cz+dz*0.6,b.z0+m,Math.max(b.z0+m,b.z1-m)),over:false,dur:0.42};
@@ -1435,11 +1436,11 @@ function localTick(dt){
     if(M.over){// rise to just above the top at the near edge, then carry across and release past the far edge
       if(k<0.4){const e=ease(k/0.4);me.y=M.y0+(M.top+0.35-M.y0)*e;me.x=M.x0+(M.ex-M.x0)*e;me.z=M.z0+(M.ez-M.z0)*e;}
       else{const e=ease((k-0.4)/0.6);me.y=M.top+0.35;me.x=M.ex+(M.tx-M.ex)*e;me.z=M.ez+(M.tz-M.ez)*e;}
-      if(k>=1){me.mantle=null;me.vx=M.dx*7;me.vz=M.dz*7;me.vy=1.5;me.airT=1;}}
+      if(k>=1){me.mantle=null;me.grabCd=0.3;me.vx=M.dx*7;me.vz=M.dz*7;me.vy=1.5;me.airT=1;}}
     else{// pull up beside the edge, then step onto the top
       if(k<0.55){const e=ease(k/0.55);me.y=M.y0+(M.top+0.02-M.y0)*e;me.x=M.x0+(M.ex-M.x0)*e;me.z=M.z0+(M.ez-M.z0)*e;}
       else{const e=ease((k-0.55)/0.45);me.y=M.top+0.02;me.x=M.ex+(M.tx-M.ex)*e;me.z=M.ez+(M.tz-M.ez)*e;}
-      if(k>=1){me.mantle=null;me.y=M.top;me.vy=0;me.ground=true;me.airT=0;me.vx=M.dx*2;me.vz=M.dz*2;stepSound(false,0.8);}}}
+      if(k>=1){me.mantle=null;me.grabCd=0.3;me.y=M.top;me.vy=0;me.ground=true;me.airT=0;me.vx=M.dx*2;me.vz=M.dz*2;stepSound(false,0.8);}}}
   speedNow=Math.hypot(me.vx,me.vz);
   if(alive&&!frozen&&!me.mantle&&me.jumpBuf>0&&me.airT<0.1&&me.vy<=0.01){me.vy=CFG.jump;me.ground=false;me.airT=1;me.jumpBuf=0;me.slideT=0;tone(190,330,0.08,0.022);}
   const vyB=me.vy,wasG=me.ground;

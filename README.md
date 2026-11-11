@@ -40,7 +40,7 @@ A keyboard and mouse are required.
 - Holding the center zone for a few seconds unlocks a center spawn with bonus HP. Kills heal you.
 - Weapons: rifle, SMG, battle rifle.
 - **Wallrun:** jump at an arena wall or a tall (2.5 m) crate while holding W and moving along it. You run for up to 1.3 s with light gravity. Jump to kick off, and you can chain to another wall. Each wall works once per jump, and you get it back on landing.
-- **Ledge grab:** after kicking off a wall during a wallrun, keep holding W into a crate whose top is within reach (2.3 m above your feet) and you grab the edge and pull up onto it. Hold Shift as you grab to vault over instead, landing on the far side, when the crate is at most about 3 m thick and the floor beyond is clear. It works once per wall kick, never on the arena walls, and you can't fire while climbing.
+- **Ledge grab:** whenever you're in the air (a jump, a fall, a jump out of a slide, or a wall kick), hold W into a crate whose top is within reach (2.3 m above your feet) and you grab the edge and pull up onto it. Hold Shift as you grab to vault over instead, landing on the far side, when the crate is at most about 3 m thick and the floor beyond is clear. It never works on the arena walls, and you can't fire while climbing.
 
 Current default numbers (from `CFG` in `index.html`):
 
