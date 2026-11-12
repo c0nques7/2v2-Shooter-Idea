@@ -245,6 +245,27 @@ body.touch .stabhint{display:none}
 .mapt canvas{display:block;width:100%;aspect-ratio:5/2;border-radius:3px}
 .mapt span{font-size:13px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
 .mapt:hover{border-color:rgba(95,242,255,.5)}
+.msgo{width:100%}
+#mapscr{position:fixed;inset:0;z-index:11;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;padding:calc(12px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  background:linear-gradient(180deg,rgba(10,7,20,.82) 0%,rgba(10,7,20,0) 22%,rgba(10,7,20,0) 66%,rgba(10,7,20,.88) 100%)}
+#mapscr>*{pointer-events:auto}
+#menu.mapon{background:none}#menu.mapon .mwrap{visibility:hidden}
+.mshd{display:flex;align-items:center;gap:12px}
+.msti{flex:1;display:flex;flex-direction:column;align-items:center;line-height:1}
+.msti b{font-size:clamp(22px,4vh,34px);letter-spacing:.14em;text-transform:uppercase;color:var(--accent);text-shadow:0 0 14px rgba(95,242,255,.5)}
+.msti span{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:4px}
+.mshb{font-size:16px;padding:7px 14px;min-width:96px}
+.msinfo{align-self:flex-start;display:flex;flex-direction:column;gap:2px;margin-top:10px;max-width:min(460px,100%);pointer-events:none}
+.msinfo b{font-size:clamp(40px,8vh,76px);line-height:.9;letter-spacing:.03em;text-transform:uppercase;color:#fff;text-shadow:0 0 22px var(--mc,#5ff2ff),0 2px 4px #000}
+.msth{font-size:15px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;color:var(--mc,#5ff2ff);text-shadow:0 0 10px var(--mc,#5ff2ff)}
+.msinfo .cap{font-size:15px;color:#d9dcf0;margin:2px 0 0;text-shadow:0 1px 3px #000}
+.msbar{margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:8px;width:min(720px,100%);align-self:center}
+.msrow{display:flex;align-items:center;gap:8px;width:100%}.msrow .maps{flex:1}
+.msar{font-size:28px;line-height:1;padding:6px 12px;min-width:44px;align-self:stretch}
+#msgo{width:min(420px,100%)}
+#msnote{min-height:1.2em;text-align:center;font-size:14px}
+@media (max-height:520px){.msinfo b{font-size:36px}.mapt canvas{display:none}.msinfo{margin-top:4px}#msgo{font-size:20px;padding:8px}}
+@media (max-width:520px){.mshb{min-width:0;padding:7px 10px}.msti b{font-size:20px}}
 .mapt[aria-checked=true]{border-color:var(--accent);color:#fff;box-shadow:0 0 10px rgba(95,242,255,.35)}
 .mapt:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .mgo{font-size:24px;padding:12px 16px;margin-top:4px}
@@ -425,16 +446,17 @@ body.touch .chip{min-height:44px}
         <div class="cap" id="modecap"></div>
         <label for="wsel" hidden>Weapon<select id="wsel"><option value="rifle">Rifle</option><option value="smg">SMG</option><option value="br">Battle rifle</option><option value="sg">Shotgun</option><option value="lmg">LMG</option><option value="sniper">Sniper rifle</option></select></label>
         <div class="cap" id="wbuildcap" hidden></div>
-        <div class="mapf"><div class="maphd"><span id="maplbl">Map</span><span class="cap" id="mapcap"></span></div><div class="maps" id="maps" role="radiogroup" aria-labelledby="maplbl"></div></div>
         <label for="teampref">Team<select id="teampref"><option value="-1">Auto</option><option value="0">Blue</option><option value="1">Orange</option></select></label>
       </div>
       <div class="mpp" data-p="play">
         <label for="diff">Bot skill<select id="diff"><option value="0.6">Easy</option><option value="1" selected>Normal</option><option value="1.4">Hard</option></select></label>
-        <button class="btn primary mgo" id="practice" type="button">Start match</button>
+        <button class="btn primary mgo msgo" type="button" data-go="play">Choose map &#8250;</button>
+        <button id="practice" type="button" hidden>Start match</button>
       </div>
       <div class="mpp" data-p="online">
         <label for="code">Match code<input id="code" maxlength="20" autocomplete="off" value="arena-1"></label>
-        <button class="btn primary mgo" id="joinbtn" type="button" disabled>Join match</button>
+        <button class="btn primary mgo msgo" type="button" data-go="online">Choose map &#8250;</button>
+        <button id="joinbtn" type="button" hidden disabled>Join match</button>
         <div id="netstatus">Checking online play…</div>
       </div>
     </section>
@@ -447,6 +469,15 @@ body.touch .chip{min-height:44px}
   </div>
 </div>
 
+<div id="mapscr" hidden role="dialog" aria-label="Choose a map">
+  <div class="mshd"><button class="btn mshb" type="button" id="msback">&#8249; Back</button><div class="msti"><b>Choose a map</b><span id="msmode"></span></div><button class="btn mshb" type="button" id="mstod" aria-label="Preview time of day">Night</button></div>
+  <div class="msinfo" aria-live="polite"><span class="msth" id="msth"></span><b id="msname"></b><span class="cap" id="mscap"></span></div>
+  <div class="msbar">
+    <div class="msrow"><button class="btn msar" type="button" id="msprev" aria-label="Previous map">&#8249;</button><div class="maps" id="maps" role="radiogroup" aria-label="Map"></div><button class="btn msar" type="button" id="msnext" aria-label="Next map">&#8250;</button></div>
+    <button class="btn primary mgo" type="button" id="msgo">Start match</button>
+    <div class="cap" id="msnote"></div>
+  </div>
+</div>
 <div class="overlay" id="shop" hidden role="dialog" aria-label="Workshop">
   <div class="setcard shopcard">
     <div class="hd"><b>Workshop</b><span id="shopLvl"></span></div>
@@ -534,33 +565,38 @@ function addBox(x,z,w,d,h,wall){BOXES.push({x0:x-w/2,x1:x+w/2,z0:z-d/2,z1:z+d/2,
    free, every path works, and the menu flyover clears everything by 1.5 m (its low pass runs along z≈-15, x -20..10). */
 const MAPS={
   yard:{name:'Yard',cap:'Three lanes of crates. The original.',sites:[22,9],solids:[],
+    theme:{title:'Neon Yard',tag:'Cyan and magenta street neon',low:0x27e6ff,high:0xff2bd6,wall:0x8a5cff,a:0x27e6ff,b:0xff2bd6,floor:0xffffff,bg:0x1a0d2e,hor:0x8a1f78,mid:0x1c1140,hemi:0x7f8fe0},
     cover:[[25.5,-10.5,2,2,2.5],[25.5,10.5,2,2,2.5],[22,-4.6,4,1.2,2.5],[22,4.6,4,1.2,2.5],[18.5,-8,1.5,2.5,1],[18.5,8,1.5,2.5,1],
       [10,14,2,3,2.5],[12,-1.5,1.2,4,2.5],[16,6.5,2.5,1.5,1],[30,13,2,2,2.5],[30,-13,2,2,2.5],[30,4.5,2,2,1],[30,-4.5,2,2,1],[6,-9.5,3,1.2,2.5],[28,-2,2,2,1]],
     single:[[0,0,2,2,2.5],[-3.5,6.5,4,1.2,1],[3.5,-6.5,4,1.2,1]]},
   foundry:{name:'Foundry',cap:'Steel walls split the middle into lanes.',sites:[24,11],
+    theme:{title:'Molten Foundry',tag:'Furnace orange and coolant teal',low:0xff7a1a,high:0x19e3c4,wall:0xff4d0f,a:0xff7a1a,b:0x19e3c4,floor:0xffd6bd,bg:0x241008,hor:0x5c1c0a,mid:0x2a120c,hemi:0xe0a07f},
     solids:[[8,-6,12,1.2,3.2],[8,6,12,1.2,3.2]],
     cover:[[10,13.5,2,2,2.5],[15,17.5,3,1.2,1],[4,15,1.2,2.5,1],[11,0,1.2,3,2.5],[5.5,1.2,2.5,1.2,1],[18,-2.5,2,2,1],
       [17.5,-9.5,1.5,2.5,1],[17.5,9.5,1.5,2.5,1],[28.5,-7.5,1.2,2.5,2.5],[28.5,7.5,1.2,2.5,2.5],[24,-16,3,1.2,2.5],[24,16,3,1.2,2.5],
       [24,-4.2,3,1.2,1],[28.5,0,2,2,1]],
     single:[[0,0,1.2,3,2.5]]},
   atrium:{name:'Atrium',cap:'Open floor and pillars. Long sightlines.',sites:[23,7],
+    theme:{title:'Holo Atrium',tag:'Corporate ice blue and indigo',low:0x8fe3ff,high:0x6a5cff,wall:0x3ab8ff,a:0xd8f6ff,b:0x6a5cff,floor:0xd6e8ff,bg:0x0a1428,hor:0x1f5a9a,mid:0x0e1c3c,hemi:0x9fc8ff},
     solids:[[7,5,1.6,1.6,3.2],[7,-5,1.6,1.6,3.2],[16,0,1.6,1.6,3.2],[14,11,1.6,1.6,3.2],[13,-9.5,1.6,1.6,3.2]],
     cover:[[12.5,4.5,2,1.2,1],[12.5,-4.5,2,1.2,1],[4,12,3,1.2,1],[21,-1,1.2,3,1],[26.5,-1,2,2,2.5],[17.5,-14,2,1.2,1],[17.5,14,2,1.2,1],
       [24,-14,2.5,2,2.5],[28.5,-6.5,1.2,2.5,1],[28.5,6.5,1.2,2.5,1],[8.5,16.5,1.2,3,2.5]],
     single:[[0,0,3,3,1],[0,-9,2,1.2,1],[0,9,2,1.2,1]]},
   warren:{name:'Warren',cap:'Tight crates and corners. Close range.',sites:[20,10],
+    theme:{title:'Acid Warren',tag:'Toxic green and ultraviolet',low:0x9dff2e,high:0xc02bff,wall:0x2eff7a,a:0x9dff2e,b:0xc02bff,floor:0xdfffd0,bg:0x0c1a0e,hor:0x214a10,mid:0x10240f,hemi:0x9fe0a0},
     solids:[[10,9,1.2,7,3.2],[9,-5,7,1.2,3.2]],
     cover:[[4,4,2,2,2.5],[4,-4,2,2,2.5],[13,1,2,2,2.5],[15,-9,2,2,2.5],[7,-11,2,3,2.5],[3,-16,3,1.2,1],[12,17,2,2,2.5],[17,4.5,3,1.2,2.5],
       [24,-3,2,2,2.5],[26,-9.5,1.2,2.5,2.5],[26,10.5,1.2,2.5,2.5],[22,-15.5,3,1.2,1],[16,13,1.5,1.5,1],[29.5,3.5,2,2,1],[20,-5.5,2,1.2,1]],
     single:[[0,0,2,2,2.5]]}};
 const MAP_IDS=Object.keys(MAPS);
 const MAP={id:''};
+const THEME={};/* the current map's cyberpunk palette (applyTheme paints the arena with it) */
 function addSolid(x,z,w,d,h){addBox(x,z,w,d,h,1);BOXES[BOXES.length-1].solid=true;return BOXES[BOXES.length-1];}
 const SOLID_H=3.2,WALL_H=8;
 const GLASS_H=4.5,ROOF_Y=WALL_H+GLASS_H,ROOF_HIT={glass:true};
 const COVER=[];
 /* fill BOXES (and COVER, SITES) with one map; the render side (setMap) rebuilds the meshes and the bot grid */
-function buildBoxes(id){const M=MAPS[id]||MAPS.yard;MAP.id=MAPS[id]?id:'yard';BOXES.length=0;
+function buildBoxes(id){const M=MAPS[id]||MAPS.yard;MAP.id=MAPS[id]?id:'yard';BOXES.length=0;if(M.theme)Object.assign(THEME,M.theme);
   for(const sx of [-1,1])for(const sz of [-1,1]){
     addSolid(sx*43.2,sz*13.75,1.2,6.5,SOLID_H);addSolid(sx*45.4,sz*10.5,3.2,1.2,SOLID_H); // spawn alcove: front wall and inner wing
     addSolid(sx*40,sz*4.5,1.2,5.5,SOLID_H);addSolid(sx*40,sz*13.6,1.2,5.8,SOLID_H);        // base front, doors at |z|<1.75, 7.25-10.7, 16.5-20
@@ -575,7 +611,7 @@ function buildBoxes(id){const M=MAPS[id]||MAPS.yard;MAP.id=MAPS[id]?id:'yard';BO
   COVER.length=0;for(const b of BOXES)if(!b.wall)COVER.push(b);
   COVER.forEach((b,i)=>{b.ci=i;b.h0=b.y1;b.max=b.y1<1.5?150:300;b.stage=0;});}
 {let m0='yard';try{const v=localStorage.getItem('za-map');if(v&&MAPS[v])m0=v;}catch(e){}buildBoxes(m0);}
-const SHOW={seg:0,map:MAP_IDS.indexOf(MAP.id),fade:0,want:-1};/* menu showcase state (see flyover) */
+const SHOW={seg:0,map:MAP_IDS.indexOf(MAP.id),fade:0,want:-1};const ISO={t:0,fade:0,on:false};/* map screen camera (isoView) *//* menu showcase state (see flyover) */
 
 function rayBox(ox,oy,oz,dx,dy,dz,b,maxT){
   let tmin=0,tmax=maxT;const o=[ox,oy,oz],d=[dx,dy,dz],lo=[b.x0,b.y0,b.z0],hi=[b.x1,b.y1,b.z1];
@@ -1115,7 +1151,7 @@ const SKY=(function(){const geo=new THREE.SphereGeometry(300,32,16),pos=geo.attr
   for(let i=0;i<26;i++){const a=rnd()*Math.PI*2,e=0.32+rnd()*0.55,R=270,cl=new THREE.Sprite(new THREE.SpriteMaterial({map:cloudTex,color:lin(0xf4f7fb),fog:false,depthWrite:false,transparent:true,opacity:0.55+rnd()*0.3}));
     cl.position.set(Math.cos(a)*Math.cos(e)*R,Math.sin(e)*R,Math.sin(a)*Math.cos(e)*R);cl.scale.set(60+rnd()*70,18+rnd()*14,1);clouds.add(cl);}
   clouds.visible=false;scene.add(clouds);
-  return{dome,nightCols,dayCols,stars,swap,signMats:new Set(Object.values(neonMat)),sunDisc,clouds};
+  return{dome,grad,nightCols,dayCols,stars,swap,signMats:new Set(Object.values(neonMat)),sunDisc,clouds};
 })();
 /* r155+ lighting is physically based: ambient and directional intensities are r128 values times PI, and point lights
    fall off with inverse square instead of a linear ramp to their range, so their intensities are matched by eye.
@@ -1139,8 +1175,10 @@ function lightPool(col,w,h,op){return new THREE.Mesh(new THREE.PlaneGeometry(w,h
 [-39,-13,13,39].forEach((x,i)=>{for(const z of [-17,17]){const col=(i+(z>0?1:0))%2?NEON.mg:NEON.cy;const sz=Math.sign(z);
   const tube=new THREE.Mesh(new THREE.BoxGeometry(4,0.14,0.14),softBloom(new THREE.MeshBasicMaterial({color:lin(col),toneMapped:false})));tube.position.set(x,3.4,sz*19.88);scene.add(tube);
   const plate=new THREE.Mesh(new THREE.BoxGeometry(4.4,0.5,0.06),plateMat);plate.position.set(x,3.4,sz*19.96);scene.add(plate);
-  const floor=lightPool(col,27,32,POOL_FLOOR);floor.rotation.x=-Math.PI/2;floor.position.set(x,0.025,sz*19.9);
-  const wall=lightPool(col,24,9,POOL_WALL);wall.position.set(x,3.4,sz*19.97);if(sz>0)wall.rotation.y=Math.PI;scene.add(floor,wall);lamps.push({tube,floor,wall});}});
+  // only the half of the floor pool inside the arena is built (the outer half was hidden under the stands, but showed from above on the map screen)
+  const floor=lightPool(col,27,16,POOL_FLOOR);floor.rotation.x=-Math.PI/2;floor.position.set(x,0.025,sz*(19.9-8));
+  {const uv=floor.geometry.attributes.uv;for(let k=0;k<uv.count;k++)uv.setY(k,sz>0?0.5+uv.getY(k)*0.5:uv.getY(k)*0.5);}
+  const wall=lightPool(col,24,9,POOL_WALL);wall.position.set(x,3.4,sz*19.97);if(sz>0)wall.rotation.y=Math.PI;scene.add(floor,wall);lamps.push({tube,floor,wall,k:(i+(z>0?1:0))%2});}});
 
 /* procedural textures */
 function grainCanvas(size,base,amt,draw){const c=document.createElement('canvas');c.width=c.height=size;const g=c.getContext('2d');g.fillStyle=base;g.fillRect(0,0,size,size);
@@ -1339,10 +1377,10 @@ const crackTex=[4,8,14].map(n=>{const c=document.createElement('canvas');c.width
   draw('rgba(0,0,0,.8)',3.6,0);draw('rgba(255,255,255,.4)',1.8,5);draw('rgba(255,255,255,.9)',0.8,0);
   const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.colorSpace=THREE.SRGBColorSpace;return t;});
 const crackMat=neon=>[neon,0xffb020,0xff4a22].map((col,i)=>new THREE.MeshBasicMaterial({map:crackTex[i],color:lin(col),transparent:true,depthWrite:false,toneMapped:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));
-const CRACKM={cy:crackMat(NEON.cy),mg:crackMat(NEON.mg)};
+const CRACKM={},crackFor=h=>CRACKM[h]||(CRACKM[h]=crackMat(h));/* per neon colour, so each map theme gets its own */
 const hotM=new THREE.MeshBasicMaterial({map:crackTex[2],color:lin(0xff7a3a),transparent:true,opacity:0.7,depthWrite:false,toneMapped:false,blending:THREE.AdditiveBlending});
 const chunkMat=[new THREE.MeshStandardMaterial({color:lin(0x474b5a),roughness:0.8,metalness:0.2}),new THREE.MeshStandardMaterial({color:lin(0x2e3140),roughness:0.8,metalness:0.2})];
-const scanMat={};for(const k of ['cy','mg'])scanMat[k]=new THREE.MeshBasicMaterial({color:lin(NEON[k]),transparent:true,opacity:0.22,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false,side:THREE.DoubleSide});
+const scanMat={},scanFor=h=>scanMat[h]||(scanMat[h]=new THREE.MeshBasicMaterial({color:lin(h),transparent:true,opacity:0.22,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false,side:THREE.DoubleSide}));
 // a box whose texture tiles by size in metres, so cracks keep one scale on every cover
 function tiledBox(w,h,d,tile){const g=new THREE.BoxGeometry(w,h,d),uv=g.attributes.uv,nm=g.attributes.normal,ou=Math.random(),ov=Math.random();
   for(let i=0;i<uv.count;i++){const su=Math.abs(nm.getX(i))>.5?d:w,sv=Math.abs(nm.getY(i))>.5?d:h;uv.setXY(i,ou+uv.getX(i)*su/tile,ov+uv.getY(i)*sv/tile);}return g;}
@@ -1357,7 +1395,7 @@ function holoGeo(w,H,d){const p=[],x=w/2+0.015,z=d/2+0.015,s=(...a)=>p.push(...a
   const nx=Math.max(1,Math.round(w/0.6));for(let i=0;i<=nx;i++){const X=-x+2*x*i/nx;s(X,0,-z,X,H,-z,X,0,z,X,H,z,X,H,-z,X,H,z);}
   const nz=Math.max(1,Math.round(d/0.6));for(let i=0;i<=nz;i++){const Z=-z+2*z*i/nz;s(-x,0,Z,-x,H,Z,x,0,Z,x,H,Z,-x,H,Z,x,H,Z);}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));return g;}
-function makeCoverVis(b){const w=b.x1-b.x0,d=b.z1-b.z0,H=b.h0,hh=coverHeight(b,1),high=H>=1.5,nk=high?'mg':'cy',neon=NEON[nk],rp=Math.max(1,Math.round(Math.max(w,d)/2.4));
+function makeCoverVis(b){const w=b.x1-b.x0,d=b.z1-b.z0,H=b.h0,hh=coverHeight(b,1),high=H>=1.5,neon=high?THEME.high:THEME.low,nk=neon,rp=Math.max(1,Math.round(Math.max(w,d)/2.4));
   const cap=Math.min(high?0.4:0.2,(H-hh)*0.6),cx=(b.x0+b.x1)/2,cz=(b.z0+b.z1)/2,R=Math.random;
   const clip=new THREE.Plane(new THREE.Vector3(0,-1,0),99),clipW=new THREE.Plane(new THREE.Vector3(0,-1,0),99);
   const mat=new THREE.MeshStandardMaterial({map:tex(high?highC:lowC,rp,1),emissive:lin(neon),emissiveMap:tex(high?highE:lowE,rp,1),emissiveIntensity:1.1,roughness:0.55,metalness:0.35,clippingPlanes:[clip]});
@@ -1373,7 +1411,7 @@ function makeCoverVis(b){const w=b.x1-b.x0,d=b.z1-b.z0,H=b.h0,hh=coverHeight(b,1
     cells.push({o:R()-(i===0||i===n-1?0.6:0),geo:along?pieceGeo(w,H,d,a0,a1,H-cap,H,s0,s1):pieceGeo(w,H,d,s0,s1,H-cap,H,a0,a1)});}
   cells.sort((a,c)=>a.o-c.o);const third=Math.ceil(cells.length/3);
   const caps=[0,1,2].map(k=>{const gs=cells.slice(k*third,(k+1)*third).map(c=>c.geo);return gs.length?part(gs.length>1?mergeGeometries(gs):gs[0],mat,1):null;});
-  const crackG=[tiledBox(w+0.016,H+0.008,d+0.016,1.7),tiledBox(w+0.016,hh+0.008,d+0.016,1.7)],crack=part(crackG[0],CRACKM[nk][0]);crack.renderOrder=1;
+  const crackG=[tiledBox(w+0.016,H+0.008,d+0.016,1.7),tiledBox(w+0.016,hh+0.008,d+0.016,1.7)],crack=part(crackG[0],crackFor(nk)[0]);crack.renderOrder=1;
   const hot=part(new THREE.PlaneGeometry(Math.max(0.3,w-0.12),Math.max(0.3,d-0.12)),hotM);hot.rotation.x=-Math.PI/2;hot.position.y=hh+0.012;hot.renderOrder=2;
   // broken stubs left standing on the half-height block, and the rubble pile
   const cm=chunkMat[high?1:0],teeth=[new THREE.Group(),new THREE.Group()],rub=new THREE.Group();
@@ -1389,8 +1427,8 @@ function makeCoverVis(b){const w=b.x1-b.x0,d=b.z1-b.z0,H=b.h0,hh=coverHeight(b,1
   // rebuild: a wire cage, a faint volume, and a scan sheet riding the fill line
   const holo=new THREE.LineSegments(holoGeo(w,H,d),new THREE.LineBasicMaterial({color:lin(neon),transparent:true,opacity:0.9,toneMapped:false,clippingPlanes:[clipW]}));holo.visible=false;g.add(holo);
   const ghost=part(new THREE.BoxGeometry(w,H,d),new THREE.MeshBasicMaterial({color:lin(neon),transparent:true,opacity:0.035,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false,side:THREE.DoubleSide,clippingPlanes:[clipW]}));ghost.position.y=H/2;
-  const scan=part(new THREE.PlaneGeometry(w+0.5,d+0.5),scanMat[nk]);scan.rotation.x=-Math.PI/2;scan.renderOrder=3;
-  return{b,g,mat,full,edge,base,core,caps,crack,crackG,crackM:CRACKM[nk],hot,teeth,rub,ember,holo,ghost,scan,clip,clipW,look:-1,hp:-1,neon,high,cx,cz,w,d,H,hh,cap,rg:0,rgSeen:0,building:false,flash:0,hit:0,emi:1.1,ecol:lin(neon)};}
+  const scan=part(new THREE.PlaneGeometry(w+0.5,d+0.5),scanFor(nk));scan.rotation.x=-Math.PI/2;scan.renderOrder=3;
+  return{b,g,mat,full,edge,base,core,caps,crack,crackG,crackM:crackFor(nk),hot,teeth,rub,ember,holo,ghost,scan,clip,clipW,look:-1,hp:-1,neon,high,cx,cz,w,d,H,hh,cap,rg:0,rgSeen:0,building:false,flash:0,hit:0,emi:1.1,ecol:lin(neon)};}
 const coverVis=COVER.map(makeCoverVis);/* refilled in place by setMap */
 /* flying chunks and dust puffs */
 const debris=[],debGeo=new THREE.BoxGeometry(1,1,1);
@@ -1550,7 +1588,7 @@ void main(){vec3 V=normalize(cameraPosition-vW);float ed=pow(abs(dot(normalize(v
   float d=vn(vW*vec3(1.1,0.7,1.1)+vec3(0.0,-uTime*0.18,uTime*0.05))*0.6+vn(vW*2.7-vec3(uTime*0.1))*0.4;
   float near=smoothstep(0.4,2.2,length(cameraPosition-vW));
   gl_FragColor=vec4(uCol*(uI*ed*fall*near*(0.35+1.3*d*d)),1.0);}`;
-  for(const L of lamps){const col=L.tube.material.color.clone().lerp(new THREE.Color(1,1,1),0.3);
+  for(const L of lamps){const col=L.tube.material.color;/* shared, so the map theme recolours the beams too */
     const m=new THREE.ShaderMaterial({uniforms:{uTime:U.uTime,uCol:{value:col},uI:{value:0.4}},vertexShader:vs,fragmentShader:fs,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,fog:false});
     const b=new THREE.Mesh(geo,m);const p=L.tube.position,sz=Math.sign(p.z);b.position.set(p.x,p.y-0.05,p.z-sz*0.12);b.rotation.x=sz*0.5;
     b.renderOrder=4;b.visible=false;b.userData.noMerge=true;scene.add(b);list.push({b,L});}
@@ -1858,6 +1896,24 @@ function applyGfx(){
   resize();
 }
 applyGfx();
+/* map themes: each map has its own cyberpunk palette. Walls, solid outlines, wall-top strips, the floor tint, the night sky and haze
+   and the big end-wall signs take it here; cover takes it when setMap builds it. Zone floor colours stay gameplay colours. */
+const themeSign=(function(){const c=document.createElement('canvas');c.width=1024;c.height=192;const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;
+  const m=new THREE.MeshBasicMaterial({map:t,transparent:true,toneMapped:false,depthWrite:false});
+  for(const f of [WALL_FACES[2],WALL_FACES[3]]){const pl=new THREE.Mesh(new THREE.PlaneGeometry(16,3),m);pl.userData.noMerge=true;pl.renderOrder=2;onWall(pl,f,0,6.15,0.09);}
+  return{c,t,m};})();
+const hexCss=h=>'#'+h.toString(16).padStart(6,'0');
+function applyTheme(){const T=THEME;
+  for(const m of wallMats)m.emissive.copy(lin(T.wall));solidEdgeM.color.copy(lin(T.wall));
+  stripTopCy.color.copy(lin(T.a));stripTopMg.color.copy(lin(T.b));
+  for(const L of lamps){const c=lin(L.k?T.b:T.a);L.tube.material.color.copy(c);L.floor.material.color.copy(c);L.wall.material.color.copy(c);}for(const m of floorMats)m.color.copy(lin(T.floor));
+  TODS.night.bg=T.bg;TODS.night.hemi=[T.hemi,TODS.night.hemi[1],TODS.night.hemi[2]];SKY.nightCols.set(SKY.grad(lin(0x04030c),lin(T.mid),lin(T.hor)));
+  const {c,t}=themeSign,g=c.getContext('2d'),W=c.width,H=c.height;g.clearRect(0,0,W,H);g.fillStyle='rgba(6,4,14,.72)';g.fillRect(8,8,W-16,H-16);
+  g.strokeStyle=hexCss(T.b);g.lineWidth=6;g.shadowColor=hexCss(T.b);g.shadowBlur=18;g.strokeRect(14,14,W-28,H-28);
+  g.font='700 112px "Saira Condensed","Arial Narrow",sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillStyle='#fff';g.shadowColor=hexCss(T.a);g.shadowBlur=26;
+  g.fillText(T.title.toUpperCase(),W/2,H/2+4);g.shadowBlur=0;g.fillStyle=hexCss(T.a);g.globalAlpha=0.5;g.fillText(T.title.toUpperCase(),W/2+3,H/2+7);g.globalAlpha=1;t.needsUpdate=true;
+  TOD.cur='';applyGfx();}
+applyTheme();
 
 
 /* ---------- models ---------- */
@@ -2685,7 +2741,7 @@ function setMap(id){if(!MAPS[id])id='yard';if(id===MAP.id)return false;
   coverVis.length=0;for(const b of COVER){const v=makeCoverVis(b);mergeChildren(v.g);coverVis.push(v);}
   for(const m of buildSolids())emiBase.delete(m);
   const P=TODS[TOD.cur]||TODS.night;for(const m of wallMats)if(!emiBase.has(m)){emiBase.set(m,1);m.emissiveIntensity=P.emi;m.color.setScalar(P.wall);}
-  coverBase();siteMove();
+  coverBase();siteMove();applyTheme();
   if(RG.stowed)COVER.forEach((b,i)=>{b.y1=0;coverVis[i].g.visible=false;});
   midStow(RG.stowed);rebuildGrid();dmPts();for(const k in botMem)botMem[k].path=null;
   DEV.sel=-1;if(DEV.hl)devHL();NET_TN.s='';
@@ -3227,25 +3283,49 @@ function modeCap(){const v=$('modesel').value,c=MODECAP[v]||MODECAP.zone;$('mode
 try{const mv=localStorage.getItem('za-mode');if(mv&&MODECAP[mv])$('modesel').value=mv;}catch(e){}
 modeCap();$('modesel').addEventListener('change',()=>{modeCap();try{localStorage.setItem('za-mode',$('modesel').value);}catch(e){}});
 /* map picker: a tile per map with a top-down thumbnail. In the menu the arena behind it switches too, so the flyover shows the map. */
-function mapPreview(id){const kb=BOXES.slice(),kc=COVER.slice(),km=MAP.id,ka={...SITES.A},kbb={...SITES.B};buildBoxes(id);
+function mapPreview(id){const kb=BOXES.slice(),kc=COVER.slice(),km=MAP.id,ka={...SITES.A},kbb={...SITES.B},kt={...THEME};buildBoxes(id);Object.assign(THEME,kt);
   const out={boxes:BOXES.map(b=>({...b})),sites:[{...SITES.A},{...SITES.B}]};BOXES.length=0;BOXES.push(...kb);COVER.length=0;COVER.push(...kc);MAP.id=km;Object.assign(SITES.A,ka);Object.assign(SITES.B,kbb);return out;}
 function mapThumb(cv,id){const g=cv.getContext('2d'),W=cv.width,H=cv.height,sc=Math.min(W/104,H/44),L=mapPreview(id);g.fillStyle='#171b2a';g.fillRect(0,0,W,H);
   g.save();g.translate(W/2,H/2);g.scale(sc,sc);g.fillStyle='rgba(255,255,255,.05)';for(const x of [-30,-10,10,30])g.fillRect(x-0.15,-20,0.3,40);
-  for(const b of L.boxes){g.fillStyle=b.outer?'#4a4f63':b.solid?(b.mid?'#b07aff':'#7d63b8'):b.y1<1.5?'#2fd6e8':'#ff4fc8';g.fillRect(b.x0,b.z0,b.x1-b.x0,b.z1-b.z0);}
-  g.strokeStyle='#ffc44d';g.lineWidth=0.7;for(const s of L.sites){g.beginPath();g.arc(s.x,s.z,3,0,7);g.stroke();}g.restore();}
+  const T=MAPS[id].theme;g.fillStyle=hexCss(T.bg);g.fillRect(-52,-22,104,44);for(const b of L.boxes){g.fillStyle=b.outer?'#4a4f63':b.solid?hexCss(T.wall):hexCss(b.y1<1.5?T.low:T.high);g.globalAlpha=b.solid&&!b.mid?0.7:1;g.fillRect(b.x0,b.z0,b.x1-b.x0,b.z1-b.z0);}
+  g.globalAlpha=1;g.strokeStyle='#ffc44d';g.lineWidth=0.7;for(const s of L.sites){g.beginPath();g.arc(s.x,s.z,3,0,7);g.stroke();}g.restore();}
 const MAPEL=$('maps');
+/* map screen: Play / Play online -> mode panel -> "Choose map" opens this screen. The arena behind it switches to the map and the
+   camera shows the whole floor from an isometric angle (isoView). Left/right or the tiles pick, Enter starts, Esc goes back. */
+const MS={open:false,go:'play'};
 function mapPick(id,quiet){if(!MAPS[id])id='yard';MATCH.map=id;try{localStorage.setItem('za-map',id);}catch(e){}
-  MAPEL.querySelectorAll('.mapt').forEach(b=>{const on=b.dataset.m===id;b.setAttribute('aria-checked',on);b.tabIndex=on?0:-1;});$('mapcap').textContent=MAPS[id].cap;
+  MAPEL.querySelectorAll('.mapt').forEach(b=>{const on=b.dataset.m===id;b.setAttribute('aria-checked',on);b.tabIndex=on?0:-1;});
+  const M=MAPS[id],T=M.theme;$('msname').textContent=M.name;$('msth').textContent=T.title;$('mscap').textContent=M.cap+' '+T.tag+'.';$('mapscr').style.setProperty('--mc',hexCss(T.a));
   if(!quiet)blip(980,0.022,0.012,false,'ui');
-  if(!S&&!SB.on){setMap(id);SHOW.map=MAP_IDS.indexOf(id);SHOW.want=-1;}/* nothing running: show it behind the menu */}
+  if(!S&&!SB.on){if(setMap(id)&&MS.open){ISO.fade=1;isoScene(true);}SHOW.map=MAP_IDS.indexOf(id);SHOW.want=-1;}/* nothing running: show it behind the menu */}
+function mapStep(d){const n=MAP_IDS[(MAP_IDS.indexOf(MATCH.map)+d+MAP_IDS.length)%MAP_IDS.length];mapPick(n);}
 for(const id of MAP_IDS){const b=document.createElement('button');b.type='button';b.className='mapt';b.dataset.m=id;b.setAttribute('role','radio');
   const cv=document.createElement('canvas');cv.width=220;cv.height=88;b.append(cv);const sp=document.createElement('span');sp.textContent=MAPS[id].name;b.append(sp);MAPEL.append(b);mapThumb(cv,id);
-  b.addEventListener('click',()=>mapPick(id));
-  b.addEventListener('keydown',e=>{if(!/^(ArrowLeft|ArrowRight|KeyA|KeyD)$/.test(e.code))return;e.preventDefault();e.stopPropagation();const i=MAP_IDS.indexOf(id),n=MAP_IDS[(i+(/Left|A$/.test(e.code)?-1:1)+MAP_IDS.length)%MAP_IDS.length];mapPick(n);MAPEL.querySelector(`[data-m="${n}"]`).focus();});}
+  b.addEventListener('click',()=>mapPick(id));}
+$('msprev').addEventListener('click',()=>mapStep(-1));$('msnext').addEventListener('click',()=>mapStep(1));
+function msTodLabel(){$('mstod').textContent=(TOD.force||OPT.tod)==='day'?'Day':'Night';}
+$('mstod').addEventListener('click',()=>{TOD.force=(TOD.force||OPT.tod)==='day'?'night':'day';applyGfx();isoScene(true);msTodLabel();blip(980,0.022,0.012,false,'ui');});
+function msOpen(go){MS.go=go;MS.open=true;$('mapscr').hidden=false;$('menu').classList.add('mapon');
+  const mv=$('modesel');$('msmode').textContent=(go==='online'?'Online · ':'')+mv.options[mv.selectedIndex].text.split(':')[0];
+  $('msgo').textContent=go==='online'?'Join match':'Start match';msSync();
+  TOD.force=OPT.tod==='day'?'day':'night';applyGfx();isoScene(true);msTodLabel();ISO.t=0;mapPick(MATCH.map,true);blip(660,0.05,0.03,false,'ui');
+  const on=MAPEL.querySelector('[aria-checked=true]');if(on)on.focus({preventScroll:true});}
+function msClose(){if(!MS.open)return;MS.open=false;$('mapscr').hidden=true;$('menu').classList.remove('mapon');isoScene(false);TOD.cur='';applyGfx();}
+function msSync(){const on=MS.go==='online';$('msgo').disabled=on&&$('joinbtn').disabled;$('msnote').textContent=on?$('netstatus').textContent:'';}
+new MutationObserver(()=>{if(MS.open)msSync();}).observe($('netstatus'),{childList:true,characterData:true,subtree:true});
+document.querySelectorAll('.msgo').forEach(b=>b.addEventListener('click',()=>msOpen(b.dataset.go)));
+$('msback').addEventListener('click',()=>{msClose();const b=document.querySelector(`.msgo[data-go="${MS.go}"]`);if(b)b.focus({preventScroll:true});});
+$('msgo').addEventListener('click',()=>{if(MS.go==='online'){if(!$('joinbtn').disabled){$('msgo').disabled=true;$('joinbtn').click();}}else $('practice').click();});
+window.addEventListener('keydown',e=>{if(!MS.open||$('menu').hidden||!$('settings').hidden)return;
+  if(e.code==='Escape'||e.code==='Backspace'){e.preventDefault();e.stopImmediatePropagation();$('msback').click();}
+  else if(/^(ArrowLeft|KeyA)$/.test(e.code)){e.preventDefault();e.stopImmediatePropagation();mapStep(-1);MAPEL.querySelector('[aria-checked=true]').focus({preventScroll:true});}
+  else if(/^(ArrowRight|KeyD)$/.test(e.code)){e.preventDefault();e.stopImmediatePropagation();mapStep(1);MAPEL.querySelector('[aria-checked=true]').focus({preventScroll:true});}
+  else if(e.code==='Enter'&&!(e.target&&e.target.closest&&e.target.closest('#mapscr button:not(.mapt)'))){e.preventDefault();e.stopImmediatePropagation();$('msgo').click();}
+},true);
 mapPick(MAP.id,true);
 function readMenu(){const mv=SB.on?SB.mode:$('modesel').value;MATCH.range=SB.on&&mv==='range';if(MATCH.range){MATCH.mode='dm';MATCH.size=4;}else if(!/^dm[124]$/.test(mv)){MATCH.mode='zone';MATCH.size=2;}else{MATCH.mode='dm';MATCH.size=+mv.slice(2);}
   if(W[$('wsel').value]){me.wPref=$('wsel').value;me.w=me.wPref;showWeapon(me.w);me.ammo=myW(me.w).mag;try{localStorage.setItem('za-w',me.wPref);}catch(e){}}me.name=($('nick').value||'Player').replace(/[^\w .'-]/g,'').slice(0,16)||'Player';me.teamPref=+$('teampref').value;diffMul=+$('diff').value;try{localStorage.setItem('za-name',me.name);}catch(e){}}
-function enterGame(){$('menu').hidden=true;for(const id of ['topbar','mini','vitals','ammo','cross','netpill'])$(id).hidden=false;requestLock();blip(660,0.05,0.03,false,'ui');}
+function enterGame(){if(MS.open){MS.open=false;isoScene(false);TOD.cur='';}$('mapscr').hidden=true;$('menu').classList.remove('mapon');$('menu').hidden=true;for(const id of ['topbar','mini','vitals','ammo','cross','netpill'])$(id).hidden=false;requestLock();blip(660,0.05,0.03,false,'ui');}
 function startSolo(){readMenu();net.mode='solo';net.myPeer='local';net.host=true;net.hostPeer='local';S=null;newMatch();S.diff=diffMul;
   const p=S.players[me.teamPref===1?1:0];p.bot=false;p.peer='local';p.name=me.name;
   if(S.range)rgHome(p);else if(S.mode==='dm')dmHome(p);else{const role=roleOf(p.team,S.round);spawnAt(p,homeZ(role),role);p.hp=100;}enterGame();}
@@ -3981,13 +4061,33 @@ const FLY_LOOP=CALM?240:90,flyP=new THREE.Vector3(),flyL=new THREE.Vector3(),fly
    day is its own (TOD.force); a match, Settings or the Workshop use the player's setting. */
 function showCut(mapI){SHOW.map=(mapI+MAP_IDS.length)%MAP_IDS.length;const tod=(SHOW.seg+Math.floor(SHOW.seg/MAP_IDS.length))%2?'day':'night';SHOW.seg++;
   setMap(MAP_IDS[SHOW.map]);if(TOD.force!==tod){TOD.force=tod;applyGfx();}}
-function showTick(dt,u0,u1){const fe=$('flyfade'),idle=!$('menu').hidden&&$('settings').hidden&&!net.room;
+function showTick(dt,u0,u1){const fe=$('flyfade'),idle=!$('menu').hidden&&$('settings').hidden&&!net.room&&!MS.open;
   if(!idle){if(TOD.force&&!$('settings').hidden){TOD.force='';applyGfx();}SHOW.fade=0;SHOW.want=-1;fe.style.opacity=0;return;}
   if(!TOD.force){TOD.force=(SHOW.seg+Math.floor(SHOW.seg/MAP_IDS.length))%2?'day':'night';SHOW.seg++;applyGfx();}
   if(SHOW.want<0&&((!CALM&&u0<0.5&&u1>=0.5)||u1<u0))SHOW.want=SHOW.map+1;
   if(SHOW.want>=0){SHOW.fade=Math.min(1,SHOW.fade+dt*3);if(SHOW.fade>=1){showCut(SHOW.want);SHOW.want=-1;}}else SHOW.fade=Math.max(0,SHOW.fade-dt*1.5);
   fe.style.opacity=SHOW.fade.toFixed(3);}
-function flyover(dt){const u0=flyU;flyU=(flyU+dt/FLY_LOOP)%1;showTick(dt,u0,flyU);FLY_POS.getPoint(flyU,flyP);FLY_LOOK.getPoint(flyU,flyL);
+/* isometric overview for the map screen: the camera backs off along a fixed iso direction until all eight corners of the arena fit
+   the free part of the screen (between the header and the bottom bar), with a slow sway. Portrait screens look down the long axis. */
+const isoTgt=new THREE.Vector3(),isoLook=new THREE.Vector3(),isoTmp=new THREE.Vector3(),isoCorners=[];for(const x of [-51,51])for(const y of [0,WALL_H])for(const z of [-21,21])isoCorners.push(new THREE.Vector3(x,y,z));
+const isoCam=new THREE.PerspectiveCamera();
+/* while the map screen is up the city skyline is hidden (it stands between a far camera and the arena) and a dark grid floor in the
+   map's colours fills the ground around the arena */
+const isoGround=(function(){const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,256,256);g.fillStyle='#000';g.fillRect(3,3,250,250);
+  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(60,60);t.anisotropy=4;
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(600,600),new THREE.MeshBasicMaterial({map:t,color:0xffffff,fog:true,toneMapped:false}));m.rotation.x=-Math.PI/2;m.position.y=-0.6;m.visible=false;m.userData.noMerge=true;scene.add(m);return m;})();
+function isoScene(on){const city=new Set([...SKY.swap.keys(),...SKY.swap.values()]);const day=TOD.cur==='day';
+  scene.traverse(o=>{if(!o.isMesh)return;if(city.has(o.material))o.visible=!on;else if(SKY.signMats.has(o.material))o.visible=!on&&!day;});
+  isoGround.visible=on;if(on)isoGround.material.color.copy(lin(THEME.a)).multiplyScalar(day?0.25:0.12);}
+function isoView(dt){ISO.t+=dt;const port=camera.aspect<1.05,fov=port?60:50;if(camera.fov!==fov){camera.fov=fov;camera.updateProjectionMatrix();}
+  const az=(port?0.3:1.02)+(CALM?0:Math.sin(ISO.t*0.13)*0.08),el=port?1.0:0.74,dir=isoTmp.set(Math.cos(az)*Math.cos(el),Math.sin(el),Math.sin(az)*Math.cos(el));
+  const ly=port?-4:-3;let d=90;const cam=isoCam;cam.fov=fov;cam.aspect=camera.aspect;cam.near=camera.near;cam.far=camera.far;cam.updateProjectionMatrix();
+  for(let k=0;k<6;k++){cam.position.copy(dir).multiplyScalar(d);cam.position.y+=ly;cam.lookAt(0,ly,0);cam.updateMatrixWorld();let mx=0,my=0;
+    for(const c of isoCorners){const p=c.clone().project(cam);mx=Math.max(mx,Math.abs(p.x)/0.97);my=Math.max(my,(p.y>0?p.y/0.74:-p.y/0.5));}d*=Math.max(mx,my);}
+  isoTgt.copy(dir).multiplyScalar(d);isoTgt.y+=ly;const k=ISO.on?1-Math.exp(-dt*3):1;ISO.on=true;camera.position.lerp(isoTgt,k);isoLook.lerp(isoTmp.set(0,ly,0),k);camera.lookAt(isoLook);
+  scene.fog.near=d*1.6;scene.fog.far=d*3.5;vm.visible=false;
+  const fe=$('flyfade');ISO.fade=Math.max(0,ISO.fade-dt*2.5);fe.style.opacity=(ISO.fade*0.85).toFixed(3);}
+function flyover(dt){if(MS.open){isoView(dt);return;}if(ISO.on){ISO.on=false;flyLs.copy(isoLook);$('flyfade').style.opacity=0;}const u0=flyU;flyU=(flyU+dt/FLY_LOOP)%1;showTick(dt,u0,flyU);FLY_POS.getPoint(flyU,flyP);FLY_LOOK.getPoint(flyU,flyL);
   flyLs.lerp(flyL,1-Math.exp(-dt*1.5));camera.position.copy(flyP);camera.lookAt(flyLs);
   if(Math.abs(camera.fov-62)>0.05){camera.fov=62;camera.updateProjectionMatrix();}vm.visible=false;}
 
