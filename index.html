@@ -1,4 +1,6 @@
+<meta charset="utf-8">
 <title>Zone Arena</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
@@ -227,6 +229,46 @@ input,select{font:inherit;font-size:16px;color:var(--fg);background:#0b0f12;bord
 #dead .keys{display:block}
 #touchnote{font-size:14px;color:var(--warn)}
 @media (prefers-reduced-motion:reduce){#hpfill,#flash,#cross{transition:none}#dmg span{animation:none}}
+/* touch controls: shown on touch screens (Settings > Controls > Touch controls). Sizes scale with the short side of the screen,
+   so a near-square foldable inner screen gets the same layout in landscape and portrait. */
+#touch{position:fixed;inset:0;z-index:7;touch-action:none;-webkit-touch-callout:none;--u:calc(clamp(40px,7.2vmin,78px)*var(--tsz,1))}
+#touch .tb{position:absolute;width:calc(var(--u)*var(--s,1.3));height:calc(var(--u)*var(--s,1.3));border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;
+  font-family:var(--display);font-weight:700;font-size:calc(var(--u)*.26);letter-spacing:.06em;text-transform:uppercase;line-height:1;color:var(--fg);
+  background:rgba(12,8,24,calc(.42*var(--top,1)));border:2px solid rgba(120,230,255,calc(.5*var(--top,1)));box-shadow:0 0 12px rgba(39,230,255,calc(.18*var(--top,1)));opacity:var(--top,1);touch-action:none}
+#touch .tb.dn{background:rgba(95,242,255,.34);border-color:var(--accent)}
+#touch .tb.on{border-color:var(--accent);color:var(--accent);box-shadow:0 0 16px rgba(95,242,255,.55)}
+#touch .tb.fire{--s:2.2;font-size:calc(var(--u)*.34);border-color:rgba(255,77,106,.75);background:rgba(60,8,20,.4)}
+#touch .tb.fire.dn{background:rgba(255,77,106,.42);border-color:var(--bad)}
+#touch .tb.sq{border-radius:12px;--s:1}
+#touch .tb.off{opacity:.25}
+#tFire{right:calc(var(--u)*.5 + env(safe-area-inset-right,0px));bottom:calc(var(--u)*1.75 + env(safe-area-inset-bottom,0px))}
+#tJump{right:calc(var(--u)*.55 + env(safe-area-inset-right,0px));bottom:calc(var(--u)*.25 + env(safe-area-inset-bottom,0px))}
+#tCrouch{right:calc(var(--u)*2.15 + env(safe-area-inset-right,0px));bottom:calc(var(--u)*.25 + env(safe-area-inset-bottom,0px))}
+#tAds{right:calc(var(--u)*2.95 + env(safe-area-inset-right,0px));bottom:calc(var(--u)*1.8 + env(safe-area-inset-bottom,0px))}
+#tReload{right:calc(var(--u)*3.0 + env(safe-area-inset-right,0px));bottom:calc(var(--u)*3.4 + env(safe-area-inset-bottom,0px));--s:1.1}
+#tUse{right:calc(var(--u)*1.2 + env(safe-area-inset-right,0px));bottom:calc(var(--u)*4.25 + env(safe-area-inset-bottom,0px));--s:1.2}
+#tFire2{left:calc(var(--u)*.5 + env(safe-area-inset-left,0px));bottom:calc(var(--u)*4.6 + env(safe-area-inset-bottom,0px));--s:1.25}
+#tMenu{right:calc(240px + env(safe-area-inset-right,0px));top:calc(10px + env(safe-area-inset-top,0px))}
+#tWheel{right:calc(12px + env(safe-area-inset-right,0px));top:calc(108px + env(safe-area-inset-top,0px));width:auto!important;padding:0 12px}
+#tTune{right:calc(12px + env(safe-area-inset-right,0px));top:calc(108px + var(--u) + 10px + env(safe-area-inset-top,0px));width:auto!important;padding:0 12px}
+#tStick{position:absolute;width:calc(var(--u)*2.8);height:calc(var(--u)*2.8);margin:calc(var(--u)*-1.4) 0 0 calc(var(--u)*-1.4);border-radius:50%;border:2px solid rgba(120,230,255,.4);background:rgba(12,8,24,.25);pointer-events:none}
+#tStick i{position:absolute;left:50%;top:50%;width:calc(var(--u)*1.15);height:calc(var(--u)*1.15);margin:calc(var(--u)*-.575) 0 0 calc(var(--u)*-.575);border-radius:50%;background:rgba(95,242,255,.3);border:2px solid var(--accent);box-shadow:0 0 12px rgba(95,242,255,.45)}
+#tStick.idle{opacity:.45}#tStick.run{border-color:var(--warn)}#tStick.run i{border-color:var(--warn);background:rgba(255,194,61,.3)}
+body.touch #view{cursor:default}
+body.touch,body.touch #view{touch-action:none;overscroll-behavior:none}
+body.touch .overlay,body.touch #sbpanel{touch-action:pan-x pan-y}
+body.touch #vitals{bottom:auto;top:calc(10px + env(safe-area-inset-top,0px));min-width:180px}
+body.touch #hpnum{font-size:32px}
+body.touch #feed{top:calc(96px + env(safe-area-inset-top,0px))}
+body.touch #ammo{bottom:auto;top:calc(108px + env(safe-area-inset-top,0px));right:calc(150px + env(safe-area-inset-right,0px))}
+body.touch #ammonum{font-size:30px}
+body.touch #netpill{bottom:auto;top:calc(150px + env(safe-area-inset-top,0px))}
+body.touch #wheel .wsvg{width:min(420px,78vw,60vh)}
+body.touch .btn{min-height:44px}
+body.touch #menu .keys,body.touch #pause .keys{display:none}
+body.touch #vitals{max-width:34vw}
+body.touch .chip{min-height:44px}
+#fullbtn{display:none}body.touch #fullbtn.ok{display:block}
 </style>
 
 <canvas id="view" aria-label="Arena view"></canvas>
@@ -258,6 +300,19 @@ input,select{font:inherit;font-size:16px;color:var(--fg);background:#0b0f12;bord
 <div class="hud" id="xpsum" hidden aria-live="polite"></div>
 <div class="hud" id="xptoast" aria-live="polite"></div>
 <div class="hud" id="netpill" hidden></div>
+<div id="touch" hidden aria-hidden="true">
+  <div id="tStick" class="idle"><i></i></div>
+  <div class="tb fire" id="tFire" data-a="fire">Fire</div>
+  <div class="tb" id="tFire2" data-a="fire">Fire</div>
+  <div class="tb" id="tAds" data-a="ads">Aim</div>
+  <div class="tb" id="tJump" data-a="jump">Jump</div>
+  <div class="tb" id="tCrouch" data-a="crouch">Slide</div>
+  <div class="tb" id="tReload" data-a="reload">Reload</div>
+  <div class="tb" id="tUse" data-a="use">Use</div>
+  <div class="tb sq" id="tMenu" data-a="menu">Menu</div>
+  <div class="tb sq" id="tWheel" data-a="wheel">Guns</div>
+  <div class="tb sq" id="tTune" data-a="tune">Tune</div>
+</div>
 <div class="hud" id="lockhint" hidden>Click to aim · <span id="lockmode"></span></div>
 
 <div class="overlay" id="down" hidden>
@@ -331,7 +386,8 @@ input,select{font:inherit;font-size:16px;color:var(--fg);background:#0b0f12;bord
       </div>
       <button class="btn" id="joinbtn" disabled>Join match</button>
       <div id="netstatus">Checking online play…</div>
-      <div id="touchnote" hidden>This prototype needs a keyboard and mouse.</div>
+      <div id="touchnote" hidden>Touch controls are on: left side moves (push the stick to the edge to sprint), right side looks. Size, sensitivity and layout options are in Settings.</div>
+      <button class="btn" id="fullbtn" type="button">Full screen</button>
       <div class="keys"><span><kbd>WASD</kbd> move</span><span><kbd>Left click</kbd> fire</span><span><kbd>Shift</kbd> sprint</span><span><kbd>Right click</kbd> aim down sights</span><span><kbd>Space</kbd> jump</span><span><kbd>C</kbd> crouch, slide from a sprint</span><span><kbd>Q</kbd> <kbd>E</kbd> lean left, right</span><span><kbd>F</kbd> hold to revive, arm, defuse</span><span><kbd>R</kbd> reload</span><span><kbd>G</kbd> hold to give up when down</span><span><kbd>O</kbd> settings (graphics, sound)</span><span><kbd>Esc</kbd> in-game menu</span></div>
     </div>
   </div>
@@ -843,10 +899,11 @@ const mySlot=()=>S?S.players.findIndex(p=>p.peer===net.myPeer&&!p.bot):-1;
 /* ---------- local player ---------- */
 const me={x:0,y:0,z:0,vy:0,yaw:0,pitch:0,ground:true,use:false,pick:-1,give:false,sh:0,sp:-1,round:0,ammo:CFG.mag,reloadT:0,fireCd:0,w:'rifle',wPref:'rifle',name:'Player',teamPref:-1,lastHp:100};
 const keys={};let mouseDown=false,adsDown=false,locked=false,dragMode=false;
+const TOUCH={on:false,mx:0,my:0,run:false};
 
 /* ---------- settings (graphics, sound, controls), saved per browser ---------- */
 const OPT0={preset:'high',res:1,autoRes:true,shadows:2,bloom:1,fxaa:true,film:0.6,rain:true,tod:'night',particles:1,marks:true,crowd:1,fog:1,bright:1,fov:78,shake:1,fps:false,lights:true,ao:false,refl:false,beams:false,smaa:false,aniso:false,
-  vMaster:0.8,vWeapons:0.9,vFx:0.9,vSteps:0.8,vUi:0.8,vAmb:0.6,vMusic:0.6,vMatch:0.5,reverb:0.4,sens:1,adsSens:1,invertY:false};
+  vMaster:0.8,vWeapons:0.9,vFx:0.9,vSteps:0.8,vUi:0.8,vAmb:0.6,vMusic:0.6,vMatch:0.5,reverb:0.4,sens:1,adsSens:1,invertY:false,touch:'auto',tSens:1,tAdsSens:1,tSize:1,tFire2:true,tAutoRun:true};
 const PRESETS={low:{res:0.75,shadows:0,bloom:0,fxaa:false,film:0,rain:false,particles:0.5,marks:false,crowd:0.35,ao:false,refl:false,beams:false,smaa:false,aniso:false},
   medium:{res:1,shadows:1,bloom:1,fxaa:true,film:0.4,rain:true,particles:1,marks:true,crowd:0.7,ao:false,refl:false,beams:false,smaa:false,aniso:false},
   high:{res:1,shadows:2,bloom:1,fxaa:true,film:0.6,rain:true,particles:1,marks:true,crowd:1,ao:false,refl:false,beams:false,smaa:false,aniso:false},
@@ -2245,7 +2302,7 @@ document.addEventListener('mousemove',e=>{
 let lastExit=-1e9,lockFails=0,grabTimer=0,grabGesture=false;
 function requestLock(){grabMouse(true);}
 function lockFailed(){if(locked)return;if(grabGesture&&++lockFails>=3)dragMode=true;grabGesture=false;}
-function grabMouse(gesture){if(locked)return;if(gesture)grabGesture=true;clearTimeout(grabTimer);
+function grabMouse(gesture){if(locked||TOUCH.on)return;if(gesture)grabGesture=true;clearTimeout(grabTimer);
   const wait=lastExit+1150-performance.now();if(wait>0){grabTimer=setTimeout(()=>{if($('menu').hidden&&$('pause').hidden&&!otherOverlay())grabMouse();},wait);return;}
   try{const r=canvas.requestPointerLock();if(r&&r.catch)r.catch(lockFailed);}catch(e){lockFailed();}}
 document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===canvas;if(locked){lockFails=0;dragMode=false;grabGesture=false;clearTimeout(grabTimer);}else lastExit=performance.now();});
@@ -2293,7 +2350,7 @@ const deadWheel=makeWheel($('wpick'),{keys:false,selLabel:'next life',onHover:k=
 function wheelHover(k){if(k===WH.hov)return;WH.hov=k;if(k)blip(760,0.03,0.015,false,'ui');if(WH.mode==='start'&&k)setWeapon(k);wheelUI.set(me.wPref,WH.hov);}
 function canHoldWheel(){const s=mySlot();const P=s>=0&&S?S.players[s]:null;return !!(P&&P.st==='alive'&&(SB.on||S.phase==='buy')&&$('pause').hidden&&$('settings').hidden&&$('dead').hidden);}
 function openWheel(mode){if(WH.open&&WH.mode===mode)return;WH.open=true;WH.mode=mode;WH.hov=null;WH.vx=WH.vy=0;mouseDown=false;adsDown=false;
-  $('wheelK').innerHTML=mode==='start'?'Move the mouse to a weapon, then click or press <kbd>1</kbd>–<kbd>6</kbd> to lock in':'Point at a weapon and release the middle mouse button to equip';
+  $('wheelK').innerHTML=TOUCH.on?(mode==='start'?'Tap a weapon to lock it in':'Tap a weapon to equip it, or tap outside to close'):mode==='start'?'Move the mouse to a weapon, then click or press <kbd>1</kbd>–<kbd>6</kbd> to lock in':'Point at a weapon and release the middle mouse button to equip';
   wheelUI.dot.setAttribute('cx',0);wheelUI.dot.setAttribute('cy',0);wheelUI.dot.style.display=locked?'':'none';
   $('wheel').classList.toggle('free',!locked);wheelUI.refresh();wheelUI.set(me.wPref,null);$('wheel').hidden=false;wheelTitle();}
 function closeWheel(commit){if(!WH.open)return;const k=WH.hov,mode=WH.mode;WH.open=false;WH.mode='';$('wheel').hidden=true;
@@ -2799,9 +2856,15 @@ const SET=[
   ['s','reverb','Arena echo','rng',0,1,0.05,pct],
   ['c','sens','Mouse sensitivity','rng',0.3,3,0.05,v=>(+v).toFixed(2)],
   ['c','adsSens','Sensitivity while aiming','rng',0.4,1.5,0.05,pct],
-  ['c','invertY','Invert vertical look','chk']];
+  ['c','invertY','Invert vertical look','chk'],
+  ['c','touch','Touch controls','sel',[['auto','Auto (on for touch screens)'],['on','Always on'],['off','Off']]],
+  ['c','tSens','Touch look sensitivity','rng',0.3,3,0.05,v=>(+v).toFixed(2)],
+  ['c','tAdsSens','Touch sensitivity while aiming','rng',0.4,1.5,0.05,pct],
+  ['c','tSize','Touch button size','rng',0.7,1.5,0.05,pct],
+  ['c','tFire2','Touch: second fire button above the stick','chk'],
+  ['c','tAutoRun','Touch: sprint when the stick is pushed to the edge','chk']];
 const setEls={};
-function applyOpt(){applyGfx();audioApply();saveOpt();}
+function applyOpt(){applyGfx();audioApply();saveOpt();touchApply();}
 function syncSettings(){for(const d of SET){const el=setEls[d[1]];if(!el)continue;const v=OPT[d[1]];if(d[3]==='chk')el.inp.checked=!!v;else{el.inp.value=String(v);if(el.out)el.out.textContent=d[7](v);}}}
 (function(){const mk=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e;};
   const G=$('setG'),Sd=$('setS');G.append(mk('h3',null,'Graphics'));Sd.append(mk('h3',null,'Sound'));let ctl=false;
@@ -2860,6 +2923,80 @@ $('psettings').addEventListener('click',()=>toggleSettings(true));
 $('prestart').addEventListener('click',()=>{if(!canRestart())return;if(restartArm>performance.now())restartMatch();else{restartArm=performance.now()+3000;restartUI();setTimeout(restartUI,3050);blip(440,0.05,0.03,false,'ui');}});
 $('pleave').addEventListener('click',leaveMatch);
 document.addEventListener('pointerlockchange',()=>{if(WH.open){$('wheel').classList.toggle('free',!locked);wheelUI.dot.style.display=locked?'':'none';}if(!locked&&inPlay()&&!otherOverlay())openPause();});
+/* ---------- touch controls ----------
+   One full-screen layer over the 3D view. Every finger is tracked on its own: a finger that lands on a button presses it,
+   a finger on the left part of the screen grabs a floating move stick, and any other finger looks around (the big Fire
+   button looks too, so you can fire and aim with one thumb). Pointer lock is skipped; Fire works without it. */
+const TL=$('touch'),TSTICK=$('tStick'),TKNOB=TSTICK.firstElementChild;
+const tFingers=new Map();let tStickId=null,tStick0={x:0,y:0},tShown=false;
+function touchWanted(){return OPT.touch==='on'||(OPT.touch==='auto'&&(matchMedia('(pointer:coarse)').matches||TOUCH.seen));}
+function touchApply(){const on=touchWanted();if(on!==TOUCH.on){TOUCH.on=on;if(on&&locked)document.exitPointerLock();if(!on)touchRelease();}
+  document.body.classList.toggle('touch',on);TL.style.setProperty('--tsz',OPT.tSize);$('tFire2').hidden=!OPT.tFire2;
+  $('touchnote').hidden=!on;$('fullbtn').classList.toggle('ok',!!(document.fullscreenEnabled||document.webkitFullscreenEnabled));}
+function touchRelease(){for(const f of tFingers.values())if(f.el)f.el.classList.remove('dn');tFingers.clear();tStickId=null;TOUCH.mx=TOUCH.my=0;TOUCH.run=false;
+  mouseDown=false;keys.KeyC=keys.KeyF=keys.KeyG=false;TSTICK.classList.add('idle');TKNOB.style.transform='';stickHome();}
+function stickHome(){const r=TL.getBoundingClientRect(),u=parseFloat(getComputedStyle(TL).getPropertyValue('--u'))||60;
+  TSTICK.style.left=(Math.max(u*1.7,r.width*0.16))+'px';TSTICK.style.top=(r.height-u*2.1)+'px';}
+function tLook(dx,dy){const k=0.0062*OPT.tSens*(1-0.32*me.ads)*(1+(OPT.tAdsSens-1)*me.ads);
+  me.yaw-=dx*k;me.pitch=clamp(me.pitch-dy*k*(OPT.invertY?-1:1),-1.45,1.45);
+  me.swayX=clamp(me.swayX+dx*0.008,-1,1);me.swayY=clamp(me.swayY+dy*0.008,-1,1);}
+function tStickMove(x,y){const u=parseFloat(getComputedStyle(TL).getPropertyValue('--u'))||60,R=u*1.4;
+  let dx=x-tStick0.x,dy=y-tStick0.y;const L=Math.hypot(dx,dy);
+  // drag past the rim and the stick follows the finger, so it never runs out of travel
+  if(L>R*1.35){const k=(L-R*1.35)/L;tStick0.x+=dx*k;tStick0.y+=dy*k;TSTICK.style.left=tStick0.x+'px';TSTICK.style.top=tStick0.y+'px';dx=x-tStick0.x;dy=y-tStick0.y;}
+  const L2=Math.hypot(dx,dy),c=Math.min(1,L2/R),nx=L2>0?dx/L2:0,ny=L2>0?dy/L2:0;
+  TKNOB.style.transform=`translate(${(nx*c*R).toFixed(1)}px,${(ny*c*R).toFixed(1)}px)`;
+  const m=c<0.14?0:(c-0.14)/0.86;TOUCH.mx=nx*m;TOUCH.my=ny*m;
+  TOUCH.run=OPT.tAutoRun&&L2>R*0.95&&ny<-0.6;TSTICK.classList.toggle('run',TOUCH.run);}
+function tPress(a,el,down){
+  if(a==='fire'){mouseDown=down;return;}
+  if(a==='crouch'){keys.KeyC=down;return;}
+  if(a==='use'){const s=mySlot(),P=s>=0&&S?S.players[s]:null;if(!down){keys.KeyF=keys.KeyG=false;return;}if(P&&P.st==='down')keys.KeyG=true;else keys.KeyF=true;return;}
+  if(!down)return;
+  if(a==='jump')me.jumpBuf=0.14;
+  else if(a==='reload')startReload();
+  else if(a==='ads')adsDown=!adsDown;
+  else if(a==='menu'){touchRelease();openPause();}
+  else if(a==='wheel'){if(canHoldWheel()){touchRelease();openWheel('hold');}}
+  else if(a==='tune'){if(SB.on){touchRelease();toggleSB();}}}
+function tStart(e){TOUCH.seen=true;if(!TOUCH.on)touchApply();e.preventDefault();
+  const r=TL.getBoundingClientRect();
+  for(const t of e.changedTouches){const x=t.clientX-r.left,y=t.clientY-r.top;const el=t.target&&t.target.closest?t.target.closest('.tb'):null;
+    if(el&&!el.hidden){const a=el.dataset.a;el.classList.add('dn');tFingers.set(t.identifier,{k:'btn',a,el,x:t.clientX,y:t.clientY,look:el.id==='tFire'});tPress(a,el,true);continue;}
+    if(tStickId===null&&x<r.width*0.45&&y>r.height*0.3){tStickId=t.identifier;tStick0={x,y};TSTICK.style.left=x+'px';TSTICK.style.top=y+'px';TSTICK.classList.remove('idle');tFingers.set(t.identifier,{k:'stick'});tStickMove(x,y);continue;}
+    tFingers.set(t.identifier,{k:'look',x:t.clientX,y:t.clientY});}}
+function tMove(e){e.preventDefault();const r=TL.getBoundingClientRect();
+  for(const t of e.changedTouches){const f=tFingers.get(t.identifier);if(!f)continue;
+    if(f.k==='stick'){tStickMove(t.clientX-r.left,t.clientY-r.top);continue;}
+    if(f.k==='look'||f.look){const dx=t.clientX-f.x,dy=t.clientY-f.y;f.x=t.clientX;f.y=t.clientY;if(!WH.open)tLook(dx,dy);}}}
+function tEnd(e){e.preventDefault();
+  for(const t of e.changedTouches){const f=tFingers.get(t.identifier);if(!f)continue;tFingers.delete(t.identifier);
+    if(f.k==='btn'){f.el.classList.remove('dn');if(![...tFingers.values()].some(o=>o.k==='btn'&&o.a===f.a))tPress(f.a,f.el,false);}
+    else if(f.k==='stick'){tStickId=null;TOUCH.mx=TOUCH.my=0;TOUCH.run=false;TKNOB.style.transform='';TSTICK.classList.add('idle');TSTICK.classList.remove('run');stickHome();}}}
+TL.addEventListener('touchstart',tStart,{passive:false});TL.addEventListener('touchmove',tMove,{passive:false});
+TL.addEventListener('touchend',tEnd,{passive:false});TL.addEventListener('touchcancel',tEnd,{passive:false});
+TL.addEventListener('contextmenu',e=>e.preventDefault());
+// no pinch zoom, double-tap zoom or pull-to-refresh anywhere in the game while touch controls are on
+document.addEventListener('touchmove',e=>{if(TOUCH.on&&e.touches.length>1)e.preventDefault();},{passive:false});
+document.addEventListener('gesturestart',e=>{if(TOUCH.on)e.preventDefault();});
+let tLastTap=0;document.addEventListener('touchend',e=>{if(!TOUCH.on)return;const n=performance.now();if(n-tLastTap<300&&!(e.target.closest&&e.target.closest('input,select,textarea,button,label,.chip,.wseg,#picker')))e.preventDefault();tLastTap=n;},{passive:false});
+// a touch anywhere switches Auto mode on even when the browser reports a fine pointer (a foldable with a keyboard cover, say)
+window.addEventListener('touchstart',()=>{if(!TOUCH.seen){TOUCH.seen=true;touchApply();}},{passive:true,capture:true});
+// tapping outside the weapon wheel closes it (only the switch-weapon wheel; the match-start pick needs a choice)
+$('wheel').addEventListener('click',e=>{if(TOUCH.on&&e.target===$('wheel')&&WH.mode==='hold')closeWheel(false);});
+$('fullbtn').addEventListener('click',()=>{const d=document.documentElement;try{const r=(d.requestFullscreen||d.webkitRequestFullscreen).call(d,{navigationUI:'hide'});if(r&&r.catch)r.catch(()=>{});}catch(e){}});
+window.addEventListener('resize',()=>{if(tStickId===null)stickHome();});
+function touchTick(){
+  const s=S?mySlot():-1,P=s>=0?S.players[s]:null;
+  const show=TOUCH.on&&!!P&&inPlay()&&$('pause').hidden&&$('settings').hidden&&$('dead').hidden&&$('sbpanel').hidden&&$('shop').hidden&&!WH.open;
+  if(show!==tShown){tShown=show;TL.hidden=!show;if(!show)touchRelease();else stickHome();}
+  if(!show)return;
+  if(P.st!=='alive'&&adsDown)adsDown=false;
+  $('tAds').classList.toggle('on',adsDown);
+  $('tWheel').hidden=!canHoldWheel();$('tTune').hidden=!SB.on;
+  const dn=P.st==='down';const ut=dn?'Give up':'Use';if($('tUse').textContent!==ut)$('tUse').textContent=ut;
+  const live=S.phase==='live'&&P.st==='alive';for(const id of ['tFire','tFire2','tAds','tReload','tJump','tCrouch'])$(id).classList.toggle('off',!live&&!(id==='tJump'||id==='tCrouch'?P.st==='alive':false));}
+touchApply();
 
 
 /* ---------- local update: movement and weapon feel ---------- */
@@ -2882,13 +3019,13 @@ function localTick(dt){
   if(keys.ArrowLeft)me.yaw+=2.2*dt;if(keys.ArrowRight)me.yaw-=2.2*dt;if(keys.ArrowUp)me.pitch=clamp(me.pitch+1.6*dt,-1.45,1.45);if(keys.ArrowDown)me.pitch=clamp(me.pitch-1.6*dt,-1.45,1.45);
   me.sinceShot+=dt;me.sprintLock-=dt;me.slideCd-=dt;me.jumpBuf-=dt;me.wrCd-=dt;me.grabCd=(me.grabCd||0)-dt;
   const canMove=(alive||downed)&&!frozen;
-  let fx=0,fz=0;if(canMove){if(keys.KeyW)fz-=1;if(keys.KeyS)fz+=1;if(keys.KeyA)fx-=1;if(keys.KeyD)fx+=1;}
-  const L=Math.hypot(fx,fz);if(L>0){fx/=L;fz/=L;}
+  let fx=0,fz=0;if(canMove){if(keys.KeyW)fz-=1;if(keys.KeyS)fz+=1;if(keys.KeyA)fx-=1;if(keys.KeyD)fx+=1;fx+=TOUCH.mx;fz+=TOUCH.my;}
+  const L=Math.hypot(fx,fz);if(L>1){fx/=L;fz/=L;}/* the touch stick is analog: a small push walks slowly */
   const sy=Math.sin(me.yaw),cy=Math.cos(me.yaw);const wx=fx*cy+fz*sy,wz=-fx*sy+fz*cy;
   const adsWant=alive&&adsDown&&me.reloadT<=0;
   const crouchKey=alive&&!!keys.KeyC;
   let speedNow=Math.hypot(me.vx,me.vz);
-  const sprinting=alive&&!frozen&&(keys.ShiftLeft||keys.ShiftRight)&&fz<0&&!crouchKey&&!adsWant&&me.sprintLock<=0&&me.slideT<=0;
+  const sprinting=alive&&!frozen&&(keys.ShiftLeft||keys.ShiftRight||TOUCH.run)&&fz<0&&!crouchKey&&!adsWant&&me.sprintLock<=0&&me.slideT<=0;
   if(crouchKey&&!me.crouch&&me.ground&&speedNow>7&&me.slideCd<=0&&me.slideT<=0){me.slideT=0.9;me.slideCd=1.3;const k=Math.min(13,speedNow*1.4)/speedNow;me.vx*=k;me.vz*=k;sndFade(me.slideSnd);me.slideSnd=slideSound();}
   me.crouch=crouchKey;
   if(me.slideT>0){me.slideT-=dt;if(!crouchKey||speedNow<3.2)me.slideT=0;}
@@ -2921,7 +3058,7 @@ function localTick(dt){
     if(lg){const b=lg.b,dx=-lg.nx,dz=-lg.nz,top=b.y1,m=0.3;
       const M={t:0,y0:me.y,x0:me.x,z0:me.z,top,ex:lg.cx+lg.nx*0.4,ez:lg.cz+lg.nz*0.4,dx,dz,
         tx:clamp(lg.cx+dx*0.6,b.x0+m,Math.max(b.x0+m,b.x1-m)),tz:clamp(lg.cz+dz*0.6,b.z0+m,Math.max(b.z0+m,b.z1-m)),over:false,dur:0.42};
-      if(keys.ShiftLeft||keys.ShiftRight){
+      if(keys.ShiftLeft||keys.ShiftRight||TOUCH.run){
         // vault: the crate must be thin along the travel direction, with open floor past the far edge
         const across=Math.min(dx>1e-3?(b.x1-lg.cx)/dx:dx<-1e-3?(lg.cx-b.x0)/-dx:1e9,dz>1e-3?(b.z1-lg.cz)/dz:dz<-1e-3?(lg.cz-b.z0)/-dz:1e9);
         const fx2=lg.cx+dx*(across+0.45),fz2=lg.cz+dz*(across+0.45);
@@ -2950,7 +3087,7 @@ function localTick(dt){
   const mv=clamp(speedNow/CFG.speed,0,1.4);
   me.spread=myW(me.w).spread*(1+(myW(me.w).hip-1)*(1-me.ads))*(Math.abs(me.lean)*0.004+(0.0022+me.bloom)*(me.crouch?0.6:1)*(1-0.6*me.ads)+mv*0.026*(1-0.5*me.ads)+(me.ground?0:me.wr?0.025:0.05)+(sliding?0.03:0));
   me.fireCd-=dt;if(me.reloadT>0){me.reloadT-=dt;if(me.reloadT<=0){me.reloadT=0;me.ammo=myW(me.w).mag;}}
-  const canFire=alive&&S.phase==='live'&&(locked||dragMode)&&!WH.open&&me.reloadT<=0&&!P.ak&&!me.mantle;
+  const canFire=alive&&S.phase==='live'&&(locked||dragMode||TOUCH.on)&&!WH.open&&me.reloadT<=0&&!P.ak&&!me.mantle;
   if(mouseDown&&canFire)me.sprintLock=0.25;
   if(mouseDown&&canFire&&me.fireCd<=0&&me.sprintK<0.4){
     if(me.ammo<=0){if(me.reloadT<=0)dryFire();startReload();}
@@ -3156,7 +3293,7 @@ function hud(dt){
     const zi=zoneOf(me.x);const rh=dm?100:returnHP(role,zi);
     $('zoneline').innerHTML='';if(!dm){const b=document.createElement('b');b.textContent=zoneName(role,zi);const sp=document.createElement('span');sp.textContent=' · come back here at ';const h=document.createElement('b');h.textContent=rh+' HP';h.style.color=hpColor(rh);
     $('zoneline').append(b,sp,h);}if(P.st==='alive'&&P.prot>0&&S.phase==='live'){const sh=document.createElement('b');sh.textContent=' · Spawn shield '+P.prot.toFixed(1)+'s';sh.style.color='var(--accent)';$('zoneline').append(sh);}
-    $('ammonum').textContent=me.reloadT>0?'··':me.ammo;$('ammosub').textContent=me.reloadT>0?'Reloading':myW(me.w).name+' · R to reload';
+    $('ammonum').textContent=me.reloadT>0?'··':me.ammo;$('ammosub').textContent=me.reloadT>0?'Reloading':myW(me.w).name+(TOUCH.on?'':' · R to reload');
   }
   // prompt + ring
   let prompt='';
@@ -3166,6 +3303,7 @@ function hud(dt){
     else if(role==='atk'&&!S.armed){for(const k of ['A','B'])if(hyp(me.x,me.z,SITES[k].x,SITES[k].z)<3)prompt=`Hold <kbd>F</kbd> to arm the charge at ${k}`;}
     else if(role==='def'&&S.armed&&hyp(me.x,me.z,SITES[S.armed.site].x,SITES[S.armed.site].z)<3)prompt='Hold <kbd>F</kbd> to defuse';
   }
+  if(prompt&&TOUCH.on)prompt=prompt.replace('<kbd>F</kbd>','<kbd>Use</kbd>');
   const pe=$('prompt');if(prompt){pe.hidden=false;if(pe.dataset.k!==prompt){pe.dataset.k=prompt;pe.innerHTML=prompt;}}else pe.hidden=true;
   const rc=$('ring');
   if(P&&P.ak&&P.ap>0){rc.hidden=false;ringC.clearRect(0,0,120,120);ringC.lineWidth=8;ringC.strokeStyle='rgba(255,255,255,.18)';ringC.beginPath();ringC.arc(60,60,44,0,Math.PI*2);ringC.stroke();ringC.strokeStyle=P.ak==='rev'?'#5cc27f':P.ak==='arm'?'#e3584d':'#5b93f5';ringC.beginPath();ringC.arc(60,60,44,-Math.PI/2,-Math.PI/2+Math.PI*2*Math.min(1,P.ap));ringC.stroke();}
@@ -3183,7 +3321,7 @@ function hud(dt){
   if(WH.open)bn.hidden=true;
   // down / dead overlays
   $('down').hidden=!(P&&P.st==='down');
-  if(P&&P.st==='down'){const mate=S.players.find(o=>o.team===myTeam&&o!==P);$('downtxt').textContent=`Bleeding out in ${Math.ceil(P.downT)}s · ${mate&&mate.st==='alive'?mate.name+' can revive you':'no teammate up'} · hold G to give up`;}
+  if(P&&P.st==='down'){const mate=S.players.find(o=>o.team===myTeam&&o!==P);$('downtxt').textContent=`Bleeding out in ${Math.ceil(P.downT)}s · ${mate&&mate.st==='alive'?mate.name+' can revive you':'no teammate up'} · ${TOUCH.on?'hold Use':'hold G'} to give up`;}
   const dead=P&&P.st==='dead'&&S.phase==='live';$('dead').hidden=!dead;
   if(me.wantLock&&!dead){me.wantLock=false;autoLock();}
   if(dead){
@@ -3208,7 +3346,7 @@ function hud(dt){
         b.append(zn,h,st,k);b.addEventListener('click',()=>{choosePick(z.zi);lastPickerKey='';});return b;}));
       deadWheel.refresh();deadWheel.set(me.wPref,null);}
   }}
-  $('lockhint').hidden=locked||!$('menu').hidden||!!dead||!P||!$('settings').hidden||!$('pause').hidden;
+  $('lockhint').hidden=locked||TOUCH.on||!$('menu').hidden||!!dead||!P||!$('settings').hidden||!$('pause').hidden;
   $('lockmode').textContent=dragMode?'mouse capture is blocked here, so drag with the mouse button held (or use arrow keys) to look':'click or press any key to take back the mouse · Esc opens the menu';
   // net pill
   let np='';
@@ -3256,7 +3394,7 @@ function frame(now){
   if(paused){}
   else if(S){coverTick(dt);debrisTick(dt);localTick(dt);renderOthers(dt);siteFx();hud(dt);audioTick(dt);}
   else flyover(dt);
-  fxTick(dt,now);
+  fxTick(dt,now);touchTick();
   renderScene();
   requestAnimationFrame(frame);
 }

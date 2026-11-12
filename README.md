@@ -9,7 +9,7 @@ The whole game is one file, `index.html`, built on Three.js r186 (ES modules loa
 - **Locally:** open `index.html` in a desktop browser, or serve the folder (`npx serve .` or `python3 -m http.server`) and open the page. Practice and Sandbox work anywhere.
 - **Online:** online matches use the claude.ai Artifact `room` capability, so they only work when the page is opened as the published Artifact on claude.ai. Players who join the same match code and mode play together; bots fill empty slots. The host's tab must stay in the foreground.
 
-A keyboard and mouse are required.
+Play with a keyboard and mouse, or with the on-screen touch controls on phones, tablets and foldables (see Touch controls below).
 
 ## Controls
 
@@ -32,6 +32,16 @@ A keyboard and mouse are required.
 | O | Settings (graphics, sound, controls) |
 | T or ` | Sandbox dev overlay (Sandbox only) |
 | Esc | In-game menu (Resume, Settings, Leave match); practice and sandbox pause while it is open |
+
+## Touch controls
+
+On a touch screen the game shows on-screen controls by itself (Settings > Controls > Touch controls: Auto, Always on or Off). The layout scales with the short side of the screen, so it suits a near-square foldable inner screen in landscape or portrait.
+
+- **Left side:** a floating move stick appears where your thumb lands. Push it gently to walk, push it to the rim (forward) to sprint. Drag past the rim and it follows your thumb.
+- **Right side:** drag anywhere to look. The big Fire button also looks while held, so one thumb can aim and shoot.
+- **Buttons:** Fire (plus an optional second Fire above the stick), Aim (tap to toggle), Jump, Slide (hold to crouch, slide from a sprint), Reload, Use (hold to revive, arm or defuse; turns into Give up while you are down), Menu, Guns (weapon wheel, when switching is allowed) and Tune (Sandbox overlay).
+- Menus, the Workshop, the weapon wheel and the respawn picker are all tappable. Tap outside the switch-weapon wheel to close it.
+- Settings has touch look sensitivity, touch sensitivity while aiming, button size, the second Fire button and auto-sprint. The main menu has a Full screen button where the browser allows it.
 
 ## Modes
 
