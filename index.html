@@ -1690,20 +1690,21 @@ function snd(o){if(!audioInit())return;o=tuned({...o,tk:o.tk||SNDTK||(o.bus==='u
   if(o.noise){const s=actx.createBufferSource();s.buffer=AU.noise;s.loop=true;const f=actx.createBiquadFilter();f.type=o.type||'lowpass';f.frequency.setValueAtTime(Math.max(30,o.f),t);if(o.f1)f.frequency.exponentialRampToValueAtTime(Math.max(30,o.f1),t+dur);if(o.q)f.Q.value=o.q;s.connect(f);f.connect(g);s.start(t,Math.random()*1.5);s.stop(t+dur+0.02);}
   else{const os=actx.createOscillator();os.type=o.wave||'sine';os.frequency.setValueAtTime(Math.max(20,o.f),t);if(o.f1)os.frequency.exponentialRampToValueAtTime(Math.max(20,o.f1),t+dur);os.connect(g);os.start(t);os.stop(t+dur+0.02);}
 }catch(e){AU.err=String(e&&e.message);}}
-/* hit-confirm cues, all synth: body hits are plucks that climb a pentatonic ladder while you keep landing shots (it resets
-   after 0.9 s without a hit), a headshot is a bell-like ding on the same ladder, a down is a rising arpeggio over a sub drop,
-   and a kill adds one more note and a sparkle */
-const HITC={n:0,t:0},PENT=[0,2,4,7,9,12,14,16,19,21,24];
-function hitCue(kind){const now=performance.now(),u=o=>snd(Object.assign({bus:'ui',tk:'hit'},o));
-  if(kind==='hit'||kind==='head'){HITC.n=now-HITC.t<900?Math.min(HITC.n+1,PENT.length-1):0;HITC.t=now;}
-  const f=659.25*Math.pow(2,PENT[HITC.n]/12);
-  if(kind==='hit'){u({f,dur:0.07,vol:0.05,wave:'square',lp:3800,atk:0.002});u({f:f*2,dur:0.05,vol:0.028,wave:'triangle'});u({noise:1,type:'highpass',f:5000,dur:0.018,vol:0.02});}
-  else if(kind==='head'){u({f:f*2,dur:0.26,vol:0.06,wave:'sine',wet:0.25});u({f:f*3,dur:0.2,vol:0.035,wave:'triangle',at:0.045,wet:0.25});u({f:f*5.52,dur:0.09,vol:0.016,wave:'sine'});
-    u({f,dur:0.06,vol:0.045,wave:'square',lp:4200});u({noise:1,type:'highpass',f:6500,dur:0.03,vol:0.03});}
-  else{const kill=kind==='kill',seq=kill?[0,7,12,19]:[0,7,12];
-    seq.forEach((st,i)=>{const g=329.63*Math.pow(2,st/12);u({f:g,dur:0.2,vol:0.05,wave:'sawtooth',lp:2600+i*900,at:i*0.055,wet:0.3,atk:0.004});u({f:g*2,dur:0.16,vol:0.022,wave:'triangle',at:i*0.055,wet:0.3});});
-    u({f:190,f1:55,dur:0.3,vol:0.11,wave:'sine'});
-    if(kill){u({f:2637,dur:0.3,vol:0.02,wave:'sine',at:0.22,wet:0.4});u({f:3136,dur:0.3,vol:0.016,wave:'sine',at:0.27,wet:0.4});}}}
+/* hit-confirm cues, all synth and percussive rather than musical, in the style of modern shooters' hitmarkers:
+   hit = a dry mid "tick" (band-passed noise snap + a fast downward click + a little body),
+   headshot = the same tick with a sharp metallic "tink" on top (inharmonic high partials),
+   down = a heavy low punch with a crunch and a glassy crack, kill = the down plus a deeper tail and a second crack.
+   A few percent of random pitch keeps repeated hits from sounding machine-stamped. */
+function hitCue(kind){const r=0.96+Math.random()*0.08,u=o=>snd(Object.assign({bus:'ui',tk:'hit'},o));
+  const tick=v=>{u({noise:1,type:'bandpass',q:2.2,f:2500*r,f1:1700*r,dur:0.04,vol:0.16*v});u({f:2100*r,f1:900*r,dur:0.028,vol:0.05*v,wave:'square',lp:6000});u({f:330*r,f1:170,dur:0.05,vol:0.07*v,wave:'sine'});};
+  if(kind==='hit')tick(1);
+  else if(kind==='head'){tick(0.9);u({f:3150*r,dur:0.11,vol:0.05,wave:'sine'});u({f:4720*r,dur:0.08,vol:0.035,wave:'sine'});u({f:7050*r,dur:0.05,vol:0.02,wave:'sine'});
+    u({noise:1,type:'highpass',f:6000,dur:0.022,vol:0.07});}
+  else{const kill=kind==='kill';
+    u({f:165,f1:42,dur:kill?0.42:0.3,vol:0.2,wave:'sine'});u({f:95,f1:50,dur:0.12,vol:0.1,wave:'triangle'});
+    u({noise:1,type:'bandpass',q:1.2,f:1100,f1:320,dur:0.13,vol:0.14});
+    u({noise:1,type:'highpass',f:3800,dur:0.06,vol:0.09});u({f:1500*r,f1:480,dur:0.09,vol:0.045,wave:'square',lp:5000});
+    if(kill){u({noise:1,type:'highpass',f:4500,dur:0.05,vol:0.08,at:0.09});u({f:2600*r,f1:1300,dur:0.07,vol:0.04,wave:'square',lp:7000,at:0.09});u({f:3900*r,dur:0.12,vol:0.03,wave:'sine',at:0.09});}}}
 function blip(freq,dur,vol,noise,bus,pan,tk){snd({f:freq,dur,vol,noise,bus,pan,tk});}
 function tone(f0,f1,dur,vol,bus,pan,tk){snd({f:f0,f1,dur,vol,bus,pan,tk});}
 /* where a world position sits relative to the listener: distance, stereo pan, loudness */
