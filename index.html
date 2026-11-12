@@ -731,7 +731,7 @@ function saveOpt(){try{localStorage.setItem('za-opt',JSON.stringify(OPT));}catch
 /* ---------- three.js scene: neon night arena ---------- */
 const canvas=$('view');
 // No canvas MSAA: with post-processing on, FXAA does the anti-aliasing and the MSAA resolve was wasted bandwidth.
-const renderer=new THREE.WebGLRenderer({canvas,antialias:false,powerPreference:'high-performance'});
+const renderer=new THREE.WebGLRenderer({canvas,antialias:false,powerPreference:'high-performance',stencil:true});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.75));
 renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFShadowMap;
@@ -1138,7 +1138,7 @@ const FilmShader={uniforms:{tDiffuse:{value:null},amt:{value:0.6},time:{value:0}
     'float n=fract(sin(dot(vUv*vec2(1361.0,977.0)+fract(time)*37.0,vec2(12.9898,78.233)))*43758.5453)-0.5;col+=n*0.03*amt;',
     'gl_FragColor=vec4(col,1.0);}'].join('\n')};
 (function(){
-  try{composer=new EffectComposer(renderer);
+  try{composer=new EffectComposer(renderer,new THREE.WebGLRenderTarget(innerWidth,innerHeight,{type:THREE.HalfFloatType,stencilBuffer:true}));
     // Since r153 materials only tone-map when drawing to the screen, so toneMapped:false neon would be tone-mapped by an
     // OutputPass. Flagging the composer targets like WebXR's makes materials tone-map into them, as r128 did.
     for(const rt of [composer.renderTarget1,composer.renderTarget2]){rt.isXRRenderTarget=true;rt.texture.colorSpace=THREE.LinearSRGBColorSpace;}
@@ -1150,7 +1150,7 @@ const FilmShader={uniforms:{tDiffuse:{value:null},amt:{value:0.6},time:{value:0}
 function resize(){const w=window.innerWidth,h=window.innerHeight;renderer.setSize(w,h,false);if(composer)composer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();}
 window.addEventListener('resize',resize);resize();
 function usePost(){return composer&&(OPT.bloom>0.01||(OPT.fxaa&&fxaaPass)||OPT.film>0.01);}
-function renderScene(){if(usePost()){filmPass.uniforms.time.value=(performance.now()/1000)%100;composer.render();}else renderer.render(scene,camera);}
+function renderScene(){OUTLINE_U.uK.value=2.2*2*Math.tan(camera.fov*Math.PI/360)/Math.max(1,innerHeight);if(usePost()){filmPass.uniforms.time.value=(performance.now()/1000)%100;composer.render();}else renderer.render(scene,camera);}
 
 /* ---------- atmosphere: rain, hologram signs, glowing bullet marks ---------- */
 const RAIN_N=1600,rainPos=new Float32Array(RAIN_N*6),rainSeed=new Float32Array(RAIN_N*3);
@@ -1491,6 +1491,32 @@ const avatars=[0,1,2,3].map(i=>{
   scene.add(g);
   return Object.assign(sd,{g,label,c,tex:t,name:'',rx:0,ry:0,rz:0,ryaw:0,lastSh:0,init:false,hpKey:'',walk:0,spd:0,crouchK:0,downK:0,pitchS:0,prevHp:100,hurt:0,flashT:0});
 });
+/* Red outline on enemies in view. Each joint gets one red hull (its boxes grown outward by a few pixels' worth) drawn after the
+   scene. The soldier's own materials write 1 to the stencil, so the hull shows only outside the silhouette, and the normal depth
+   test hides it behind walls and cover, so only the parts you can actually see are outlined. */
+const OUTLINE_U={uK:{value:0.002}};
+function outlineAvatar(a){
+  const mm=new Map(),hm=new THREE.ShaderMaterial({uniforms:OUTLINE_U,
+    vertexShader:'uniform float uK;attribute vec3 odir;void main(){vec4 wp=modelMatrix*vec4(position,1.0);'+
+      'vec3 s=vec3(length(modelMatrix[0].xyz),length(modelMatrix[1].xyz),length(modelMatrix[2].xyz));'+
+      'float t=uK*distance(cameraPosition,wp.xyz);gl_Position=projectionMatrix*viewMatrix*modelMatrix*vec4(position+odir*t/s,1.0);}',
+    fragmentShader:'void main(){gl_FragColor=vec4(1.0,0.04,0.03,1.0);}',
+    depthWrite:false,stencilWrite:true,stencilRef:1,stencilFunc:THREE.NotEqualStencilFunc,stencilZPass:THREE.KeepStencilOp});
+  hm.visible=false;a.hullM=hm;
+  const nodes=[];a.root.traverse(n=>nodes.push(n));const q=new THREE.Vector3();
+  for(const n of nodes){const parts=[];
+    for(const c of n.children){if(!c.isMesh||Array.isArray(c.material)||c.material.transparent)continue;
+      let m=mm.get(c.material);if(!m){m=c.material.clone();Object.assign(m,{stencilWrite:true,stencilRef:1,stencilZPass:THREE.ReplaceStencilOp});mm.set(c.material,m);}c.material=m;
+      if(c.geometry.type!=='BoxGeometry')continue;
+      c.updateMatrix();const g=new THREE.BufferGeometry();g.setIndex(c.geometry.index.clone());
+      const P=c.geometry.attributes.position,od=new Float32Array(P.count*3);
+      for(let i=0;i<P.count;i++){q.set(Math.sign(P.getX(i)),Math.sign(P.getY(i)),Math.sign(P.getZ(i))).applyQuaternion(c.quaternion);od[i*3]=q.x;od[i*3+1]=q.y;od[i*3+2]=q.z;}
+      g.setAttribute('position',P.clone());g.setAttribute('odir',new THREE.BufferAttribute(od,3));g.applyMatrix4(c.matrix);parts.push(g);}
+    if(!parts.length)continue;
+    const h=new THREE.Mesh(parts.length>1?mergeGeometries(parts):parts[0],hm);h.renderOrder=50;h.userData.noMerge=true;h.frustumCulled=false;n.add(h);}
+  if(mm.has(a.armor))a.armor=mm.get(a.armor);
+}
+avatars.forEach(outlineAvatar);
 function drawLabel(a,text,color){const g=a.c.getContext('2d');g.clearRect(0,0,256,64);g.font='600 30px "Saira Condensed",sans-serif';g.textAlign='center';g.fillStyle='rgba(10,14,17,.7)';const w=g.measureText(text).width+20;g.fillRect(128-w/2,8,w,44);g.fillStyle=color;g.fillText(text,128,41);a.tex.needsUpdate=true;}
 /* first-person rifle and arms */
 const vm=new THREE.Group(),vg=new THREE.Group();vm.add(vg);vm.scale.setScalar(0.78);
@@ -1913,7 +1939,7 @@ function choosePick(zi){const s=mySlot();if(s<0||!S||S.players[s].st!=='dead')re
 
 
 /* ---------- sandbox (solo test range) ---------- */
-const SB={on:false,timer:false,tickets:true,bots:'on',god:false,ammo:false,tab:'rules'};
+const SB={on:false,timer:false,tickets:true,bots:'on',god:false,ammo:false,names:false,tab:'rules'};
 try{const t=localStorage.getItem('za-sbtab');if(['rules','snd','wpn','obj'].includes(t))SB.tab=t;}catch(e){}
 const CFG0={...CFG},ZHP0=[...ZHP];
 const SB_KNOBS=[
@@ -1922,11 +1948,11 @@ const SB_KNOBS=[
  ['Down and return',[['downHP','Downed HP',1,100,1],['bleed','Bleed-out (s)',1,30,0.5],['revive','Revive (s)',0.5,10,0.1],['respawn','Respawn wait (s)',0,20,0.5],['spawnProt','Spawn shield (s)',0,10,0.5],['killHeal','HP gained for a down',0,100,5],['block','Spawn block radius (m)',0,40,1],['tickets','Respawns per team (next round)',0,20,1]]],
  ['Objective',[['roundTime','Round length (s, next round)',20,300,5],['arm','Arm time (s)',0.5,15,0.5],['defuse','Defuse time (s)',0.5,15,0.5],['fuse','Fuse (s)',5,90,1]]],
  ['Cover',[['regenMin','Rebuild delay, shortest (s)',2,30,0.5],['regenMax','Rebuild delay, longest (s)',2,30,0.5]]]];
-function sbSave(){try{const d={};for(const k in CFG0)if(CFG[k]!==CFG0[k])d[k]=CFG[k];localStorage.setItem('za-sb',JSON.stringify({cfg:d,zhp:[...ZHP],sb:{timer:SB.timer,tickets:SB.tickets,bots:SB.bots,god:SB.god,ammo:SB.ammo}}));}catch(e){}}
+function sbSave(){try{const d={};for(const k in CFG0)if(CFG[k]!==CFG0[k])d[k]=CFG[k];localStorage.setItem('za-sb',JSON.stringify({cfg:d,zhp:[...ZHP],sb:{timer:SB.timer,tickets:SB.tickets,bots:SB.bots,god:SB.god,ammo:SB.ammo,names:SB.names}}));}catch(e){}}
 function sbLoad(){try{const d=JSON.parse(localStorage.getItem('za-sb')||'null');if(!d)return;
   for(const k in d.cfg||{})if(k in CFG0&&typeof d.cfg[k]==='number'&&isFinite(d.cfg[k]))CFG[k]=d.cfg[k];
   if(Array.isArray(d.zhp)&&d.zhp.length===5)d.zhp.forEach((v,i)=>{if(isFinite(+v))ZHP[i]=clamp(+v,1,100);});
-  const o=d.sb||{};for(const k of ['timer','tickets','god','ammo'])if(typeof o[k]==='boolean')SB[k]=o[k];if(['on','passive','off'].includes(o.bots))SB.bots=o.bots;}catch(e){}}
+  const o=d.sb||{};for(const k of ['timer','tickets','god','ammo','names'])if(typeof o[k]==='boolean')SB[k]=o[k];if(['on','passive','off'].includes(o.bots))SB.bots=o.bots;}catch(e){}}
 function sbFmt(v,st){return st<1?(+v).toFixed(st<0.1?2:1):String(Math.round(v));}
 function toggleSB(force){const el=$('sbpanel');const open=force!==undefined?force:el.hidden;el.hidden=!open;if(open){if(locked)document.exitPointerLock();for(const k in keys)keys[k]=false;mouseDown=false;adsDown=false;
   if(SB.on&&SB.tab==='obj'&&devPickAim()>=0)buildSB();}devHL();}
@@ -1945,7 +1971,7 @@ function buildSBIn(el,top){
   // toggles
   el.append(mk('h3','','Rules'));
   const tog=(k,txt)=>{const l=mk('label','tog');const c=document.createElement('input');c.type='checkbox';c.checked=SB[k];c.addEventListener('change',()=>{SB[k]=c.checked;if(k==='timer'&&S)S.timer=CFG.roundTime;sbSave();});l.append(c,document.createTextNode(txt));return l;};
-  el.append(tog('timer','Round timer runs'),tog('tickets','Unlimited respawns'),tog('god','You take no damage'),tog('ammo','Infinite ammo'));
+  el.append(tog('timer','Round timer runs'),tog('tickets','Unlimited respawns'),tog('god','You take no damage'),tog('ammo','Infinite ammo'),tog('names','Name tags over players'));
   const bl=mk('label','');bl.append(document.createTextNode('Bots'));const bs=document.createElement('select');
   [['on','Fight normally'],['passive','Passive (stand still, never shoot)'],['off','Off (empty map)']].forEach(([v,t])=>{const o=document.createElement('option');o.value=v;o.textContent=t;bs.append(o);});
   bs.value=SB.bots;bs.addEventListener('change',()=>{SB.bots=bs.value;sbSave();});bl.append(bs);el.append(bl);
@@ -1979,7 +2005,7 @@ function buildSBIn(el,top){
       r.addEventListener('input',()=>{CFG[k]=+r.value;out.textContent=sbFmt(CFG[k],st);w.classList.toggle('chg',CFG[k]!==CFG0[k]);if(k==='mag'&&me.w==='rifle')me.ammo=Math.min(me.ammo,CFG.mag);sbSave();});
       w.append(sp,out,r);el.append(w);}}
   const eb=mk('div','btns');
-  const rs=mk('button','btn','Reset rules');rs.type='button';rs.addEventListener('click',()=>{Object.assign(CFG,CFG0);ZHP0.forEach((v,i)=>ZHP[i]=v);Object.assign(SB,{timer:false,tickets:true,bots:'on',god:false,ammo:false});try{localStorage.removeItem('za-sb');}catch(e){}buildSB();});
+  const rs=mk('button','btn','Reset rules');rs.type='button';rs.addEventListener('click',()=>{Object.assign(CFG,CFG0);ZHP0.forEach((v,i)=>ZHP[i]=v);Object.assign(SB,{timer:false,tickets:true,bots:'on',god:false,ammo:false,names:false});try{localStorage.removeItem('za-sb');}catch(e){}buildSB();});
   const cl=mk('button','btn','Close');cl.type='button';cl.addEventListener('click',()=>{toggleSB(false);autoLock(true);});
   eb.append(rs,cl);el.append(eb);
   devFooter(el,mk);done();
@@ -2416,7 +2442,7 @@ function renderOthers(dt){
   const k=1-Math.exp(-dt*14),kk=Math.min(1,dt*10);
   for(let i=0;i<4;i++){
     const p=S.players[i],a=avatars[i];
-    if(i===s){a.g.visible=false;a.blob.visible=false;continue;}
+    if(i===s){a.g.visible=false;a.blob.visible=false;a.hullM.visible=false;continue;}
     let x=p.x,y=p.y,z=p.z,yaw=p.yaw,pitch=p.pitch,sh=p.sh;a.crouch=false;let ln=0,wr=p.wr||0;
     if(!p.bot&&net.mode==='online'){const pr=presenceOf(p.peer);if(pr&&Array.isArray(pr.p)){x=+pr.p[0]||0;y=+pr.p[1]||0;z=+pr.p[2]||0;yaw=+pr.yw||0;pitch=+pr.pt||0;sh=pr.sh|0;a.crouch=!!pr.c;ln=clamp(+pr.l||0,-1,1);wr=clamp(+pr.wr||0,-1,1);}}a.wrK=(a.wrK||0)+(wr-(a.wrK||0))*Math.min(1,dt*10);a.lean=(a.lean||0)+(ln-(a.lean||0))*Math.min(1,dt*14);
     if(!a.init||hyp(a.rx,a.rz,x,z)>6){a.rx=x;a.ry=y;a.rz=z;a.ryaw=yaw;a.init=true;a.lastSh=sh;}
@@ -2424,6 +2450,8 @@ function renderOthers(dt){
     a.rx+=(x-a.rx)*k;a.ry+=(y-a.ry)*k;a.rz+=(z-a.rz)*k;a.ryaw=turnTo(a.ryaw,yaw,10*dt+0.01);
     const dn=p.st==='down';
     a.g.visible=p.st!=='dead';
+    // name tags only in the sandbox (Rules tab toggle); a red outline on every enemy you can see
+    a.label.visible=SB.on&&SB.names;a.hullM.visible=a.g.visible&&s>=0&&p.team!==S.players[s].team;
     if(a.wk!==p.w){a.wk=p.w;const sc=p.w==='smg'?[0.95,0.95,0.72]:p.w==='br'?[1.12,1.15,1.18]:[1,1,1];a.rifle.g.scale.set(...sc);}
     a.g.position.set(a.rx,a.ry,a.rz);a.g.rotation.set(0,a.ryaw,-a.wrK*0.35);
     {const gy=groundAt(a.rx,a.rz,a.ry+0.05),h=Math.max(0,a.ry-gy);a.blob.visible=a.g.visible;a.blob.position.set(a.rx,gy+0.02,a.rz);a.blob.scale.setScalar(1+h*0.25+a.downK*0.6);a.blob.material.opacity=0.55/(1+h);a.h=h;}
