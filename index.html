@@ -72,6 +72,11 @@ body{background:var(--bg);color:var(--fg);overflow:hidden;font-family:var(--disp
 #score .s{font-size:28px;font-weight:700;line-height:1}
 #score .t0{color:var(--team0)} #score .t1{color:var(--team1)}
 #clock{font-size:22px;min-width:64px;text-align:center}
+#bigc{left:50%;top:57%;transform:translate(-50%,-50%);font-size:min(30vh,220px);font-weight:700;line-height:1;color:#fff;text-shadow:0 0 18px rgba(95,242,255,.9),0 0 60px rgba(39,230,255,.55);will-change:transform}
+#bigc.last{text-shadow:0 0 18px rgba(255,80,100,.95),0 0 60px rgba(255,40,64,.6)}
+#bigc span{display:inline-block;animation:bigpop .9s cubic-bezier(.2,.9,.3,1) both}
+@keyframes bigpop{0%{transform:scale(1.9);opacity:0}18%{transform:scale(1);opacity:1}100%{transform:scale(.92);opacity:.85}}
+@media (prefers-reduced-motion:reduce){#bigc span{animation:none}}
 #roundinfo{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 #role{font-size:14px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:2px 10px;border-radius:4px}
 #role.atk{background:rgba(255,43,214,.2);color:#ff9bea} #role.dm{background:rgba(255,194,61,.16);color:#ffd27a} #role.def{background:rgba(39,230,255,.16);color:#a6f6ff}
@@ -185,6 +190,7 @@ input,select{font:inherit;font-size:16px;color:var(--fg);background:#0b0f12;bord
 
 <canvas id="view" aria-label="Arena view"></canvas>
 
+<div class="hud num" id="bigc" hidden></div>
 <div class="hud" id="topbar" hidden>
   <div id="score"><span class="s t0 num" id="sc0">0</span><span class="num" id="clock">2:00</span><span class="s t1 num" id="sc1">0</span></div>
   <div id="roundinfo">Round 1 · first to 5</div>
@@ -310,7 +316,7 @@ const ZHP=[100,80,60,45,30];
 const ZX=[-46,-20,0,20,46];
 const TEAMN=['Blue','Orange'];
 const BOTN=['Bot Ash','Bot Rook','Bot Vex','Bot Juno','Bot Kade','Bot Nyx','Bot Orin','Bot Sable'];
-const CFG={roundTime:75,buy:3,post:4.5,overT:10,fuse:25,arm:5,defuse:7,revive:2.5,bleed:8,respawn:4,tickets:4,downHP:30,winScore:4,killHeal:25,block:15,dmg:25,head:50,fireCd:0.12,mag:24,reload:1.8,buy1:8,speed:6,sprint:9.5,crawl:1.8,jump:6.5,grav:18,wallRun:1.3,wallGrav:0.22,wallKick:7,grab:2.3,regenMin:5,regenMax:10,spawnProt:3,dmTime:600,dmRespawn:3,dmKills1:15,dmKills2:30,dmKills4:50};
+const CFG={roundTime:75,buy:3,post:6,overT:10,fuse:25,arm:5,defuse:7,revive:2.5,bleed:8,respawn:4,tickets:4,downHP:30,winScore:4,killHeal:25,block:15,dmg:25,head:50,fireCd:0.12,mag:24,reload:1.8,buy1:8,speed:6,sprint:9.5,crawl:1.8,jump:6.5,grav:18,wallRun:1.3,wallGrav:0.22,wallKick:7,grab:2.3,regenMin:5,regenMax:10,spawnProt:3,dmTime:600,dmRespawn:3,dmKills1:15,dmKills2:30,dmKills4:50};
 const SITES={A:{x:22,z:-9},B:{x:22,z:9}};
 /* weapons: the rifle reads CFG so the sandbox sliders tune it. near/far = full damage up to near m, down to fall x at far m */
 const W={
@@ -1328,7 +1334,7 @@ const LX=(function(){
   bar(new THREE.BoxGeometry(0.12,0.05,SEG-0.06),tr,0.55);
   const gl=[];for(let x=-50+SEG/2;x<50;x+=SEG)for(const z of [-10,0,10])gl.push([x,ROOF_Y-0.07,z,z<0?NEON.cy:z>0?NEON.mg:NEON.vi]);
   bar(new THREE.BoxGeometry(SEG-0.06,0.04,0.08),gl,0.4);
-  return{units,meshes,cues:[],st:{phase:'',prev:[],sec:-1,armed:false,cown:-2,clock:0,mid:null},dirty:true,armedK:0};
+  return{units,meshes,dark:0,cues:[],st:{phase:'',prev:[],sec:-1,armed:false,cown:-2,clock:0,mid:null},dirty:true,armedK:0};
 })();
 const LXC={amber:lin(0xffb020),red:lin(0xff2840),white:lin(0xffffff),green:lin(0x35ffa0),cyan:lin(NEON.cy),orange:lin(0xffa040)};
 const teamCol=t=>lin(TEAMC[t]);
@@ -1337,9 +1343,13 @@ const gauss=(d,s)=>Math.exp(-(d*d)/(2*s*s));
 /* amplitude of one cue at light x (strobes become smooth pulses with reduced motion) */
 function lxAmp(c,x){const a=c.age,d=Math.abs(x-c.x),sq=f=>CALM?0.6:(((a*f)%1)<0.5?1:0);
   switch(c.kind){
-    case 'count':return c.age<0.9?(1.1+0.35*(3-c.n))*Math.exp(-a*3.5):-1;
+    case 'count':{if(a>1)return -1;/* the lit band closes in from both ends: 3 = outer third, 2 = two thirds, 1 = everything, strobing */
+      const ax=Math.abs(x),edge=[0,0,17,34][c.n]||0,inb=ax>=edge?1:0,k=1.5+0.6*(3-c.n);
+      return inb*k*(Math.exp(-a*2.4)+(c.n===1&&a<0.36?1.2*sq(9):0))+2*gauss(ax-(52-a*(52-edge)/0.3),3.5)*(a<0.32?1:0)+(1-inb)*0.25*Math.exp(-a*5);}
     case 'tick':return a<0.4?0.9*Math.exp(-a*7):-1;
-    case 'fight':{if(a>2.6)return -1;const strobe=a<0.55?2.4*sq(6):0,front=50-(a-0.35)*55,ch=a>0.35?2*gauss(Math.abs(x)-front,4):0;return strobe+ch+1.1*Math.max(0,1-a/2.6)*(a>0.35?1:0);}
+    case 'fight':{if(a>3.8)return -1;const ax=Math.abs(x),strobe=a<0.85?3.2*sq(9):0,front=50-(a-0.35)*55,ch=a>0.35?2.4*gauss(ax-front,4):0,
+      out=a>1.25?2*gauss(ax-(a-1.25)*60,5)*Math.exp(-(a-1.25)*0.8):0;/* white strobe, team colours rush in to the centre, then burst back out */
+      return strobe+ch+out+1.4*Math.max(0,1-a/3.8)*(a>0.35?(CALM?0.8:0.6+0.4*Math.sin(x*0.3-a*12)):0);}
     case 'knock':return a<1.4?1.9*Math.exp(-a*3)*gauss(d,7)+1.4*gauss(d-a*45,3)*Math.exp(-a*2):-1;
     case 'kill':return a<1.8?(a<0.4?1.7*sq(7)*gauss(d,14):0)+2*Math.exp(-a*2.2)*gauss(d,10)+1.6*gauss(d-a*55,4)*Math.exp(-a*1.6):-1;
     case 'revive':return a<1.2?1.1*Math.sin(Math.PI*a/1.2)*gauss(d,8):-1;
@@ -1349,7 +1359,7 @@ function lxAmp(c,x){const a=c.age,d=Math.abs(x-c.x),sq=f=>CALM?0.6:(((a*f)%1)<0.
     case 'match':return a<6?Math.min(1,(6-a))*(0.5+(CALM?0.4:Math.max(0,Math.sin(x*0.25-a*10))*1.1))+(a<0.6?1.6*sq(5):0):-1;}
   return -1;}
 function lxEvents(dt){const Q=LX.st;
-  if(!S){LX.armedOn=false;Q.phase='';Q.prev=[];Q.sec=-1;Q.armed=false;Q.cown=-2;return;}
+  if(!S){LX.armedOn=false;LX.darkT=0;Q.phase='';Q.prev=[];Q.sec=-1;Q.armed=false;Q.cown=-2;return;}
   if(S.clock<Q.clock){Q.prev=[];Q.phase='';Q.armed=false;Q.cown=-2;}Q.clock=S.clock;
   for(const p of S.players){const was=Q.prev[p.s];Q.prev[p.s]=p.st;if(!was||was===p.st)continue;const by=teamCol(1-p.team);
     if(was==='alive'&&p.st==='down')lxCue('knock',{x:p.x,col:by});
@@ -1367,15 +1377,17 @@ function lxEvents(dt){const Q=LX.st;
   if(sec!==Q.sec){if(S.phase==='buy'&&sec>=1&&sec<=3)lxCue('count',{n:sec,col:sec===1?LXC.red:LXC.amber});else if(sec>0&&Q.sec!==-1&&S.phase==='live')lxCue('tick',{col:LXC.amber});Q.sec=sec;}
   const C=S.center;if(C&&C.own!==Q.cown){if(Q.cown!==-2&&C.own>=0&&S.phase==='live')lxCue('ring',{x:0,col:teamCol(C.own)});Q.cown=C.own;}
   // while the charge is armed every light breathes red, faster as the fuse runs down
+  LX.darkT=OPT.lights&&S.phase==='buy'&&S.t<=3.25?1:0;/* house lights drop for 3-2-1 so each count flashes out of the dark */
   LX.armedOn=armed&&!!OPT.lights;LX.armedK=armed?clamp(1-S.armed.t/CFG.fuse,0,1):0;}
 const _lc=new THREE.Color();
 function lxTick(dt,t){lxEvents(dt);
   for(const c of LX.cues)c.age+=dt;
   const cues=LX.cues.filter(c=>c.age>=0);
   const pulse=S&&LX.armedOn?0.35+0.65*Math.max(0,Math.sin(t*Math.PI*2*(0.6+2.4*LX.armedK))):0;
-  if(!cues.length&&!pulse&&!LX.dirty)return;
+  const dk0=LX.dark;LX.dark+=clamp((LX.darkT||0)-LX.dark,-dt*5,dt*4);
+  if(!cues.length&&!pulse&&!LX.dirty&&!LX.dark&&!dk0)return;
   let alive=false;
-  for(const u of LX.units){const c=u.c;c.copy(u.base);let sum=0;_lc.setRGB(0,0,0);
+  for(const u of LX.units){const c=u.c;c.copy(u.base);if(LX.dark)c.multiplyScalar(1-0.93*LX.dark);let sum=0;_lc.setRGB(0,0,0);
     for(const q of cues){const a=lxAmp(q,u.x);if(a<0){q.done=true;continue;}if(a<0.003)continue;alive=true;let col=q.col;
       if(q.kind==='fight'&&q.age>0.35)col=u.x<0?q.colW:q.colE;else if(q.kind==='fight')col=LXC.white;
       else if(q.kind==='match')col=Math.sin(u.x*0.25-q.age*10+1.6)>0?q.col:q.col2;
@@ -1385,7 +1397,7 @@ function lxTick(dt,t){lxEvents(dt);
     c.multiplyScalar(1-0.75*Math.min(1,sum)).add(_lc);
     u.m.setColorAt(u.i,c);}
   for(const m of LX.meshes)m.instanceColor.needsUpdate=true;
-  LX.cues=LX.cues.filter(c=>!c.done);LX.dirty=alive||pulse>0;}
+  LX.cues=LX.cues.filter(c=>!c.done);LX.dirty=alive||pulse>0||LX.dark>0;}
 let flk={i:-1,t:0,next:3},fpsN=0,fpsT=0;const CALM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 function fxTick(dt,now){
   rainTick(dt);glassTick(dt);marksTick(dt);
@@ -1850,9 +1862,9 @@ function audioTick(dt){
   /* between rounds the announcer runs: "Round won/lost", "Switching sides", then the side you play next, then 3-2-1-Fight.
      Round 1 has no result to call, so it only names your side while the weapon wheel is up. */
   voiceInit();
-  if(P&&S.phase==='post'&&CFG.post>=4&&(SB.on||(S.score[0]<CFG.winScore&&S.score[1]<CFG.winScore))){const el=CFG.post-S.t;
-    if(el>=1.5&&!AS.said.sides){AS.said.sides=1;announce('sides');}
-    if(el>=3.2&&!AS.said.role){AS.said.role=1;announce(roleOf(myTeam,S.round+1)==='atk'?'offense':'defense');}}
+  if(P&&S.mode!=='dm'&&S.phase==='post'&&CFG.post>=5&&(SB.on||(S.score[0]<CFG.winScore&&S.score[1]<CFG.winScore))){const el=CFG.post-S.t;
+    if(el>=1.8&&!AS.said.sides){AS.said.sides=1;announce('sides');}
+    if(el>=3.9&&AS.said.sides&&!AS.said.role){AS.said.role=1;announce(roleOf(myTeam,S.round+1)==='atk'?'offense':'defense');}}
   if(P&&S.mode!=='dm'&&S.phase==='buy'&&S.round===1&&!AS.said.role&&S.t>4.3&&S.t<CFG.buy1-0.6){if(announce(roleOf(myTeam,1)==='atk'?'offense':'defense'))AS.said.role=1;}
   const armed=!!S.armed&&S.phase==='live';
   if(armed&&!AS.armed){sting('armed');announce('planted',0.3);AS.beepT=0.7;AS.site=S.armed.site;}
@@ -2292,7 +2304,7 @@ function restartMatch(){if(!canRestart())return;restartArm=0;closeWheel(false);
 /* local side of a new match, for whoever sees S.mid change: reopen the start weapon pick and restart the match music after the next FIGHT */
 function newMatchLocal(){WH.auto=false;if(WH.open)closeWheel(false);me.round=0;MM.go=false;MM.on=false;if(MM.src){try{MM.src.stop();}catch(e){}MM.src.disconnect();MM.src=null;}}
 function closePause(){if($('pause').hidden)return;$('pause').hidden=true;toggleSettings(false);autoLock();blip(660,0.05,0.03,false,'ui');}
-function leaveMatch(){closeWheel(false);WH.auto=false;$('pause').hidden=true;toggleSettings(false);toggleSB(false);
+function leaveMatch(){bigCountOff();closeWheel(false);WH.auto=false;$('pause').hidden=true;toggleSettings(false);toggleSB(false);
   if(net.room){try{net.room.leave().catch(()=>{});}catch(e){}}
   net.mode='none';net.room=null;net.host=false;net.hostPeer=null;net.myPeer=null;S=null;if(SB.on)sbDefaults();SB.on=false;me.sp=-1;me.round=0;me.mid=0;coverTick();
   for(const id of ['topbar','mini','vitals','ammo','cross','netpill','banner','prompt','ring','lockhint','down','dead','fps'])$(id).hidden=true;
@@ -2544,6 +2556,19 @@ function renderOthers(dt){
 }
 
 /* ---------- HUD ---------- */
+/* the last three seconds of the freeze count down big in the middle of the view; on "Fight" the number turns into the
+   round clock and flies up, shrinking, into the clock's place in the top bar */
+const BC={n:0,fly:0};
+function bigCountOff(){const bc=$('bigc');bc.hidden=true;bc.style.transition='none';bc.style.transform='';BC.n=0;BC.fly=0;$('clock').style.visibility='';}
+function bigCount(){const bc=$('bigc'),ck=$('clock'),n=Math.ceil(S.t);
+  if(S.phase==='buy'&&!WH.open&&n>=1&&n<=3){if(BC.n!==n||BC.fly){BC.n=n;BC.fly=0;bc.hidden=false;bc.className='hud num'+(n===1?' last':'');bc.style.transition='none';bc.style.transform='';bc.innerHTML='<span>'+n+'</span>';}
+    ck.style.visibility='hidden';}
+  else if(S.phase==='live'&&BC.n&&!BC.fly){BC.n=0;BC.fly=performance.now();bc.className='hud num';bc.style.transition='none';bc.style.transform='';bc.textContent=fmt(S.timer);
+    const b=bc.getBoundingClientRect(),r=ck.getBoundingClientRect(),sc=parseFloat(getComputedStyle(ck).fontSize)/parseFloat(getComputedStyle(bc).fontSize);
+    const dx=r.left+r.width/2-(b.left+b.width/2),dy=r.top+r.height/2-(b.top+b.height/2);
+    bc.style.transition=CALM?'none':'transform .8s cubic-bezier(.65,0,.2,1)';bc.style.transform=`translate(calc(-50% + ${dx.toFixed(1)}px),calc(-50% + ${dy.toFixed(1)}px)) scale(${sc.toFixed(4)})`;}
+  else if(BC.fly){if(S.phase!=='live'||performance.now()-BC.fly>(CALM?60:820))bigCountOff();else bc.textContent=fmt(S.timer);}
+  else if(BC.n||!bc.hidden)bigCountOff();}
 const fmt=t=>{t=Math.max(0,Math.ceil(t));return Math.floor(t/60)+':'+String(t%60).padStart(2,'0');};
 const miniC=$('mini').getContext('2d'),ringC=$('ring').getContext('2d');
 let hudT=0,lastPickerKey='';
@@ -2558,7 +2583,7 @@ function hud(dt){
   refreshZoneLook(role);
   $('sc0').textContent=S.score[0];$('sc1').textContent=S.score[1];
   $('clock').textContent=S.phase==='buy'?'0:0'+Math.ceil(S.t):S.armed?fmt(S.armed.t):SB.on&&!SB.timer?'∞':fmt(S.timer);
-  $('clock').style.color=S.armed?'var(--bad)':'';
+  $('clock').style.color=S.armed?'var(--bad)':'';bigCount();
   $('roundinfo').textContent=dm?`${modeName('dm',S.size)} · first to ${S.kills} kills`:`Round ${S.round} · first to ${CFG.winScore}`+(S.sudden?' · sudden death, no respawns':'');
   const rb=$('role');if(dm&&P){rb.hidden=false;rb.className='dm';rb.textContent=S.size===1?'Deathmatch':'Team '+TEAMN[myTeam];}else if(role){rb.hidden=false;rb.className=role;rb.textContent=(role==='atk'?'Attack':'Defend')+' · '+TEAMN[myTeam];}else rb.hidden=true;
   let obj='';
