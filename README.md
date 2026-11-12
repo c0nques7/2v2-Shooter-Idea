@@ -78,6 +78,20 @@ Current default numbers (from `CFG` in `index.html`):
 | Ledge grab reach above feet | 2.3 m (Sandbox slider; 0 turns it off) |
 | Destroyed cover rebuilds after | 5 to 10 s, picked at random per piece (Sandbox sliders) |
 
+## Guns
+
+Six guns, on keys 1 to 6 and the weapon wheel. Each has its own model (dark plates, steel trim, light strips in the gun's colour),
+and other players see the gun you carry.
+
+| Gun | Damage (body / head) | Notes |
+| --- | --- | --- |
+| Rifle | 25 / 50 | All-rounder |
+| SMG | 20 / 34 | Fast, strong up close |
+| Battle rifle | 38 / 76 | Hard-hitting, heavy recoil |
+| Shotgun | 8 pellets of 13 / 18 | Deadly inside 10 m, 6 shells |
+| LMG | 24 / 40 | 75 rounds, slow to move, aim and reload |
+| Sniper rifle | 80 / 150 | Bolt action, 5 rounds, 2x scope, poor from the hip |
+
 ## Experience and the Workshop
 
 Every match against bots or online pays XP (not the sandbox): 100 per down or kill, 50 per finish, +50 for a headshot, 40 per assist,
