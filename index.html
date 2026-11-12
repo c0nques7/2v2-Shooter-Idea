@@ -107,6 +107,7 @@
 html,body{height:100%}
 body{background:var(--bg);color:var(--fg);overflow:hidden;font-family:var(--display);font-size:16px;user-select:none;-webkit-user-select:none}
 #view{position:fixed;inset:0;display:block;width:100%;height:100%;cursor:crosshair}
+#flyfade{position:fixed;inset:0;background:#05040c;opacity:0;pointer-events:none}
 .hud{position:fixed;pointer-events:none;z-index:5}
 .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
 #topbar{top:calc(10px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:4px}
@@ -237,6 +238,15 @@ body.touch .stabhint{display:none}
 .mback{display:none;font:inherit;font-size:30px;line-height:1;color:var(--fg);background:none;border:1px solid var(--line);border-radius:5px;width:40px;height:40px;cursor:pointer}
 #msetup,.mpp{display:flex;flex-direction:column;gap:10px}
 .mpanel .cap{margin-top:-4px;min-height:1.2em}
+.mapf{display:flex;flex-direction:column;gap:4px}
+.maphd{display:flex;align-items:baseline;gap:10px;min-width:0}.maphd .cap{margin:0;min-height:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.maps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.mapt{font:inherit;color:var(--muted);background:#0b0f12;border:1px solid var(--line);border-radius:5px;padding:3px 3px 4px;display:flex;flex-direction:column;align-items:stretch;gap:3px;cursor:pointer;min-width:0}
+.mapt canvas{display:block;width:100%;aspect-ratio:5/2;border-radius:3px}
+.mapt span{font-size:13px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+.mapt:hover{border-color:rgba(95,242,255,.5)}
+.mapt[aria-checked=true]{border-color:var(--accent);color:#fff;box-shadow:0 0 10px rgba(95,242,255,.35)}
+.mapt:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .mgo{font-size:24px;padding:12px 16px;margin-top:4px}
 .mcard{grid-area:card;justify-self:end;align-self:start;width:min(300px,100%);display:flex;flex-direction:column;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
 .mnick{font-family:var(--display);font-size:24px;font-weight:700;letter-spacing:.04em;background:transparent;border:1px solid transparent;padding:2px 6px;margin:-2px -6px}
@@ -254,6 +264,7 @@ body.touch .mhint{visibility:hidden}
   #menu.sub .mlist{display:none}
   .mpanel{grid-area:list;align-self:start}
   .mback{display:block}}
+@media (max-width:760px) and (max-height:900px){.mpanel{gap:8px;padding:12px 14px 14px}#msetup,.mpp{gap:7px}.mgo{font-size:20px;padding:9px 14px}}
 @media (max-height:520px) and (min-width:761px){.mwrap{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"logo card" "list panel";grid-template-rows:auto 1fr;gap:10px 28px;padding-top:0}.mfoot{display:none}.mcard{width:min(280px,100%);padding:8px 12px;gap:4px}.mcard .cap{display:none}.mlogo h1{font-size:48px}.mpanel{gap:8px;padding:10px 14px}.mgo{font-size:20px;padding:8px}}
 #score,#zoneline,#banner,.panel{box-shadow:0 0 0 1px rgba(255,43,214,.12),0 0 18px rgba(39,230,255,.12)}
 #hpnum,#ammonum,#score .s{text-shadow:0 0 12px currentColor}
@@ -316,6 +327,7 @@ body.touch .chip{min-height:44px}
 </style>
 
 <canvas id="view" aria-label="Arena view"></canvas>
+<div id="flyfade" aria-hidden="true"></div>
 
 <div class="hud num" id="bigc" hidden></div>
 <div class="hud" id="topbar" hidden>
@@ -413,6 +425,7 @@ body.touch .chip{min-height:44px}
         <div class="cap" id="modecap"></div>
         <label for="wsel" hidden>Weapon<select id="wsel"><option value="rifle">Rifle</option><option value="smg">SMG</option><option value="br">Battle rifle</option><option value="sg">Shotgun</option><option value="lmg">LMG</option><option value="sniper">Sniper rifle</option></select></label>
         <div class="cap" id="wbuildcap" hidden></div>
+        <div class="mapf"><div class="maphd"><span id="maplbl">Map</span><span class="cap" id="mapcap"></span></div><div class="maps" id="maps" role="radiogroup" aria-labelledby="maplbl"></div></div>
         <label for="teampref">Team<select id="teampref"><option value="-1">Auto</option><option value="0">Blue</option><option value="1">Orange</option></select></label>
       </div>
       <div class="mpp" data-p="play">
@@ -510,26 +523,59 @@ const hpColor=h=>h>=80?'#35ffa0':h>=45?'#ffc23d':'#ff3d6e';
 /* ---------- arena ---------- */
 const BOXES=[];
 function addBox(x,z,w,d,h,wall){BOXES.push({x0:x-w/2,x1:x+w/2,z0:z-d/2,z1:z+d/2,y0:0,y1:h,wall:!!wall});}
-/* Layout. Each spawn point sits in its own alcove (a front wall and one wing, open to the back and along the arena wall), so nothing
-   outside the base can see it. The base front is a solid wall at x=±40 with five doors (center, |z|≈9, and one along each arena wall).
-   A second, staggered row at x=±34.5 puts a piece in front of every door, which blocks the long base-to-base lines and gives each
-   door a left and a right way out. Solids (3.2 m, indestructible, not climbable) only sit in the bases; the midfield is breakable
-   cover in three lanes with lane breakers between the respawn points. Mirrored through the center ((x,z) -> (-x,-z)), except a few
-   south-lane pieces kept low or nudged off the menu flyover's low pass. */
-function addSolid(x,z,w,d,h){addBox(x,z,w,d,h,1);BOXES[BOXES.length-1].solid=true;}
-const SOLID_H=3.2;
-for(const sx of [-1,1])for(const sz of [-1,1]){
-  addSolid(sx*43.2,sz*13.75,1.2,6.5,SOLID_H);addSolid(sx*45.4,sz*10.5,3.2,1.2,SOLID_H); // spawn alcove: front wall and inner wing
-  addSolid(sx*40,sz*4.5,1.2,5.5,SOLID_H);addSolid(sx*40,sz*13.6,1.2,5.8,SOLID_H);        // base front, doors at |z|<1.75, 7.25-10.7, 16.5-20
-  addSolid(sx*34.5,sz*9,1.2,5.5,SOLID_H);addSolid(sx*34.5,sz*17.6,1.2,4.8,SOLID_H);      // staggered outer row
-  if(sz>0)addSolid(sx*34.5,0,1.2,5.5,SOLID_H);}
-[[25.5,-10.5,2,2,2.5],[25.5,10.5,2,2,2.5],[22,-4.6,4,1.2,2.5],[22,4.6,4,1.2,2.5],[18.5,-8,1.5,2.5,1],[18.5,8,1.5,2.5,1],
- [10,14,2,3,2.5],[12,-1.5,1.2,4,2.5],[16,6.5,2.5,1.5,1],[30,13,2,2,2.5],[30,-13,2,2,2.5],[30,4.5,2,2,1],[30,-4.5,2,2,1],[6,-9.5,3,1.2,2.5],[28,-2,2,2,1]
-].forEach(b=>{addBox(b[0],b[1],b[2],b[3],b[4]);addBox(-b[0],-b[1],b[2],b[3],b[4]);});
-addBox(0,0,2,2,2.5);addBox(-3.5,6.5,4,1.2,1);addBox(3.5,-6.5,4,1.2,1);
-const WALL_H=8;
-addBox(-51,0,2,44,WALL_H,1);addBox(51,0,2,44,WALL_H,1);addBox(0,-21,104,2,WALL_H,1);addBox(0,21,104,2,WALL_H,1);
-const GLASS_H=4.5,ROOF_Y=WALL_H+GLASS_H,ROOF_HIT={glass:true};BOXES.slice(-4).forEach(o=>{o.outer=true;});
+/* Maps. Every map shares the two bases: each spawn point sits in its own alcove (a front wall and one wing, open to the back and
+   along the arena wall), so nothing outside the base can see it. The base front is a solid wall at x=±40 with five doors (center,
+   |z|≈9, and one along each arena wall). A second, staggered row at x=±34.5 puts a piece in front of every door, which blocks the
+   long base-to-base lines and gives each door a left and a right way out. Solids (3.2 m, indestructible, not climbable) in the bases;
+   each map's midfield (|x|<33) is its own: breakable cover, plus `solids` that are midfield walls and pillars (also indestructible,
+   put away at the sandbox range like cover). Map lists are [x,z,w,d,h] and are mirrored through the center ((x,z) -> (-x,-z));
+   `single` pieces are not mirrored (they sit on the center already). Rules every map keeps (sightline-check.js checks them):
+   no line of sight between the home spawns, the respawn points (ZX[zi],±14), site pads, bot hold points and the range lane stay
+   free, every path works, and the menu flyover clears everything by 1.5 m (its low pass runs along z≈-15, x -20..10). */
+const MAPS={
+  yard:{name:'Yard',cap:'Three lanes of crates. The original.',sites:[22,9],solids:[],
+    cover:[[25.5,-10.5,2,2,2.5],[25.5,10.5,2,2,2.5],[22,-4.6,4,1.2,2.5],[22,4.6,4,1.2,2.5],[18.5,-8,1.5,2.5,1],[18.5,8,1.5,2.5,1],
+      [10,14,2,3,2.5],[12,-1.5,1.2,4,2.5],[16,6.5,2.5,1.5,1],[30,13,2,2,2.5],[30,-13,2,2,2.5],[30,4.5,2,2,1],[30,-4.5,2,2,1],[6,-9.5,3,1.2,2.5],[28,-2,2,2,1]],
+    single:[[0,0,2,2,2.5],[-3.5,6.5,4,1.2,1],[3.5,-6.5,4,1.2,1]]},
+  foundry:{name:'Foundry',cap:'Steel walls split the middle into lanes.',sites:[24,11],
+    solids:[[8,-6,12,1.2,3.2],[8,6,12,1.2,3.2]],
+    cover:[[10,13.5,2,2,2.5],[15,17.5,3,1.2,1],[4,15,1.2,2.5,1],[11,0,1.2,3,2.5],[5.5,1.2,2.5,1.2,1],[18,-2.5,2,2,1],
+      [17.5,-9.5,1.5,2.5,1],[17.5,9.5,1.5,2.5,1],[28.5,-7.5,1.2,2.5,2.5],[28.5,7.5,1.2,2.5,2.5],[24,-16,3,1.2,2.5],[24,16,3,1.2,2.5],
+      [24,-4.2,3,1.2,1],[28.5,0,2,2,1]],
+    single:[[0,0,1.2,3,2.5]]},
+  atrium:{name:'Atrium',cap:'Open floor and pillars. Long sightlines.',sites:[23,7],
+    solids:[[7,5,1.6,1.6,3.2],[7,-5,1.6,1.6,3.2],[16,0,1.6,1.6,3.2],[14,11,1.6,1.6,3.2],[13,-9.5,1.6,1.6,3.2]],
+    cover:[[12.5,4.5,2,1.2,1],[12.5,-4.5,2,1.2,1],[4,12,3,1.2,1],[21,-1,1.2,3,1],[26.5,-1,2,2,2.5],[17.5,-14,2,1.2,1],[17.5,14,2,1.2,1],
+      [24,-14,2.5,2,2.5],[28.5,-6.5,1.2,2.5,1],[28.5,6.5,1.2,2.5,1],[8.5,16.5,1.2,3,2.5]],
+    single:[[0,0,3,3,1],[0,-9,2,1.2,1],[0,9,2,1.2,1]]},
+  warren:{name:'Warren',cap:'Tight crates and corners. Close range.',sites:[20,10],
+    solids:[[10,9,1.2,7,3.2],[9,-5,7,1.2,3.2]],
+    cover:[[4,4,2,2,2.5],[4,-4,2,2,2.5],[13,1,2,2,2.5],[15,-9,2,2,2.5],[7,-11,2,3,2.5],[3,-16,3,1.2,1],[12,17,2,2,2.5],[17,4.5,3,1.2,2.5],
+      [24,-3,2,2,2.5],[26,-9.5,1.2,2.5,2.5],[26,10.5,1.2,2.5,2.5],[22,-15.5,3,1.2,1],[16,13,1.5,1.5,1],[29.5,3.5,2,2,1],[20,-5.5,2,1.2,1]],
+    single:[[0,0,2,2,2.5]]}};
+const MAP_IDS=Object.keys(MAPS);
+const MAP={id:''};
+function addSolid(x,z,w,d,h){addBox(x,z,w,d,h,1);BOXES[BOXES.length-1].solid=true;return BOXES[BOXES.length-1];}
+const SOLID_H=3.2,WALL_H=8;
+const GLASS_H=4.5,ROOF_Y=WALL_H+GLASS_H,ROOF_HIT={glass:true};
+const COVER=[];
+/* fill BOXES (and COVER, SITES) with one map; the render side (setMap) rebuilds the meshes and the bot grid */
+function buildBoxes(id){const M=MAPS[id]||MAPS.yard;MAP.id=MAPS[id]?id:'yard';BOXES.length=0;
+  for(const sx of [-1,1])for(const sz of [-1,1]){
+    addSolid(sx*43.2,sz*13.75,1.2,6.5,SOLID_H);addSolid(sx*45.4,sz*10.5,3.2,1.2,SOLID_H); // spawn alcove: front wall and inner wing
+    addSolid(sx*40,sz*4.5,1.2,5.5,SOLID_H);addSolid(sx*40,sz*13.6,1.2,5.8,SOLID_H);        // base front, doors at |z|<1.75, 7.25-10.7, 16.5-20
+    addSolid(sx*34.5,sz*9,1.2,5.5,SOLID_H);addSolid(sx*34.5,sz*17.6,1.2,4.8,SOLID_H);      // staggered outer row
+    if(sz>0)addSolid(sx*34.5,0,1.2,5.5,SOLID_H);}
+  for(const s of M.solids)for(const k of [1,-1]){const b=addSolid(k*s[0],k*s[1],s[2],s[3],s[4]||SOLID_H);b.mid=true;b.h0=b.y1;}
+  M.cover.forEach(b=>{addBox(b[0],b[1],b[2],b[3],b[4]);addBox(-b[0],-b[1],b[2],b[3],b[4]);});
+  (M.single||[]).forEach(b=>addBox(b[0],b[1],b[2],b[3],b[4]));
+  addBox(-51,0,2,44,WALL_H,1);addBox(51,0,2,44,WALL_H,1);addBox(0,-21,104,2,WALL_H,1);addBox(0,21,104,2,WALL_H,1);
+  BOXES.slice(-4).forEach(o=>{o.outer=true;o.y1=ROOF_Y;});// outer walls reach the glass roof for collision (the meshes stop at WALL_H)
+  SITES.A.x=SITES.B.x=M.sites[0];SITES.A.z=-M.sites[1];SITES.B.z=M.sites[1];
+  COVER.length=0;for(const b of BOXES)if(!b.wall)COVER.push(b);
+  COVER.forEach((b,i)=>{b.ci=i;b.h0=b.y1;b.max=b.y1<1.5?150:300;b.stage=0;});}
+{let m0='yard';try{const v=localStorage.getItem('za-map');if(v&&MAPS[v])m0=v;}catch(e){}buildBoxes(m0);}
+const SHOW={seg:0,map:MAP_IDS.indexOf(MAP.id),fade:0,want:-1};/* menu showcase state (see flyover) */
 
 function rayBox(ox,oy,oz,dx,dy,dz,b,maxT){
   let tmin=0,tmax=maxT;const o=[ox,oy,oz],d=[dx,dy,dz],lo=[b.x0,b.y0,b.z0],hi=[b.x1,b.y1,b.z1];
@@ -544,7 +590,6 @@ let rayHitBox=null;
 function rayWorld(ox,oy,oz,dx,dy,dz,maxT){let best=maxT;rayHitBox=null;for(const b of BOXES){if(b.y1<=0.01)continue;const t=rayBox(ox,oy,oz,dx,dy,dz,b,best);if(t>=0&&t<best){best=t;rayHitBox=b;}}if(oy+dy*best<0&&dy<0){const tg=-oy/dy;if(tg<best){best=tg;rayHitBox=null;}}
   if(dy>0&&oy<ROOF_Y){const tr=(ROOF_Y-oy)/dy;if(tr<best){best=tr;rayHitBox=ROOF_HIT;}}return best;}
 /* destructible cover: full, damaged (half height), rubble. Rubble rebuilds itself after CFG.regenMin..regenMax seconds (S.regen holds the countdown per cover) */
-const COVER=BOXES.filter(b=>!b.wall);COVER.forEach((b,i)=>{b.ci=i;b.h0=b.y1;b.max=b.y1<1.5?150:300;b.stage=0;});
 const coverStage=(b,hp)=>hp<=0?2:hp<=b.max/2?1:0;
 const coverHeight=(b,st)=>st===2?0:st===1?(b.h0>=1.5?1.25:0.6):b.h0;
 function losPts(ax,ay,az,bx,by,bz){const dx=bx-ax,dy=by-ay,dz=bz-az,L=Math.hypot(dx,dy,dz);if(L<1e-3)return true;const t=rayWorld(ax,ay,az,dx/L,dy/L,dz/L,L);return t>=L-0.05;}
@@ -613,14 +658,15 @@ const botMem={};
 let diffMul=1;
 /* match type, picked on the main menu: 'zone' (2v2 attack/defense) or 'dm' (deathmatch: 1v1, or 2v2 / 4v4 teams). Online, the room name
    carries the mode, so everyone in a room plays the host's S.mode. */
-const MATCH={mode:'zone',size:2,range:false};
+const MATCH={mode:'zone',size:2,range:false,map:MAP.id};
 const DM_KILLS=n=>n===1?CFG.dmKills1:n===4?CFG.dmKills4:CFG.dmKills2;
 const modeName=(m,n)=>m==='dm'?(n===1?'Deathmatch 1v1':`Team deathmatch ${n}v${n}`):'Zone 2v2';
 function mkPlayer(s,prev){return{s,team:s%2,bot:prev?prev.bot:true,peer:prev?prev.peer:null,name:prev?prev.name:BOTN[s],hp:100,st:'alive',x:0,y:0,z:0,yaw:0,pitch:0,dhp:0,downT:0,deadT:0,ak:null,at:-1,ap:0,sp:0,spx:0,spz:0,spyaw:0,sh:0,use:false,give:false,pick:-1,lastZ:-1,w:'rifle',wr:0,prot:0,k:0,d:0,xs:newXS()};}
 function newMatch(){
   const prev=S?S.players:null;
   const dm=MATCH.mode==='dm',size=dm?MATCH.size:2,N=size*2;
-  S={mid:(S&&S.mid||0)+1,mode:dm?'dm':'zone',size,kills:dm?DM_KILLS(size):0,round:1,phase:'buy',t:CFG.buy,timer:CFG.roundTime,score:[0,0],tickets:[CFG.tickets,CFG.tickets],armed:null,last:null,feed:[],clock:S?S.clock:0,diff:diffMul,botSite:['A','A'],sudden:false,
+  setMap(MATCH.map);
+  S={mid:(S&&S.mid||0)+1,map:MAP.id,mode:dm?'dm':'zone',size,kills:dm?DM_KILLS(size):0,round:1,phase:'buy',t:CFG.buy,timer:CFG.roundTime,score:[0,0],tickets:[CFG.tickets,CFG.tickets],armed:null,last:null,feed:[],clock:S?S.clock:0,diff:diffMul,botSite:['A','A'],sudden:false,
      players:Array.from({length:N},(_,i)=>mkPlayer(i,prev&&prev.length===N?prev[i]:null))};
   S.range=!!(MATCH.range&&SB.on);
   if(dm)dmStart();else startRound();
@@ -651,7 +697,8 @@ function startRound(){
 /* ---------- deathmatch: every kill scores for the killer's team; the dead come back after CFG.dmRespawn s at the open spot
    farthest from (and out of sight of) living enemies. No downs, revives, tickets, sites or center. ---------- */
 const DM_PTS=[];
-for(let x=-46;x<=46;x+=4)for(let z=-16;z<=16;z+=4){let ok=true;for(let dx=-1;dx<=1&&ok;dx++)for(let dz=-1;dz<=1&&ok;dz++)if(!freeAt(x+dx,z+dz))ok=false;if(ok)DM_PTS.push({x,z});}
+function dmPts(){DM_PTS.length=0;for(let x=-46;x<=46;x+=4)for(let z=-16;z<=16;z+=4){let ok=true;for(let dx=-1;dx<=1&&ok;dx++)for(let dz=-1;dz<=1&&ok;dz++)if(!freeAt(x+dx,z+dz))ok=false;if(ok)DM_PTS.push({x,z});}}
+dmPts();
 function dmPlace(p,x,z,yaw){p.x=x;p.z=z;p.y=0;p.st='alive';p.hp=100;p.dhp=0;if(p.bot)p.w=WKEYS[(Math.random()*WKEYS.length)|0];p.ak=null;p.ap=0;p.at=-1;p.pick=-1;p.give=false;p.lastZ=zoneOf(x);
   p.spyaw=yaw;p.yaw=yaw;p.pitch=0;p.spx=x;p.spz=z;p.sp++;p.prot=CFG.spawnProt;p.wr=0;const m=botMem[p.s];if(m){m.path=null;m.wr=0;m.vy=0;m.kvx=m.kvz=0;}}
 /* match start: each team in its own base's spawn alcoves (two to an alcove in 4v4), mirrored through the center like the arena */
@@ -896,7 +943,7 @@ let roomNS=null;
 const notes=$('netstatus');
 (async()=>{
   try{roomNS=window.claude&&window.claude.use?await window.claude.use('room'):null;}catch(e){roomNS=null;}
-  if(roomNS){$('joinbtn').disabled=false;notes.textContent='Same code and mode play together. Bots fill empty slots.';}
+  if(roomNS){$('joinbtn').disabled=false;notes.textContent='Same code and mode play together; the host picks the map. Bots fill empty slots.';}
   else notes.textContent='Online play works when this page is opened on claude.ai. Play works anywhere.';
 })();
 
@@ -964,7 +1011,7 @@ function packState(){
 }
 function onRemoteState(msg){
   if(net.host||msg.peer!==net.hostPeer||!msg.data||!Array.isArray(msg.data.players))return;
-  S=msg.data;net.lastState=performance.now();if(S.tn){tuneFromHost(S.tn);}
+  S=msg.data;net.lastState=performance.now();if(S.map&&S.map!==MAP.id)setMap(S.map);/* the host picks the map */if(S.tn){tuneFromHost(S.tn);}
 }
 function onRemoteHit(msg){
   if(!net.host||!S)return;const d=msg.data||{};
@@ -1117,14 +1164,23 @@ const stripMat=new THREE.MeshBasicMaterial({color:lin(0xffffff),toneMapped:false
 const stripFloor=softBloom(stripMat.clone());
 for(const x of [-30,-10,10,30]){const s=new THREE.Mesh(new THREE.PlaneGeometry(0.2,40),stripFloor);s.rotation.x=-Math.PI/2;s.position.set(x,0.015,0);scene.add(s);
   for(const z of [-19.6,19.6]){const p=new THREE.Mesh(new THREE.BoxGeometry(0.12,WALL_H-0.4,0.12),stripFloor);p.position.set(x,(WALL_H-0.4)/2,z);scene.add(p);}}
-/* walls */
+/* walls: the outer walls are built once; the solids (bases and the map's midfield walls and pillars) are rebuilt with the map (setMap) */
 const wallMats=[];
-for(const b of BOXES){if(!b.wall)continue;const w=b.x1-b.x0,h=b.y1-b.y0,d=b.z1-b.z0,rp=Math.max(1,Math.round(Math.max(w,d)/8));
+function wallMesh(b,h,parent){const w=b.x1-b.x0,d=b.z1-b.z0,rp=Math.max(1,Math.round(Math.max(w,d)/8));
   const m=new THREE.MeshStandardMaterial({map:tex(wallC,rp,h/4),emissive:lin(NEON.vi),emissiveMap:tex(wallE,rp,h/4),emissiveIntensity:1,roughness:0.7,metalness:0.15});softBloom(m);wallMats.push(m);
-  const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);mesh.position.set((b.x0+b.x1)/2,h/2,(b.z0+b.z1)/2);mesh.castShadow=true;mesh.receiveShadow=true;scene.add(mesh);}
+  const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);mesh.position.set((b.x0+b.x1)/2,h/2,(b.z0+b.z1)/2);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh;}
+for(const b of BOXES)if(b.outer)wallMesh(b,WALL_H,scene);
 const stripCy=new THREE.MeshBasicMaterial({color:lin(NEON.cy),toneMapped:false}),stripMg=new THREE.MeshBasicMaterial({color:lin(NEON.mg),toneMapped:false});
-// base solids get a violet neon outline so they read as permanent structure, not breakable cover
-for(const b of BOXES){if(!b.solid)continue;const e=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(b.x1-b.x0,b.y1,b.z1-b.z0)),new THREE.LineBasicMaterial({color:lin(NEON.vi),toneMapped:false}));e.position.set((b.x0+b.x1)/2,b.y1/2,(b.z0+b.z1)/2);scene.add(e);}
+// solids get a violet neon outline so they read as permanent structure, not breakable cover
+const SOLID_G=new THREE.Group(),solidEdgeM=new THREE.LineBasicMaterial({color:lin(NEON.vi),toneMapped:false});scene.add(SOLID_G);
+/* (re)build the solid meshes for the current BOXES; returns the old materials so setMap can drop them from the day/night lists */
+function buildSolids(){const old=[];
+  for(const o of [...SOLID_G.children]){SOLID_G.remove(o);o.geometry.dispose();if(o.material!==solidEdgeM){old.push(o.material);const k=wallMats.indexOf(o.material);if(k>=0)wallMats.splice(k,1);o.material.dispose();}}
+  for(const b of BOXES){if(!b.solid)continue;const h=b.h0||b.y1,mesh=wallMesh(b,h,SOLID_G);mesh.userData.noMerge=true;
+    const e=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(b.x1-b.x0,h,b.z1-b.z0)),solidEdgeM);e.position.set((b.x0+b.x1)/2,h/2,(b.z0+b.z1)/2);SOLID_G.add(e);
+    if(b.mid){b.vis=[mesh,e];b.h0=h;}}
+  return old;}
+buildSolids();
 const stripTopCy=softBloom(stripCy.clone()),stripTopMg=softBloom(stripMg.clone());
 for(const z of [-19.9,19.9]){const s=new THREE.Mesh(new THREE.BoxGeometry(100,0.1,0.1),z<0?stripTopCy:stripTopMg);s.position.set(0,WALL_H-0.05,z);scene.add(s);}
 for(const x of [-49.9,49.9]){const s=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.1,40),x<0?stripTopMg:stripTopCy);s.position.set(x,WALL_H-0.05,0);scene.add(s);}
@@ -1196,7 +1252,6 @@ void main(){vec3 V=normalize(cameraPosition-vW);float ndv=abs(dot(normalize(vN),
     tod(day){U.uTint.value.copy(lin(day?0xdfeefa:0x34466e));U.uSheen.value.copy(lin(day?0xffffff:0x7a5cc0));U.uDrop.value.copy(lin(day?0xf2f7fb:0xb8d4ff));
       U.uOp.value=day?0.05:0.05;U.uFr.value=day?0.28:0.16;U.uDropOp.value=day?0.4:0.32;frameM.color.copy(lin(day?0x8a919c:0x2b2f3c));}};
 })();
-for(const b of BOXES)if(b.outer)b.y1=ROOF_Y;
 /* wall dressing: made-up sponsor boards and wear (cracks, chipped concrete, scorch, bullet pocks, grime) so the walls aren't uniform.
    Everything is a flat plane just in front of a wall's inner face. Faces: long walls at z=±20, end walls at x=±50. */
 const WALL_FACES=[{ax:'z',v:-20,n:1,len:100},{ax:'z',v:20,n:-1,len:100},{ax:'x',v:-50,n:1,len:40},{ax:'x',v:50,n:-1,len:40}];
@@ -1336,7 +1391,7 @@ function makeCoverVis(b){const w=b.x1-b.x0,d=b.z1-b.z0,H=b.h0,hh=coverHeight(b,1
   const ghost=part(new THREE.BoxGeometry(w,H,d),new THREE.MeshBasicMaterial({color:lin(neon),transparent:true,opacity:0.035,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false,side:THREE.DoubleSide,clippingPlanes:[clipW]}));ghost.position.y=H/2;
   const scan=part(new THREE.PlaneGeometry(w+0.5,d+0.5),scanMat[nk]);scan.rotation.x=-Math.PI/2;scan.renderOrder=3;
   return{b,g,mat,full,edge,base,core,caps,crack,crackG,crackM:CRACKM[nk],hot,teeth,rub,ember,holo,ghost,scan,clip,clipW,look:-1,hp:-1,neon,high,cx,cz,w,d,H,hh,cap,rg:0,rgSeen:0,building:false,flash:0,hit:0,emi:1.1,ecol:lin(neon)};}
-const coverVis=COVER.map(makeCoverVis);
+const coverVis=COVER.map(makeCoverVis);/* refilled in place by setMap */
 /* flying chunks and dust puffs */
 const debris=[],debGeo=new THREE.BoxGeometry(1,1,1);
 function spawnDebris(x,y,z,high,pw){let p=debris.find(q=>q.t<=0);if(!p){if(debris.length>=Math.round(44*clamp(OPT.particles,0.5,1.5)))return;p={m:new THREE.Mesh(debGeo,chunkMat[0]),t:0};p.m.receiveShadow=true;scene.add(p.m);debris.push(p);}
@@ -1410,18 +1465,19 @@ for(let i=0;i<5;i++){const c=document.createElement('canvas');c.width=512;c.heig
   for(const side of [-1,1]){const pl=new THREE.Mesh(new THREE.PlaneGeometry(10,2.5),mat);pl.position.set(-40+i*20,6.35,side*19.94);pl.rotation.y=side>0?Math.PI:0;scene.add(pl);}
   wallLabels.push({c,tex:t});}
 /* sites */
-const siteMeshes={};
-for(const k of ['A','B']){const s=SITES[k];
-  const pad=new THREE.Mesh(new THREE.CylinderGeometry(3,3.1,0.06,48),new THREE.MeshStandardMaterial({color:lin(0x1c1e2a),roughness:0.4,metalness:0.6}));pad.position.set(s.x,0.03,s.z);pad.receiveShadow=true;scene.add(pad);
-  const ring=new THREE.Mesh(new THREE.RingGeometry(2.78,3,64),new THREE.MeshBasicMaterial({color:lin(NEON.am),side:THREE.DoubleSide,toneMapped:false}));ring.rotation.x=-Math.PI/2;ring.position.set(s.x,0.07,s.z);scene.add(ring);
-  const ring2=new THREE.Mesh(new THREE.RingGeometry(1.3,1.36,48),ring.material);ring2.rotation.x=-Math.PI/2;ring2.position.set(s.x,0.07,s.z);scene.add(ring2);
+const siteMeshes={},siteGrp={};/* each site is a group placed at its pad, so a map change just moves it (siteMove) */
+for(const k of ['A','B']){const s={x:0,z:0},G=siteGrp[k]=new THREE.Group();G.position.set(SITES[k].x,0,SITES[k].z);scene.add(G);
+  const pad=new THREE.Mesh(new THREE.CylinderGeometry(3,3.1,0.06,48),new THREE.MeshStandardMaterial({color:lin(0x1c1e2a),roughness:0.4,metalness:0.6}));pad.position.set(s.x,0.03,s.z);pad.receiveShadow=true;G.add(pad);
+  const ring=new THREE.Mesh(new THREE.RingGeometry(2.78,3,64),new THREE.MeshBasicMaterial({color:lin(NEON.am),side:THREE.DoubleSide,toneMapped:false}));ring.rotation.x=-Math.PI/2;ring.position.set(s.x,0.07,s.z);G.add(ring);
+  const ring2=new THREE.Mesh(new THREE.RingGeometry(1.3,1.36,48),ring.material);ring2.rotation.x=-Math.PI/2;ring2.position.set(s.x,0.07,s.z);G.add(ring2);
   const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');g.fillStyle='#ffc44d';g.font='bold 96px sans-serif';g.textAlign='center';g.textBaseline='middle';g.shadowColor='#ffb020';g.shadowBlur=14;g.fillText(k,64,70);
-  const st=new THREE.CanvasTexture(c);st.colorSpace=THREE.SRGBColorSpace;const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:st,transparent:true,toneMapped:false,depthWrite:false}));spr.position.set(s.x,3.4,s.z);/* no depth write: its clear corners would cut a square out of the blast behind it */spr.scale.set(1.8,1.8,1);scene.add(spr);
-  const core=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.55,1.0,6),new THREE.MeshStandardMaterial({color:lin(0x2a2d3a),roughness:0.35,metalness:0.7,emissive:0x000000}));core.position.set(s.x,0.56,s.z);core.castShadow=true;scene.add(core);
-  const capM=new THREE.MeshBasicMaterial({color:lin(NEON.am),toneMapped:false});const cap=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,0.06,6),capM);cap.position.set(s.x,1.09,s.z);scene.add(cap);
-  const beam=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,2.2,6),new THREE.MeshBasicMaterial({color:lin(NEON.am),transparent:true,opacity:0.35,toneMapped:false,depthWrite:false}));beam.position.set(s.x,2.2,s.z);scene.add(beam);
-  for(let j=0;j<3;j++){const fin=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.8,0.5),core.material);fin.position.set(s.x+Math.cos(j*2.094)*0.5,0.45,s.z+Math.sin(j*2.094)*0.5);fin.rotation.y=-j*2.094;fin.castShadow=true;scene.add(fin);}
+  const st=new THREE.CanvasTexture(c);st.colorSpace=THREE.SRGBColorSpace;const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:st,transparent:true,toneMapped:false,depthWrite:false}));spr.position.set(s.x,3.4,s.z);/* no depth write: its clear corners would cut a square out of the blast behind it */spr.scale.set(1.8,1.8,1);G.add(spr);
+  const core=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.55,1.0,6),new THREE.MeshStandardMaterial({color:lin(0x2a2d3a),roughness:0.35,metalness:0.7,emissive:0x000000}));core.position.set(s.x,0.56,s.z);core.castShadow=true;G.add(core);
+  const capM=new THREE.MeshBasicMaterial({color:lin(NEON.am),toneMapped:false});const cap=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,0.06,6),capM);cap.position.set(s.x,1.09,s.z);G.add(cap);
+  const beam=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,2.2,6),new THREE.MeshBasicMaterial({color:lin(NEON.am),transparent:true,opacity:0.35,toneMapped:false,depthWrite:false}));beam.position.set(s.x,2.2,s.z);G.add(beam);
+  for(let j=0;j<3;j++){const fin=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.8,0.5),core.material);fin.position.set(s.x+Math.cos(j*2.094)*0.5,0.45,s.z+Math.sin(j*2.094)*0.5);fin.rotation.y=-j*2.094;fin.castShadow=true;G.add(fin);}
   siteMeshes[k]={ring,core,capM};}
+function siteMove(){for(const k of ['A','B'])siteGrp[k].position.set(SITES[k].x,0,SITES[k].z);}
 const alarm=new THREE.PointLight(raw(0xff4433),0,14,1);alarm.position.set(SITES.A.x,2,SITES.A.z);scene.add(alarm);
 /* post-processing: bloom, anti-aliasing and lens effects when the helper scripts loaded */
 /* ---------- Max graphics (high-end GPUs): ambient occlusion, wet floor reflections, volumetric lamp beams ----------
@@ -1755,13 +1811,13 @@ function dynResTick(raw){if(!OPT.autoRes||raw>1)return;DR.acc+=raw;DR.n++;DR.hol
   if(ft>1/45)s=Math.max(0.5,s*clamp(Math.sqrt((1/50)/ft),0.7,0.95));else if(ft<1/48&&DR.hold<=0)s=Math.min(1,s+0.05);
   s=Math.round(s*20)/20;if(s!==DR.scale){if(s<DR.scale)DR.hold=4;DR.scale=s;setPixelRatio();resize();}}
 /* time of day: night is the neon look the arena was built for; day swaps the sky, sun, haze and towers and turns the neon down */
-const TOD={cur:'',emi:1,holo:1,exp:1.15,bloom:1,thr:0.8,fogN:45,fogF:145};
+const TOD={force:'',cur:'',emi:1,holo:1,exp:1.15,bloom:1,thr:0.8,fogN:45,fogF:145};
 const TODS={
   night:{bg:0x1a0d2e,hemi:[0x7f8fe0,0x3a1a4a,0.62],sun:[0xaab8ff,1.15],sunPos:[-35,48,22],emi:1,holo:1,pool:1,exp:1.15,bloom:1,thr:0.8,fogN:45,fogF:145,rain:0x9fc8ff,rainOp:0.3,wall:1.7},
   day:{bg:0xb9cfe0,hemi:[0xcfe2ff,0x6e665a,0.95],sun:[0xfff0d8,2.3],sunPos:[-30,62,26],emi:0.3,holo:0.35,pool:0,exp:0.95,bloom:0.45,thr:0.92,fogN:60,fogF:260,rain:0x5d6b7a,rainOp:0.28,wall:3.4}};
 const emiBase=new Map();
 scene.traverse(o=>{const m=o.material;if(m&&m.isMeshStandardMaterial&&m.emissiveIntensity>0&&!emiBase.has(m))emiBase.set(m,m.emissiveIntensity);});
-function applyTod(){const k=TODS[OPT.tod]?OPT.tod:'night';if(TOD.cur===k)return;TOD.cur=k;const P=TODS[k],day=k==='day';
+function applyTod(){const k=TODS[TOD.force]?TOD.force:TODS[OPT.tod]?OPT.tod:'night';/* force: the menu showcase's own time of day */if(TOD.cur===k)return;TOD.cur=k;const P=TODS[k],day=k==='day';
   Object.assign(TOD,{emi:P.emi,holo:P.holo,exp:P.exp,bloom:P.bloom,thr:P.thr,fogN:P.fogN,fogF:P.fogF});
   FOGC.copy(lin(P.bg));scene.fog.color.copy(FOGC);
   hemi.color.copy(lin(P.hemi[0]));hemi.groundColor.copy(lin(P.hemi[1]));hemi.intensity=P.hemi[2]*Math.PI;
@@ -2584,8 +2640,9 @@ const SND_INFO={rifle:['Rifle shot'],smg:['SMG shot'],br:['Battle rifle shot'],s
 const TUNE_FIELDS=[['vol','Volume (x)',0,3,0.01],['pitch','Pitch (x)',0.5,2,0.01],['lp','Tone: cut highs above (Hz)',300,20000,50],['hp','Cut lows below (Hz)',0,2000,10],['wet','Extra echo',0,1.5,0.01]];
 /* cover: the layout as loaded, and each piece's mirrored twin ((x,z) -> (-x,-z)) */
 const cGeo=b=>({x:(b.x0+b.x1)/2,z:(b.z0+b.z1)/2,w:b.x1-b.x0,d:b.z1-b.z0,h:b.h0,hp:b.max});
-const COVER0=COVER.map(cGeo);
-const TWIN=COVER0.map((g,i)=>COVER0.findIndex((o,j)=>j!==i&&Math.abs(o.x+g.x)<0.01&&Math.abs(o.z+g.z)<0.01&&Math.abs(o.w-g.w)<0.01&&Math.abs(o.d-g.d)<0.01&&o.h===g.h));
+const COVER0=[],TWIN=[];
+function coverBase(){COVER0.length=TWIN.length=0;COVER0.push(...COVER.map(cGeo));TWIN.push(...COVER0.map((g,i)=>COVER0.findIndex((o,j)=>j!==i&&Math.abs(o.x+g.x)<0.01&&Math.abs(o.z+g.z)<0.01&&Math.abs(o.w-g.w)<0.01&&Math.abs(o.d-g.d)<0.01&&o.h===g.h)));}
+coverBase();
 const r2=v=>Math.round(v*1000)/1000;
 function setCover(ci,g){const b=COVER[ci];g={...cGeo(b),...g};g.w=Math.max(0.3,g.w);g.d=Math.max(0.3,g.d);g.h=Math.max(0.2,g.h);g.hp=Math.max(1,Math.round(g.hp));
   b.x0=g.x-g.w/2;b.x1=g.x+g.w/2;b.z0=g.z-g.d/2;b.z1=g.z+g.d/2;const hpCh=b.max!==g.hp;b.h0=g.h;b.max=g.hp;
@@ -2604,6 +2661,7 @@ function devCollect(){const d={};const put=(sec,k,f,v)=>{((d[sec]=d[sec]||{})[k]
   for(const k in STEP_MODE)for(const f in STEP_MODE[k])if(STEP_MODE[k][f]!==STEP0[k][f])put('steps',k,f,STEP_MODE[k][f]);
   for(const k of WKEYS)for(const [f] of W_FIELDS){if(k==='rifle'&&RIFLE_CFG[f])continue;if(W[k][f]!==W0[k][f])put('weapons',k,f,W[k][f]);}
   COVER.forEach((b,i)=>{const g=cGeo(b);if(!coverEq(g,COVER0[i])){(d.cover=d.cover||{})[i]={x:r2(g.x),z:r2(g.z),w:r2(g.w),d:r2(g.d),h:r2(g.h),hp:g.hp};}});
+  if(d.cover&&MAP.id!=='yard')d.coverMap=MAP.id;/* cover edits are per map (indices differ); no tag = the Yard */
   return d;}
 const num=v=>typeof v==='number'&&isFinite(v);
 /* back to defaults, then lay d on top (ignores anything malformed) */
@@ -2613,10 +2671,29 @@ function devApply(d){d=d&&typeof d==='object'?d:{};const oldHit=!d.hitRec;/* tun
   let gch=false;for(const k in GUN){const o=(d.gunLayers||{})[k]||{};for(const f in GUN[k]){const v=num(o[f])?o[f]:GUN0[k][f];if(GUN[k][f]!==v){GUN[k][f]=v;gch=true;}}}if(gch)gunRerender(0);
   for(const k in STEP_MODE){const o=(d.steps||{})[k]||{};for(const f in STEP0[k])STEP_MODE[k][f]=num(o[f])?o[f]:STEP0[k][f];}
   for(const k of WKEYS){const o=(d.weapons||{})[k]||{};for(const [f] of W_FIELDS){if(k==='rifle'&&RIFLE_CFG[f])continue;W[k][f]=num(o[f])?o[f]:W0[k][f];}}
-  COVER.forEach((b,i)=>{const o=(d.cover||{})[i];const g=o&&['x','z','w','d','h','hp'].every(f=>num(o[f]))?o:COVER0[i];if(!coverEq(cGeo(b),g))setCover(i,g);});}
+  coverApply((d.coverMap||'yard')===MAP.id?d.cover:null);}
+function coverApply(cv){COVER.forEach((b,i)=>{const o=(cv||{})[i];const g=o&&['x','z','w','d','h','hp'].every(f=>num(o[f]))?o:COVER0[i];if(!coverEq(cGeo(b),g))setCover(i,g);});}
 function gunRerender(ms){clearTimeout(DEV.gunT);DEV.gunT=setTimeout(()=>{if(actx){gunBufs=null;gunInit();}},ms);}
 function devSave(){sbSave();const s=JSON.stringify(devCollect());try{localStorage.setItem('za-dev',s);}catch(e){}DEV.saved=s;devStatus();}
 function devLoad(){let d={};try{d=JSON.parse(localStorage.getItem('za-dev')||'{}')||{};}catch(e){}devApply(d);DEV.saved=JSON.stringify(devCollect());}
+/* ---------- map switch: boxes, cover meshes, solids, site pads, bot grid and DM spawn spots. Called by newMatch (host) and when a
+   guest's state names another map, and from the menu picker so the flyover behind the menu shows the map. Range props survive. ---------- */
+function setMap(id){if(!MAPS[id])id='yard';if(id===MAP.id)return false;
+  const keep=BOXES.filter(b=>b.rgc);
+  for(const v of coverVis){scene.remove(v.g);v.g.traverse(n=>{if(n.geometry)n.geometry.dispose();});try{v.mat.dispose();}catch(e){}emiBase.delete(v.mat);}
+  buildBoxes(id);BOXES.push(...keep);
+  coverVis.length=0;for(const b of COVER){const v=makeCoverVis(b);mergeChildren(v.g);coverVis.push(v);}
+  for(const m of buildSolids())emiBase.delete(m);
+  const P=TODS[TOD.cur]||TODS.night;for(const m of wallMats)if(!emiBase.has(m)){emiBase.set(m,1);m.emissiveIntensity=P.emi;m.color.setScalar(P.wall);}
+  coverBase();siteMove();
+  if(RG.stowed)COVER.forEach((b,i)=>{b.y1=0;coverVis[i].g.visible=false;});
+  midStow(RG.stowed);rebuildGrid();dmPts();for(const k in botMem)botMem[k].path=null;
+  DEV.sel=-1;if(DEV.hl)devHL();NET_TN.s='';
+  if(net.mode!=='online'||net.host){let d={};try{d=JSON.parse(localStorage.getItem('za-dev')||'{}')||{};}catch(e){}coverApply((d.coverMap||'yard')===MAP.id?d.cover:null);if(SB.on)DEV.saved=JSON.stringify(devCollect());}
+  const s0=S;if(S&&S.map!==MAP.id)S=null;/* newMatch calls this before the new state exists: draw the cover whole */for(const v of coverVis)v.hp=-2;coverTick();S=s0;renderer.shadowMap.needsUpdate=true;
+  return true;}
+/* midfield solids are put away at the sandbox range, like cover */
+function midStow(want){for(const b of BOXES){if(!b.mid)continue;b.y1=want?0:b.h0;if(b.vis)for(const o of b.vis)o.visible=!want;}}
 /* leaving the sandbox: practice and online always use the normal rules */
 function sbDefaults(){Object.assign(CFG,CFG0);ZHP0.forEach((v,i)=>ZHP[i]=v);devApply({});DEV.sel=-1;devHL();}
 /* everything tuned in the sandbox is saved as you change it and is this browser's rules for every mode: practice, and the
@@ -2627,12 +2704,12 @@ setInterval(()=>{if(!SB.on||!S)return;const s=JSON.stringify(devCollect());if(s!
    sounds stay each player's own. Leaving the match puts your own settings back. */
 const NET_TN={s:'',out:'',outT:0};
 function tunePack(){const now=performance.now();if(now-NET_TN.outT>1000||!NET_TN.out){NET_TN.outT=now;const d=devCollect(),c={};for(const k in CFG0)if(CFG[k]!==CFG0[k])c[k]=CFG[k];
-    NET_TN.out=JSON.stringify({c,z:[...ZHP],w:d.weapons||{},v:d.cover||{}});}return NET_TN.out;}
+    NET_TN.out=JSON.stringify({c,z:[...ZHP],w:d.weapons||{},v:d.cover||{},m:MAP.id});}return NET_TN.out;}
 function tuneFromHost(str){if(typeof str!=='string'||str===NET_TN.s||str.length>60000)return;NET_TN.s=str;let t;try{t=JSON.parse(str);}catch(e){return;}if(!t||typeof t!=='object')return;
   Object.assign(CFG,CFG0);for(const k in t.c||{})if(k in CFG0&&num(t.c[k]))CFG[k]=t.c[k];
   if(Array.isArray(t.z)&&t.z.length===5)t.z.forEach((v,i)=>{if(isFinite(+v))ZHP[i]=clamp(+v,1,100);});
   for(const k of WKEYS){const o=(t.w||{})[k]||{};for(const [f] of W_FIELDS){if(k==='rifle'&&RIFLE_CFG[f])continue;W[k][f]=num(o[f])?o[f]:W0[k][f];}}
-  COVER.forEach((b,i)=>{const o=(t.v||{})[i];const g=o&&['x','z','w','d','h','hp'].every(f=>num(o[f]))?o:COVER0[i];if(!coverEq(cGeo(b),g))setCover(i,g);});}
+  coverApply((t.m||'yard')===MAP.id?t.v:null);}
 function devExport(){const d={};const c={};for(const k in CFG0)if(CFG[k]!==CFG0[k])c[k]=CFG[k];if(Object.keys(c).length)d.cfg=c;if(ZHP.some((v,i)=>v!==ZHP0[i]))d.returnHP=[...ZHP];return Object.assign(d,devCollect());}
 function devStatus(){const el=document.getElementById('devstat');if(!el)return;const ch=JSON.stringify(devCollect())!==DEV.saved;el.textContent=ch?'Saving…':'Saved automatically. These settings apply to every mode in this browser.';el.classList.toggle('chg',ch);}
 /* selection: click a piece of cover in the view (Objects tab), or aim at it and press T */
@@ -2823,11 +2900,11 @@ function rgStart(){S.phase='live';S.t=0;S.timer=CFG.dmTime;
 /* arena cover is put away while you are at the range and comes back when you leave it */
 function rgSync(){const want=rgOn();if(RG.root)RG.root.visible=want;$('rgread').hidden=!want||!RG.read;
   if(want===RG.stowed)return;RG.stowed=want;
-  COVER.forEach((b,i)=>{b.y1=want?0:coverHeight(b,b.stage);const v=coverVis[i];if(v)v.g.visible=!want;});
+  COVER.forEach((b,i)=>{b.y1=want?0:coverHeight(b,b.stage);const v=coverVis[i];if(v)v.g.visible=!want;});midStow(want);
   for(const it of RG.list)if(it.box){const j=BOXES.indexOf(it.box);if(want&&j<0&&it.hp>0)BOXES.push(it.box);else if(!want&&j>=0)BOXES.splice(j,1);}
   if(DEV.hl)devHL();rebuildGrid();renderer.shadowMap.needsUpdate=true;}
 /* after the Objects tab or a settings load rebuilds arena cover, keep it put away */
-function rgRestow(){if(!RG.stowed)return;COVER.forEach((b,i)=>{b.y1=0;const v=coverVis[i];if(v)v.g.visible=false;});rebuildGrid();}
+function rgRestow(){if(!RG.stowed)return;COVER.forEach((b,i)=>{b.y1=0;const v=coverVis[i];if(v)v.g.visible=false;});midStow(true);rebuildGrid();}
 function rgTick(dt){rgSync();if(!RG.stowed)return;
   for(const it of RG.list){if(it.kind==='bot')continue;
     if(it.downT>0){it.downT-=dt;const k=it.kind==='dummy'?clamp((RG.respawn-it.downT)/0.25,0,1):1;
@@ -3149,6 +3226,23 @@ const MODECAP={zone:'Attack and defend sites A and B',
 function modeCap(){const v=$('modesel').value,c=MODECAP[v]||MODECAP.zone;$('modecap').textContent=typeof c==='function'?c():c;}
 try{const mv=localStorage.getItem('za-mode');if(mv&&MODECAP[mv])$('modesel').value=mv;}catch(e){}
 modeCap();$('modesel').addEventListener('change',()=>{modeCap();try{localStorage.setItem('za-mode',$('modesel').value);}catch(e){}});
+/* map picker: a tile per map with a top-down thumbnail. In the menu the arena behind it switches too, so the flyover shows the map. */
+function mapPreview(id){const kb=BOXES.slice(),kc=COVER.slice(),km=MAP.id,ka={...SITES.A},kbb={...SITES.B};buildBoxes(id);
+  const out={boxes:BOXES.map(b=>({...b})),sites:[{...SITES.A},{...SITES.B}]};BOXES.length=0;BOXES.push(...kb);COVER.length=0;COVER.push(...kc);MAP.id=km;Object.assign(SITES.A,ka);Object.assign(SITES.B,kbb);return out;}
+function mapThumb(cv,id){const g=cv.getContext('2d'),W=cv.width,H=cv.height,sc=Math.min(W/104,H/44),L=mapPreview(id);g.fillStyle='#171b2a';g.fillRect(0,0,W,H);
+  g.save();g.translate(W/2,H/2);g.scale(sc,sc);g.fillStyle='rgba(255,255,255,.05)';for(const x of [-30,-10,10,30])g.fillRect(x-0.15,-20,0.3,40);
+  for(const b of L.boxes){g.fillStyle=b.outer?'#4a4f63':b.solid?(b.mid?'#b07aff':'#7d63b8'):b.y1<1.5?'#2fd6e8':'#ff4fc8';g.fillRect(b.x0,b.z0,b.x1-b.x0,b.z1-b.z0);}
+  g.strokeStyle='#ffc44d';g.lineWidth=0.7;for(const s of L.sites){g.beginPath();g.arc(s.x,s.z,3,0,7);g.stroke();}g.restore();}
+const MAPEL=$('maps');
+function mapPick(id,quiet){if(!MAPS[id])id='yard';MATCH.map=id;try{localStorage.setItem('za-map',id);}catch(e){}
+  MAPEL.querySelectorAll('.mapt').forEach(b=>{const on=b.dataset.m===id;b.setAttribute('aria-checked',on);b.tabIndex=on?0:-1;});$('mapcap').textContent=MAPS[id].cap;
+  if(!quiet)blip(980,0.022,0.012,false,'ui');
+  if(!S&&!SB.on){setMap(id);SHOW.map=MAP_IDS.indexOf(id);SHOW.want=-1;}/* nothing running: show it behind the menu */}
+for(const id of MAP_IDS){const b=document.createElement('button');b.type='button';b.className='mapt';b.dataset.m=id;b.setAttribute('role','radio');
+  const cv=document.createElement('canvas');cv.width=220;cv.height=88;b.append(cv);const sp=document.createElement('span');sp.textContent=MAPS[id].name;b.append(sp);MAPEL.append(b);mapThumb(cv,id);
+  b.addEventListener('click',()=>mapPick(id));
+  b.addEventListener('keydown',e=>{if(!/^(ArrowLeft|ArrowRight|KeyA|KeyD)$/.test(e.code))return;e.preventDefault();e.stopPropagation();const i=MAP_IDS.indexOf(id),n=MAP_IDS[(i+(/Left|A$/.test(e.code)?-1:1)+MAP_IDS.length)%MAP_IDS.length];mapPick(n);MAPEL.querySelector(`[data-m="${n}"]`).focus();});}
+mapPick(MAP.id,true);
 function readMenu(){const mv=SB.on?SB.mode:$('modesel').value;MATCH.range=SB.on&&mv==='range';if(MATCH.range){MATCH.mode='dm';MATCH.size=4;}else if(!/^dm[124]$/.test(mv)){MATCH.mode='zone';MATCH.size=2;}else{MATCH.mode='dm';MATCH.size=+mv.slice(2);}
   if(W[$('wsel').value]){me.wPref=$('wsel').value;me.w=me.wPref;showWeapon(me.w);me.ammo=myW(me.w).mag;try{localStorage.setItem('za-w',me.wPref);}catch(e){}}me.name=($('nick').value||'Player').replace(/[^\w .'-]/g,'').slice(0,16)||'Player';me.teamPref=+$('teampref').value;diffMul=+$('diff').value;try{localStorage.setItem('za-name',me.name);}catch(e){}}
 function enterGame(){$('menu').hidden=true;for(const id of ['topbar','mini','vitals','ammo','cross','netpill'])$(id).hidden=false;requestLock();blip(660,0.05,0.03,false,'ui');}
@@ -3288,7 +3382,7 @@ function newMatchLocal(){WH.auto=false;if(WH.open)closeWheel(false);me.round=0;M
 function closePause(){if($('pause').hidden)return;$('pause').hidden=true;toggleSettings(false);autoLock();blip(660,0.05,0.03,false,'ui');}
 function leaveMatch(){xpFlush();bigCountOff();closeWheel(false);WH.auto=false;$('pause').hidden=true;toggleSettings(false);toggleSB(false);
   if(net.room){try{net.room.leave().catch(()=>{});}catch(e){}}
-  net.mode='none';net.room=null;net.host=false;net.hostPeer=null;net.myPeer=null;rgClear();RG.init=false;RG.shots=RG.hits=0;RG.read='';S=null;rgSync();tuneApply();SB.on=false;me.sp=-1;me.round=0;me.mid=0;coverTick();
+  net.mode='none';net.room=null;net.host=false;net.hostPeer=null;net.myPeer=null;rgClear();RG.init=false;RG.shots=RG.hits=0;RG.read='';S=null;rgSync();setMap(MATCH.map);tuneApply();SB.on=false;me.sp=-1;me.round=0;me.mid=0;coverTick();
   for(const id of ['topbar','mini','vitals','ammo','cross','netpill','banner','prompt','ring','lockhint','down','dead','fps'])$(id).hidden=true;
   $('feed').replaceChildren();$('feed').dataset.k='';$('confirm').style.opacity=0;$('flash').style.opacity=0;$('hitmark').style.opacity=0;
   for(const a of avatars)a.g.visible=false;
@@ -3714,7 +3808,7 @@ function hud(dt){
   else if(S.phase==='buy')obj='Get ready. Round starts in '+Math.ceil(S.t);
   else if(S.armed)obj=role==='atk'?`Charge armed at ${S.armed.site}. Keep defenders off it.`:`Charge armed at ${S.armed.site}. Defuse it!`;
   else if(role==='atk')obj='Push in and arm the charge at A or B';else if(role==='def')obj='Hold sites A and B until time runs out';
-  if(S.range)obj=S.armed?`Charge armed at ${S.armed.site}. Hold F at the site to defuse, or let it blow`:'Press T to spawn dummies, targets, bots and cover · bomb sites A and B are 54 m out';
+  if(S.range)obj=S.armed?`Charge armed at ${S.armed.site}. Hold F at the site to defuse, or let it blow`:`Press T to spawn dummies, targets, bots and cover · bomb sites A and B are ${Math.round(SITES.A.x-RG_START.x)} m out`;
   $('objective').textContent=obj;
   const C=S.center||{own:-1,cap:-1,p:0};
   const cTxt=C.cap>=0&&C.p>0?`${C.cap===myTeam?'you are':TEAMN[C.cap]+' is'} taking the center ${Math.round(C.p*100)}%`:C.own<0?'center neutral':C.own===myTeam?`you hold the center (+${CENTER_HP} HP spawn)`:`${TEAMN[C.own]} holds the center`;
@@ -3882,7 +3976,18 @@ function siteFx(){alarm.intensity=S.armed?(1.5+Math.sin(performance.now()/120)*1
 const FLY_POS=new THREE.CatmullRomCurve3([[-45,5,0],[-32,5,-12],[-10,4.5,-16],[10,4,-14],[30,5.5,-5],[44,8,10],[22,10,15.5],[-6,10.5,8],[-34,8.5,14.5]].map(a=>new THREE.Vector3(...a)),true,'centripetal');
 const FLY_LOOK=new THREE.CatmullRomCurve3([[-20,1,0],[0,1,-6],[12,1,-8],[22,0.5,-9],[22,0.5,9],[10,0,0],[0,0,0],[-20,0,-4],[-42,1,0]].map(a=>new THREE.Vector3(...a)),true,'centripetal');
 const FLY_LOOP=CALM?240:90,flyP=new THREE.Vector3(),flyL=new THREE.Vector3(),flyLs=new THREE.Vector3(-20,1,0);let flyU=0;
-function flyover(dt){flyU=(flyU+dt/FLY_LOOP)%1;FLY_POS.getPoint(flyU,flyP);FLY_LOOK.getPoint(flyU,flyL);
+/* showcase: every half loop the menu cuts (through a short fade) to the next map, alternating night and day, so over two rounds each
+   map is seen both ways. Picking a map in the menu cuts straight to it and the tour carries on from there. The showcase's time of
+   day is its own (TOD.force); a match, Settings or the Workshop use the player's setting. */
+function showCut(mapI){SHOW.map=(mapI+MAP_IDS.length)%MAP_IDS.length;const tod=(SHOW.seg+Math.floor(SHOW.seg/MAP_IDS.length))%2?'day':'night';SHOW.seg++;
+  setMap(MAP_IDS[SHOW.map]);if(TOD.force!==tod){TOD.force=tod;applyGfx();}}
+function showTick(dt,u0,u1){const fe=$('flyfade'),idle=!$('menu').hidden&&$('settings').hidden&&!net.room;
+  if(!idle){if(TOD.force&&!$('settings').hidden){TOD.force='';applyGfx();}SHOW.fade=0;SHOW.want=-1;fe.style.opacity=0;return;}
+  if(!TOD.force){TOD.force=(SHOW.seg+Math.floor(SHOW.seg/MAP_IDS.length))%2?'day':'night';SHOW.seg++;applyGfx();}
+  if(SHOW.want<0&&((!CALM&&u0<0.5&&u1>=0.5)||u1<u0))SHOW.want=SHOW.map+1;
+  if(SHOW.want>=0){SHOW.fade=Math.min(1,SHOW.fade+dt*3);if(SHOW.fade>=1){showCut(SHOW.want);SHOW.want=-1;}}else SHOW.fade=Math.max(0,SHOW.fade-dt*1.5);
+  fe.style.opacity=SHOW.fade.toFixed(3);}
+function flyover(dt){const u0=flyU;flyU=(flyU+dt/FLY_LOOP)%1;showTick(dt,u0,flyU);FLY_POS.getPoint(flyU,flyP);FLY_LOOK.getPoint(flyU,flyL);
   flyLs.lerp(flyL,1-Math.exp(-dt*1.5));camera.position.copy(flyP);camera.lookAt(flyLs);
   if(Math.abs(camera.fov-62)>0.05){camera.fov=62;camera.updateProjectionMatrix();}vm.visible=false;}
 
@@ -3896,6 +4001,7 @@ function frame(now){
   if(paused){}
   else if(S){coverTick(dt);rgTick(dt);debrisTick(dt);localTick(dt);renderOthers(dt);siteFx();hud(dt);audioTick(dt);}
   else flyover(dt);
+  if((S||$('menu').hidden)&&(TOD.force||SHOW.fade)){TOD.force='';SHOW.fade=0;SHOW.want=-1;$('flyfade').style.opacity=0;applyGfx();}/* leaving the menu: the player's time of day again */
   fxTick(dt,now);touchTick();
   renderScene();
   requestAnimationFrame(frame);
@@ -3918,6 +4024,6 @@ mergeChildren(scene);
 refreshZoneLook('atk');
 // Compile every material's shader up front (in parallel where the browser supports it) so nothing compiles on the first shot or spawn.
 renderer.compileAsync(scene,camera).catch(()=>{}).finally(()=>requestAnimationFrame(frame));
-window.__za={sim:{hostTick:dt=>hostTick(dt),coverTick:dt=>coverTick(dt),newMatch:()=>newMatch(),MATCH,dmSpawnSpot:p=>dmSpawnSpot(p),findPath:(a,b,c,d)=>findPath(a,b,c,d),freeAt:(x,z)=>freeAt(x,z),losPts:(...a)=>losPts(...a),DM_PTS,BOXES},BL,fire:()=>{const s=mySlot();if(s>=0)fire(s);},damage:(t,d,a,h)=>damage(t,d,a,h),prog:{PROG,PARTS,myW,modW,progSave,progLoad,rebuildVW,lvlOf,XPR},LX,MU,MM,WM,VB,OPT,AU,dev:{DEV,TUNE,GUN,W,COVER0,TWIN,STEP_MODE,devCollect,devApply},damageCover,COVER,coverVis,WH,openWheel:m=>openWheel(m),closeWheel:c=>closeWheel(c),wheelMove:(x,y)=>wheelMove(x,y),gfx:{renderer,scene,camera,applyGfx,DR,render:()=>renderScene(),FREF,BEAMS,get gtao(){return gtaoPass;}},openPause:()=>openPause(),closePause:()=>closePause(),leaveMatch:()=>leaveMatch(),get S(){return S;},me,net,rg:{RG,rgAdd,rgRemove,rgClear,BOXES},botMem,CFG,SB,OPT,AU,get actx(){return actx;},mySlot:()=>mySlot(),sfx:{hitCue,HITX,footstep,slideSound,shotSound,stepSound,get stepBufs(){return stepBufs;},get slideBuf(){return slideBuf;},get gunBufs(){return gunBufs;}}};
+window.__za={sim:{hostTick:dt=>hostTick(dt),coverTick:dt=>coverTick(dt),newMatch:()=>newMatch(),MATCH,dmSpawnSpot:p=>dmSpawnSpot(p),findPath:(a,b,c,d)=>findPath(a,b,c,d),freeAt:(x,z)=>freeAt(x,z),losPts:(...a)=>losPts(...a),DM_PTS,BOXES},BL,fire:()=>{const s=mySlot();if(s>=0)fire(s);},damage:(t,d,a,h)=>damage(t,d,a,h),prog:{PROG,PARTS,myW,modW,progSave,progLoad,rebuildVW,lvlOf,XPR},LX,MU,MM,WM,VB,OPT,AU,dev:{DEV,TUNE,GUN,W,COVER0,TWIN,STEP_MODE,devCollect,devApply},damageCover,COVER,coverVis,WH,openWheel:m=>openWheel(m),closeWheel:c=>closeWheel(c),wheelMove:(x,y)=>wheelMove(x,y),gfx:{renderer,scene,camera,applyGfx,DR,render:()=>renderScene(),FREF,BEAMS,get gtao(){return gtaoPass;}},openPause:()=>openPause(),closePause:()=>closePause(),leaveMatch:()=>leaveMatch(),get S(){return S;},me,net,rg:{RG,rgAdd,rgRemove,rgClear,BOXES},maps:{MAPS,MAP,MATCH,setMap,SITES,DM_PTS,findPath,freeAt,simTick:dt=>netTick(dt),SHOW,showCut:i=>showCut(i),TOD},botMem,CFG,SB,OPT,AU,get actx(){return actx;},mySlot:()=>mySlot(),sfx:{hitCue,HITX,footstep,slideSound,shotSound,stepSound,get stepBufs(){return stepBufs;},get slideBuf(){return slideBuf;},get gunBufs(){return gunBufs;}}};
 })();
 </script>
