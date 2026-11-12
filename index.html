@@ -863,7 +863,7 @@ const notes=$('netstatus');
   else notes.textContent='Online play works when this page is opened on claude.ai. Play works anywhere.';
 })();
 
-function myPresence(){return{n:me.name,p:[+me.x.toFixed(2),+me.y.toFixed(2),+me.z.toFixed(2)],yw:+viewYaw().toFixed(3),pt:+viewPitch().toFixed(3),c:me.crouch||me.slideT>0?1:0,l:+((me.leanOff||0)/0.55).toFixed(2),wr:me.wr,u:me.use,k:me.pick,g:me.give,sh:me.sh,tm:me.teamPref,w:me.w,sx:myW(me.w).supp?1:0,h:net.host&&net.mode==='online'?net.hostSince:0};}
+function myPresence(){return{n:me.name,p:[+me.x.toFixed(2),+me.y.toFixed(2),+me.z.toFixed(2)],yw:+viewYaw().toFixed(3),pt:+viewPitch().toFixed(3),c:me.crouch||me.slideT>0?1:0,l:+((me.leanOff||0)/0.55).toFixed(2),wr:me.wr,u:me.use,k:me.pick,g:me.give,sh:me.sh,tm:me.teamPref,w:me.w,r:me.reloadT>0?1:0,sx:myW(me.w).supp?1:0,h:net.host&&net.mode==='online'?net.hostSince:0};}
 function peerList(){
   if(net.mode==='solo')return[{peer:'local',presence:myPresence(),isMe:true}];
   if(!net.room)return[];
@@ -1929,21 +1929,24 @@ function buildSoldier(team){
   for(const L of legs)bx(0.02,0.3,0.02,visorM,0,-0.2,-0.08,L.knee,false);
   /* arms holding the rifle in spine space */
   const gunPos=[0.11,0.34,-0.27];
-  const guns={};for(const k of WKEYS){guns[k]=buildGun(spine,true,k,null,GUNGLOW[k]);guns[k].g.position.set(...gunPos);guns[k].g.visible=k==='rifle';}const rifle=guns.rifle;
+  /* the gun and both arms hang off a shoulder joint so they can recoil, lower for a sprint, tilt for a reload; the left arm has its own joint for the mag change */
+  const arms=new THREE.Group();arms.position.set(0,0.45,0);spine.add(arms);const armsIn=new THREE.Group();armsIn.position.set(0,-0.45,0);arms.add(armsIn);
+  const armL=new THREE.Group();armL.position.set(-0.27,0.48,0);armsIn.add(armL);const armLIn=new THREE.Group();armLIn.position.set(0.27,-0.48,0);armL.add(armLIn);
+  const guns={};for(const k of WKEYS){guns[k]=buildGun(armsIn,true,k,null,GUNGLOW[k]);guns[k].g.position.set(...gunPos);guns[k].g.visible=k==='rifle';}const rifle=guns.rifle;
   const rH=[gunPos[0],gunPos[1]-0.09,gunPos[2]+0.1],lH=[gunPos[0],gunPos[1]-0.035,gunPos[2]-0.3];
-  limb([0.27,0.48,0],[0.26,0.27,-0.05],0.12,MAT.fabric,spine);limb([0.26,0.27,-0.05],rH,0.1,MAT.fabric,spine);
-  limb([-0.27,0.48,0],[-0.2,0.3,-0.27],0.12,MAT.fabric,spine);limb([-0.2,0.3,-0.27],lH,0.1,MAT.fabric,spine);
-  bx(0.08,0.09,0.09,MAT.glove,...rH,spine);bx(0.08,0.09,0.09,MAT.glove,...lH,spine);
+  limb([0.27,0.48,0],[0.26,0.27,-0.05],0.12,MAT.fabric,armsIn);limb([0.26,0.27,-0.05],rH,0.1,MAT.fabric,armsIn);
+  limb([-0.27,0.48,0],[-0.2,0.3,-0.27],0.12,MAT.fabric,armLIn);limb([-0.2,0.3,-0.27],lH,0.1,MAT.fabric,armLIn);
+  bx(0.08,0.09,0.09,MAT.glove,...rH,armsIn);bx(0.08,0.09,0.09,MAT.glove,...lH,armLIn);
   const flash=new THREE.Mesh(new THREE.SphereGeometry(0.09,8,6),new THREE.MeshBasicMaterial({color:raw(0xffd59a),transparent:true,opacity:0.9,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false}));flash.visible=false;rifle.tip.add(flash);
   root.traverse(o=>{o.castShadow=false;});
   const blob=new THREE.Mesh(new THREE.PlaneGeometry(1.3,1.3),new THREE.MeshBasicMaterial({map:poolTex,color:0x000000,transparent:true,opacity:0.55,depthWrite:false}));blob.rotation.x=-Math.PI/2;scene.add(blob);
-  return{root,model,hips,spine,head,legs,rifle,guns,armor,flash,blob};
+  return{root,model,hips,spine,head,legs,arms,armL,rifle,guns,armor,flash,blob};
 }
 const avatars=[0,1,2,3,4,5,6,7].map(i=>{
   const sd=buildSoldier(i%2);const g=sd.root;
   const c=document.createElement('canvas');c.width=256;c.height=64;const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;const label=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false,toneMapped:false}));label.scale.set(2.4,0.6,1);label.position.y=2.3;g.add(label);
   scene.add(g);
-  return Object.assign(sd,{g,label,c,tex:t,name:'',rx:0,ry:0,rz:0,ryaw:0,lastSh:0,init:false,hpKey:'',walk:0,spd:0,crouchK:0,downK:0,pitchS:0,prevHp:100,hurt:0,flashT:0});
+  return Object.assign(sd,{g,label,c,tex:t,name:'',rx:0,ry:0,rz:0,ryaw:0,lastSh:0,init:false,hpKey:'',walk:0,spd:0,crouchK:0,downK:0,pitchS:0,prevHp:100,hurt:0,flashT:0,vf:0,vs:0,hipYaw:0,back:false,airK:0,vyS:0,landK:0,slideK:0,gunLow:0,rec:0,flinch:0,rlT:0,swapK:0,deadK:-1,st0:'',shotAge:9,dieDir:1,dieSide:1,dieN:0,fromDown:false,cvy:0});
 });
 /* Red outline on enemies in view. Each joint gets one red hull (its boxes grown outward by a few pixels' worth) drawn after the
    scene. The soldier's own materials write 1 to the stencil, so the hull shows only outside the silhouette, and the normal depth
@@ -1978,15 +1981,15 @@ const VW={};for(const k of WKEYS)VW[k]=buildGun(vg,false,k,null,GUNGLOW[k]);
 for(const k in VW)VW[k].sightY=VW[k].g.userData.sightY*VW[k].g.scale.y;
 function tintGun(g,hex){const c=lin(hex),cy=lin(NEON.cy);g.traverse(o=>{if(o.material&&o.material.isMeshBasicMaterial&&o.material.color.equals(cy)){o.material=o.material.clone();o.material.color.copy(c);}});}
 let vRifle=VW.rifle;
-const vSleeve=smat(0x343a3f,0.95),vCuff=smat(0x2b4a7c,0.6,0.2);
+const vSleeve=smat(0x343a3f,0.95),vCuff=smat(0x2b4a7c,0.6,0.2);const vArmL=new THREE.Group();vg.add(vArmL);/* support hand: leaves the gun for the mag change */
 (function(){const rH=[0,-0.095,0.1],lH=[0,-0.04,-0.3];
   limb(rH,[0.1,-0.2,0.3],0.075,vSleeve,vg,false);limb([0.1,-0.2,0.3],[0.17,-0.32,0.6],0.09,vSleeve,vg,false);bx(0.07,0.085,0.095,MAT.glove,...rH,vg,false);
-  limb(lH,[-0.13,-0.17,-0.1],0.075,vSleeve,vg,false);limb([-0.13,-0.17,-0.1],[-0.24,-0.3,0.2],0.09,vSleeve,vg,false);bx(0.075,0.07,0.1,MAT.glove,...lH,vg,false);
-  const c1=limb([0.05,-0.15,0.2],[0.08,-0.175,0.26],0.085,vCuff,vg,false);const c2=limb([-0.07,-0.11,-0.2],[-0.1,-0.15,-0.14],0.085,vCuff,vg,false);})();
+  limb(lH,[-0.13,-0.17,-0.1],0.075,vSleeve,vArmL,false);limb([-0.13,-0.17,-0.1],[-0.24,-0.3,0.2],0.09,vSleeve,vArmL,false);bx(0.075,0.07,0.1,MAT.glove,...lH,vArmL,false);
+  const c1=limb([0.05,-0.15,0.2],[0.08,-0.175,0.26],0.085,vCuff,vg,false);const c2=limb([-0.07,-0.11,-0.2],[-0.1,-0.15,-0.14],0.085,vCuff,vArmL,false);})();
 let vtip=vRifle.tip;
 const flashMat=new THREE.MeshBasicMaterial({color:raw(0xffe2a8),transparent:true,opacity:0.55,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,toneMapped:false});
 const mflash=new THREE.Group();for(let i=0;i<3;i++){const q=new THREE.Mesh(new THREE.PlaneGeometry(0.1,0.03),flashMat);q.rotation.z=i*Math.PI/3;mflash.add(q);}mflash.visible=false;vg.add(mflash);
-function showWeapon(k){for(const key of WKEYS)VW[key].g.visible=key===k;vRifle=VW[k]||VW.rifle;vtip=vRifle.tip;vRifle.g.updateMatrix();mflash.position.copy(vtip.position).applyMatrix4(vRifle.g.matrix);mflash.position.z-=0.03;}
+function showWeapon(k){if(me.vwK!==k){me.vwK=k;me.drawT=0.36;me.boltT=0;}for(const key of WKEYS)VW[key].g.visible=key===k;vRifle=VW[k]||VW.rifle;vtip=vRifle.tip;vRifle.g.updateMatrix();mflash.position.copy(vtip.position).applyMatrix4(vRifle.g.matrix);mflash.position.z-=0.03;}
 showWeapon('rifle');
 // The muzzle light hangs off the camera, not the viewmodel: hiding the viewmodel (menu, death) would change the light count and recompile every lit shader.
 const muzzle=new THREE.PointLight(raw(0xffd29a),0,7,1);muzzle.position.set(0.156,-0.078,-0.702);camera.add(vm,muzzle);scene.add(camera);
@@ -2383,7 +2386,7 @@ function grabMouse(gesture){if(locked||TOUCH.on)return;if(gesture)grabGesture=tr
 document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===canvas;if(locked){lockFails=0;dragMode=false;grabGesture=false;clearTimeout(grabTimer);}else lastExit=performance.now();});
 document.addEventListener('pointerlockerror',lockFailed);
 
-function startReload(){if(me.reloadT>0||me.ammo===myW(me.w).mag)return;me.reloadT=myW(me.w).reload;reloadSound(me.reloadT,me.ammo===0);}
+function startReload(){if(me.reloadT>0||me.ammo===myW(me.w).mag)return;me.rlEmpty=me.ammo===0;me.boltT=0;me.reloadT=myW(me.w).reload;reloadSound(me.reloadT,me.ammo===0);}
 function setWeapon(k){if(!W[k])return;me.wPref=k;try{localStorage.setItem('za-w',k);}catch(e){}
   const s=mySlot();const P=s>=0&&S?S.players[s]:null;
   if(S&&(S.phase==='buy'||SB.on)&&P&&P.st==='alive'&&me.w!==k){me.w=k;me.ammo=myW(k).mag;me.reloadT=0;showWeapon(k);blip(520,0.06,0.03);}
@@ -3320,7 +3323,10 @@ touchApply();
 /* ---------- local update: movement and weapon feel ---------- */
 let hitT=0,flashT=0,confirmT=0;
 const RM=matchMedia('(prefers-reduced-motion: reduce)').matches?0:1;
-Object.assign(me,{vx:0,vz:0,eye:1.6,crouch:false,slideT:0,slideCd:0,airT:0,jumpBuf:0,bob:0,bobAmp:0,land:0,roll:0,fov:78,rcP:0,rcY:0,bloom:0,burst:0,sinceShot:9,sprintLock:0,shake:0,ads:0,sprintK:0,kick:0,lean:0,swayX:0,swayY:0,spread:0.003,wr:0,wrT:0,wrCd:0,wrLast:null,wrNx:0,wrNz:0,kicked:false,mantle:null});
+Object.assign(me,{vx:0,vz:0,eye:1.6,crouch:false,slideT:0,slideCd:0,airT:0,jumpBuf:0,bob:0,bobAmp:0,land:0,roll:0,fov:78,rcP:0,rcY:0,bloom:0,burst:0,sinceShot:9,sprintLock:0,shake:0,ads:0,sprintK:0,kick:0,lean:0,swayX:0,swayY:0,spread:0.003,wr:0,wrT:0,wrCd:0,wrLast:null,wrNx:0,wrNz:0,kicked:false,mantle:null,kP:0,kV:0,kUp:0,kYaw:0,kRoll:0,boltT:0,drawT:0,rlEmpty:false,vyLag:0,slK:0,idleT:0});
+/* viewmodel helpers: an eased 0..1 step, a short bump centred on c, and the recoil impulse for one shot (a spring carries it back, so automatic fire shudders instead of snapping) */
+const sstep=(x)=>{x=clamp(x,0,1);return x*x*(3-2*x);},bump=(t,c,w)=>Math.exp(-((t-c)/w)*((t-c)/w));
+function vmKick(w){const r=clamp(0.55+0.45*w.recoil,0.6,2.4);me.kV+=7.5*r;me.kUp=Math.min(1.8,me.kUp+0.55*r);me.kYaw+=(Math.random()-.5)*0.03*r;me.kRoll+=(Math.random()-.5)*0.07*r;if(w.bolt&&me.ammo>0)me.boltT=0.95;}
 const RECOIL_X=[0,0.2,-0.3,0.5,0.7,0.3,-0.4,-0.8,-0.6,0.1,0.6,0.9,0.4,-0.3,-0.7,-0.2];
 const lastHit=Array(8).fill(0),prevSt=Array(8).fill('');
 function viewPitch(){return clamp(me.pitch+(me.rcP||0),-1.5,1.5);}
@@ -3329,7 +3335,7 @@ function approach(vx,vz,tx,tz,step){const dx=tx-vx,dz=tz-vz,L=Math.hypot(dx,dz);
 function localTick(dt){
   const s=mySlot();const P=s>=0?S.players[s]:null;
   if(!P){camera.position.set(0,45,34);camera.rotation.set(-0.95,0,0);vm.visible=false;return;}
-  if(P.sp!==me.sp){if(me.sp>=0&&!locked)me.wantLock=true;me.sp=P.sp;me.x=P.spx;me.z=P.spz;me.y=0;me.vy=0;me.yaw=P.spyaw;me.pitch=0;me.w=me.wPref;showWeapon(me.w);me.ammo=myW(me.w).mag;me.reloadT=0;me.pick=-1;me.give=false;me.vx=me.vz=0;me.rcP=me.rcY=me.bloom=0;me.slideT=0;me.wr=0;me.wrLast=null;me.kicked=false;me.mantle=null;}
+  if(P.sp!==me.sp){if(me.sp>=0&&!locked)me.wantLock=true;me.sp=P.sp;me.x=P.spx;me.z=P.spz;me.y=0;me.vy=0;me.yaw=P.spyaw;me.pitch=0;me.w=me.wPref;showWeapon(me.w);me.ammo=myW(me.w).mag;me.reloadT=0;me.pick=-1;me.give=false;me.vx=me.vz=0;me.rcP=me.rcY=me.bloom=0;me.slideT=0;me.wr=0;me.wrLast=null;me.kicked=false;me.mantle=null;me.drawT=0.42;me.kP=me.kV=me.kUp=me.kYaw=me.kRoll=me.boltT=0;}
   if(S.mid!==me.mid){me.mid=S.mid;newMatchLocal();}
   if(S.round!==me.round){me.round=S.round;me.w=me.wPref;showWeapon(me.w);me.ammo=myW(me.w).mag;}
   const alive=P.st==='alive',downed=P.st==='down';
@@ -3415,7 +3421,7 @@ function localTick(dt){
       const rk=(1-0.35*me.ads)*(me.crouch?0.8:1)*myW(me.w).recoil;
       me.rcP=Math.min(0.24,me.rcP+0.0105*(1+Math.min(me.burst,7)*0.13)*rk);
       me.rcY+=(RECOIL_X[me.burst%16]*0.0062+(Math.random()-.5)*0.003)*rk;
-      me.bloom=Math.min(0.03,me.bloom+0.0042);me.burst++;me.sinceShot=0;me.kick=1;me.shake=Math.min(1,me.shake+0.35);
+      me.bloom=Math.min(0.03,me.bloom+0.0042);me.burst++;me.sinceShot=0;me.kick=1;vmKick(myW(me.w));me.shake=Math.min(1,me.shake+0.35);
       if(me.ammo===0){boltLock();startReload();}
     }
   }
@@ -3428,6 +3434,9 @@ function localTick(dt){
   if(me.slideSnd&&(me.slideT<=0||!me.ground||!alive)){sndFade(me.slideSnd,me.ground?0.08:0.04);me.slideSnd=null;}
   me.bobAmp+=(((me.ground||me.wr)&&!sliding&&alive?spF:0)-me.bobAmp)*Math.min(1,dt*10);
   me.land*=Math.exp(-9*dt);me.shake*=Math.exp(-14*dt);me.kick*=Math.exp(-17*dt);me.swayX*=Math.exp(-9*dt);me.swayY*=Math.exp(-9*dt);
+  for(let n=Math.ceil(dt/0.006),h=dt/n,i=0;i<n;i++){me.kV+=(-1150*me.kP-34*me.kV)*h;me.kP+=me.kV*h;}
+  me.kUp*=Math.exp(-13*dt);me.kYaw*=Math.exp(-11*dt);me.kRoll*=Math.exp(-11*dt);me.boltT=Math.max(0,me.boltT-dt);me.drawT=Math.max(0,me.drawT-dt);me.idleT+=dt;
+  me.vyLag+=((me.ground||me.mantle?0:clamp(me.vy,-9,9))-me.vyLag)*Math.min(1,dt*10);me.slK+=((sliding?1:0)-me.slK)*Math.min(1,dt*10);
   const strafe=me.vx*cy-me.vz*sy;
   me.roll+=((-strafe*0.0045+(sliding?0.05:0)+me.wr*0.13)-me.roll)*Math.min(1,dt*9);
   const bobY=Math.sin(me.bob*2)*0.03*me.bobAmp*(1-0.7*me.ads)*RM;
@@ -3440,10 +3449,24 @@ function localTick(dt){
   if(Math.abs(camera.fov-me.fov)>0.05){camera.fov=me.fov;camera.updateProjectionMatrix();}
   // viewmodel
   vm.visible=alive;
-  const a=me.ads,sk=me.sprintK*(1-a),rl=me.reloadT>0?Math.sin(Math.PI*(1-me.reloadT/myW(me.w).reload)):0,mh=me.mantle?Math.sin(Math.PI*me.mantle.t):0;
-  const bx=Math.cos(me.bob)*0.012*me.bobAmp*(1-0.85*a)*RM,by=Math.abs(Math.sin(me.bob))*0.012*me.bobAmp*(1-0.85*a)*RM;
-  vg.position.set(0.23*(1-a)+bx+sk*0.05-me.swayX*0.012*(1-0.7*a),-0.215+(0.215-vRifle.sightY)*a-by-rl*0.2-sk*0.07-me.land*0.4*RM-mh*0.22+me.swayY*0.008*(1-0.7*a),-0.5+0.0*a+me.kick*0.05*(1-0.4*a));
-  vg.rotation.set(me.kick*0.055*(1-0.6*a)-sk*0.3+rl*0.55+me.swayY*0.03*(1-0.7*a),sk*0.75+me.swayX*0.045*(1-0.7*a),rl*0.45-me.roll*1.5*RM-me.swayX*0.03);
+  const a=me.ads,sk=me.sprintK*(1-a),mh=me.mantle?Math.sin(Math.PI*me.mantle.t):0,h=1-a,hs=1-0.7*a;
+  const bx=Math.cos(me.bob)*(0.012+0.014*sk)*me.bobAmp*(1-0.85*a)*RM,by=Math.abs(Math.sin(me.bob))*(0.012+0.01*sk)*me.bobAmp*(1-0.85*a)*RM;
+  /* reload in beats: roll the gun over, tug the mag out (support hand leaves), seat the new one, roll back, and slam the bolt if it ran dry */
+  let rlE=0,rlY=0,rlP=0,rlZ=0,rlR=0,hand=0;
+  if(me.reloadT>0){const t=1-me.reloadT/myW(me.w).reload;rlE=sstep(t/0.14)*(1-sstep((t-0.7)/0.22));const out=bump(t,0.2,0.04),inn=bump(t,0.62,0.035),slam=me.rlEmpty?bump(t,0.86,0.03):0;
+    rlY=-0.035*out+0.028*inn;rlP=-0.09*out+0.07*inn+0.05*slam;rlZ=0.035*slam;rlR=-0.12*slam;hand=sstep((t-0.13)/0.08)*(1-sstep((t-0.52)/0.1));}
+  /* bolt action: cant the rifle, pull back, push home (the two beats land on the bolt sounds) */
+  let btE=0,btZ=0;if(me.boltT>0){const t=1-me.boltT/0.95;btE=sstep(t/0.2)*(1-sstep((t-0.7)/0.26))*(1-0.55*a);btZ=(0.03*bump(t,0.3,0.05)-0.022*bump(t,0.66,0.05))*(1-0.5*a);}
+  const dr=sstep(me.drawT/0.36),adsT=Math.sin(Math.PI*a),still=0.35+0.65*(1-me.bobAmp);
+  const ix=Math.sin(me.idleT*0.85)*0.004*still*hs*RM,iy=Math.sin(me.idleT*1.7+0.5)*0.003*still*hs*RM;/* breathing: a slow figure of eight */
+  const kz=me.kP*0.45*(1-0.45*a),kr=(me.kUp*0.045+me.kP*0.22)*(1-0.65*a),sl=me.slK*h;
+  vArmL.position.set(-0.05*hand,-0.34*hand,0.1*hand);vArmL.rotation.x=-0.5*hand;
+  vg.position.set(0.23*h+bx+sk*0.05-me.swayX*0.012*hs+ix+me.roll*0.25*h*RM-rlE*0.035-sl*0.03-btE*0.015,
+    -0.215+(0.215-vRifle.sightY)*a-by-rlE*0.075+rlY-sk*0.07-me.land*0.4*RM-mh*0.22+me.swayY*0.008*hs+iy-me.vyLag*0.0035*(1-0.8*a)*RM-0.01*adsT-sl*0.025-btE*0.02-dr*dr*0.3,
+    -0.5+kz+rlZ+btZ);
+  vg.rotation.set(kr-sk*0.3+rlE*0.22+rlP+me.swayY*0.03*hs+iy*1.5-me.vyLag*0.008*(1-0.8*a)*RM-dr*0.8,
+    sk*0.75+me.swayX*0.045*hs+ix*1.5+me.kYaw*(1-0.6*a)+rlE*0.15+btE*0.12,
+    rlE*0.4+rlR-me.roll*1.5*RM-me.swayX*0.03+me.kRoll*(1-0.6*a)-0.11*adsT+sl*0.32-btE*0.3+Math.sin(me.bob)*0.05*sk*me.bobAmp*RM+dr*0.5);
   const fl=me.sinceShot<0.022&&a<0.3&&!myW(me.w).supp;mflash.visible=fl;if(fl){mflash.rotation.z=Math.random()*3;const sc=0.6+Math.random()*0.5;mflash.scale.set(sc,sc,sc);}
   muzzle.intensity=me.sinceShot<0.04&&!myW(me.w).supp?MUZZLE_I:0;
   if(P.hp<me.lastHp&&alive){flashT=0.35;fleshSound();me.shake=1;me.rcP+=0.012;}
@@ -3507,6 +3530,7 @@ function feelHud(dt){
 const hudMulti={mid:-1,id:0};
 
 /* ---------- render others ---------- */
+const CORPSE_T=2.8;
 function renderOthers(dt){
   const s=mySlot();
   const k=1-Math.exp(-dt*14),kk=Math.min(1,dt*10);
@@ -3514,49 +3538,84 @@ function renderOthers(dt){
   for(let i=0;i<S.players.length;i++){
     const p=S.players[i],a=avatars[i];
     if(i===s){a.g.visible=false;a.blob.visible=false;a.hullM.visible=false;continue;}
-    let x=p.x,y=p.y,z=p.z,yaw=p.yaw,pitch=p.pitch,sh=p.sh;a.crouch=false;let ln=0,wr=p.wr||0;
-    if(!p.bot&&net.mode==='online'){const pr=presenceOf(p.peer);if(pr&&Array.isArray(pr.p)){x=+pr.p[0]||0;y=+pr.p[1]||0;z=+pr.p[2]||0;yaw=+pr.yw||0;pitch=+pr.pt||0;sh=pr.sh|0;a.crouch=!!pr.c;ln=clamp(+pr.l||0,-1,1);wr=clamp(+pr.wr||0,-1,1);}}a.wrK=(a.wrK||0)+(wr-(a.wrK||0))*Math.min(1,dt*10);a.lean=(a.lean||0)+(ln-(a.lean||0))*Math.min(1,dt*14);
+    let x=p.x,y=p.y,z=p.z,yaw=p.yaw,pitch=p.pitch,sh=p.sh;a.crouch=false;let ln=0,wr=p.wr||0,rld=false;
+    if(!p.bot&&net.mode==='online'){const pr=presenceOf(p.peer);if(pr&&Array.isArray(pr.p)){x=+pr.p[0]||0;y=+pr.p[1]||0;z=+pr.p[2]||0;yaw=+pr.yw||0;pitch=+pr.pt||0;sh=pr.sh|0;a.crouch=!!pr.c;ln=clamp(+pr.l||0,-1,1);wr=clamp(+pr.wr||0,-1,1);rld=!!pr.r;}}a.wrK=(a.wrK||0)+(wr-(a.wrK||0))*Math.min(1,dt*10);a.lean=(a.lean||0)+(ln-(a.lean||0))*Math.min(1,dt*14);
+    /* a killed player falls where they stood and the body stays a few seconds, instead of blinking out */
+    const dead=p.st==='dead';
+    if(dead&&a.deadK<0&&a.init&&(a.st0==='alive'||a.st0==='down')){a.deadK=0;a.cvy=0;a.fromDown=a.st0==='down';a.dieN++;a.dieDir=(a.dieN+i)%3===2?-1:1;a.dieSide=(a.dieN+i)%2?1:-1;}
+    if(!dead){if(a.st0==='dead')a.init=false;a.deadK=-1;}a.st0=p.st;
+    const corpse=dead&&a.deadK>=0&&a.deadK<CORPSE_T;
+    if(corpse){a.deadK+=dt;const g=groundAt(a.rx,a.rz,a.ry+0.05);a.cvy-=CFG.grav*dt;a.ry=Math.max(g,a.ry+a.cvy*dt);if(a.ry<=g)a.cvy=0;x=a.rx;y=a.ry;z=a.rz;yaw=a.ryaw;pitch=0;ln=0;wr=0;rld=false;}
     if(!a.init||hyp(a.rx,a.rz,x,z)>6){a.rx=x;a.ry=y;a.rz=z;a.ryaw=yaw;a.init=true;a.lastSh=sh;}
-    const ox=a.rx,oz=a.rz;
+    const ox=a.rx,oz=a.rz,oy=a.ry;
     a.rx+=(x-a.rx)*k;a.ry+=(y-a.ry)*k;a.rz+=(z-a.rz)*k;a.ryaw=turnTo(a.ryaw,yaw,10*dt+0.01);
     const dn=p.st==='down';
-    a.g.visible=p.st!=='dead';
+    a.g.visible=!dead||corpse;
     // enemies: red outline wherever you can see them, name tag only in the sandbox (Rules tab toggle);
     // your teammate: outline in their team colour and their name tag always
-    {const mate=s>=0&&p.team===S.players[s].team;a.label.visible=mate||SB.on&&SB.names;a.hullM.visible=a.g.visible&&s>=0;
+    {const mate=s>=0&&p.team===S.players[s].team;a.label.visible=(mate||SB.on&&SB.names)&&!dead;a.hullM.visible=a.g.visible&&s>=0&&!dead;
       if(a.hullM.visible)a.hullM.uniforms.uCol.value.setRGB(...(!mate?[1,0.04,0.03]:p.team===0?[0.1,0.55,1]:[1,0.42,0.05]));}
-    if(a.wk!==p.w){a.wk=p.w;const nk=a.guns[p.w]?p.w:'rifle';for(const k in a.guns)a.guns[k].g.visible=k===nk;a.rifle=a.guns[nk];a.rifle.tip.add(a.flash);}
+    if(a.wk!==p.w){if(a.wk)a.swapK=1;a.wk=p.w;const nk=a.guns[p.w]?p.w:'rifle';for(const k in a.guns)a.guns[k].g.visible=k===nk;a.rifle=a.guns[nk];a.rifle.tip.add(a.flash);}
     a.g.position.set(a.rx,a.ry,a.rz);a.g.rotation.set(0,a.ryaw,-a.wrK*0.35);
-    {const gy=groundAt(a.rx,a.rz,a.ry+0.05),h=Math.max(0,a.ry-gy);a.blob.visible=a.g.visible;a.blob.position.set(a.rx,gy+0.02,a.rz);a.blob.scale.setScalar(1+h*0.25+a.downK*0.6);a.blob.material.opacity=0.55/(1+h);a.h=h;}
+    {const gy=groundAt(a.rx,a.rz,a.ry+0.05),h=Math.max(0,a.ry-gy);a.blob.visible=a.g.visible;a.blob.position.set(a.rx,gy+0.02,a.rz);a.blob.scale.setScalar(1+h*0.25+a.downK*0.6+(corpse?sstep(a.deadK/0.5)*0.6:0));a.blob.material.opacity=0.55/(1+h);a.h=h;}
     // locomotion
     const vx=(a.rx-ox)/Math.max(dt,1e-3),vz=(a.rz-oz)/Math.max(dt,1e-3);
-    const fwd=-(vx*Math.sin(a.ryaw)+vz*Math.cos(a.ryaw));
-    a.spd+=(Math.hypot(vx,vz)-a.spd)*kk;
-    const mv=clamp(a.spd/6,0,1.4);const pw=a.walk;a.walk+=a.spd*dt*2.1*(fwd<-0.3?-1:1);const live=p.st==='alive'&&S.phase==='live',onWall=Math.abs(wr)>0.5,grounded=a.h<0.15;a.feet=a.feet||{};
+    const fwd=-(vx*Math.sin(a.ryaw)+vz*Math.cos(a.ryaw)),side=vx*Math.cos(a.ryaw)-vz*Math.sin(a.ryaw);
+    a.spd+=(Math.hypot(vx,vz)-a.spd)*kk;a.vf+=(fwd-a.vf)*kk;a.vs+=(side-a.vs)*kk;a.vyS+=(clamp((a.ry-oy)/Math.max(dt,1e-3),-12,12)-a.vyS)*kk;
+    if(a.vf<-0.6)a.back=true;else if(a.vf>0.3||a.spd<0.4)a.back=false;const bk=a.back?-1:1;
+    const mv=clamp(a.spd/6,0,1.4);const pw=a.walk;a.walk+=a.spd*dt*2.1*bk;const live=p.st==='alive'&&S.phase==='live',onWall=Math.abs(wr)>0.5,grounded=a.h<0.15;a.feet=a.feet||{};
     if(Math.floor(pw/Math.PI)!==Math.floor(a.walk/Math.PI)&&live&&(grounded||onWall)&&a.spd>(a.crouch?1.5:3.2)){const sk=clamp(a.spd/CFG.sprint,0,1);footstep(onWall?'wall':a.crouch?(a.spd>7?'run':'crouch'):sk>0.8?'run':'walk',sk,a.rx,a.rz,a.feet);}
     /* crouch pressed at sprint speed = a slide; a fall ending on the ground = a landing */
     if(live&&a.crouch&&!a.wasCrouch&&a.spd>7&&grounded){sndFade(a.slideSnd);a.slideSnd=slideSound(a.rx,a.rz);}
     if(a.slideSnd&&(!a.crouch||a.spd<4||!grounded)){sndFade(a.slideSnd,0.08);a.slideSnd=null;}
     a.wasCrouch=a.crouch;
     if(!grounded&&!onWall)a.airPk=Math.max(a.airPk||0,a.h);
-    else if(grounded&&(a.airPk||0)>0.5){if(live)footstep('land',clamp((a.airPk-0.5)/2.5,0,1),a.rx,a.rz,a.feet);a.airPk=0;}else if(onWall)a.airPk=0;
-    a.crouchK+=((a.crouch&&!dn?1:0)-a.crouchK)*kk;a.downK+=((dn?1:0)-a.downK)*kk;
-    a.pitchS+=(pitch-a.pitchS)*kk;
-    const sw=Math.sin(a.walk)*0.6*Math.min(1,mv)*(1-a.downK);
-    const ck=a.crouchK;
-    a.legs[0].hip.rotation.x=sw+ck*1.15;a.legs[1].hip.rotation.x=-sw+ck*1.15;
-    a.legs[0].knee.rotation.x=-(Math.max(0,-Math.sin(a.walk))*0.9*Math.min(1,mv))-ck*1.9;a.legs[1].knee.rotation.x=-(Math.max(0,Math.sin(a.walk))*0.9*Math.min(1,mv))-ck*1.9;
-    a.hips.position.y=0.95-ck*0.36+Math.abs(Math.cos(a.walk))*0.035*Math.min(1,mv)*(1-ck);
-    a.spine.rotation.set(clamp(a.pitchS,-1,1)*0.75*(1-a.downK)+ck*0.12+mv*0.08,0,-a.lean*0.38*(1-a.downK));
-    a.head.rotation.x=clamp(a.pitchS,-1,1)*0.3*(1-a.downK);
-    a.model.rotation.x=-a.downK*1.45;a.model.position.y=a.downK*0.18;a.model.position.z=a.downK*0.45;
+    else if(grounded&&(a.airPk||0)>0.5){if(live)footstep('land',clamp((a.airPk-0.5)/2.5,0,1),a.rx,a.rz,a.feet);a.landK=clamp(a.airPk/1.6,0.35,1);a.airPk=0;}else if(onWall)a.airPk=0;
+    const prone=dn||corpse&&a.fromDown,sliding=a.crouch&&a.spd>6&&grounded&&!dn&&!dead;/* crouched but moving faster than a crouch-walk = a slide */
+    a.crouchK+=((a.crouch&&!dn?1:0)-a.crouchK)*kk;a.downK+=((prone?1:0)-a.downK)*kk;
+    a.pitchS+=(pitch-a.pitchS)*kk;a.slideK+=((sliding?1:0)-a.slideK)*kk;a.airK+=((!grounded&&!onWall&&!prone&&!dead?1:0)-a.airK)*Math.min(1,dt*12);
+    a.landK*=Math.exp(-7*dt);a.rec*=Math.exp(-16*dt);a.flinch*=Math.exp(-9*dt);a.swapK*=Math.exp(-6*dt);a.shotAge+=dt;
+    const rlD=wOf(p.w).reload||2;a.rlT=rld&&!dead?Math.min(1,a.rlT+dt/rlD):0;
+    /* the fall: buckle at the knees, tip over (mostly backwards), one small bounce, then sink away */
+    let fall=0,buckle=0,sink=0;
+    if(corpse&&!a.fromDown){const f=clamp(a.deadK/0.55,0,1),af=Math.max(0,a.deadK-0.55);fall=f*f-Math.exp(-af*9)*Math.sin(af*22)*0.05*(f>=1?1:0);buckle=Math.sin(Math.PI*f);}
+    if(corpse)sink=sstep((a.deadK-(CORPSE_T-0.8))/0.8);
+    const ck=a.crouchK,sl=a.slideK,ak=a.airK,up=(1-a.downK)*(1-clamp(fall,0,1)),mv1=Math.min(1,mv);
+    const runK=clamp((a.spd-CFG.speed*0.9)/(CFG.sprint*0.9-CFG.speed*0.9),0,1),gnd=(1-ak)*(1-sl)*up,ph=a.walk,s1=Math.sin(ph),c1=Math.cos(ph);
+    a.gunLow+=((runK>0.75&&a.shotAge>0.6&&a.rlT<=0&&gnd>0.6?1:0)-a.gunLow)*Math.min(1,dt*7);
+    /* hips turn toward the direction of travel while the shoulders stay on the aim, so strafing and backpedalling read as such */
+    a.hipYaw+=((a.spd>0.8?clamp(Math.atan2(a.vs*bk,Math.max(0.01,Math.abs(a.vf))),-0.95,0.95):0)-a.hipYaw)*kk;const hy=a.hipYaw*gnd;
+    /* stride: longer and with a higher knee lift the faster they go; the knee folds as the leg swings through */
+    const amp=(0.5+0.42*runK)*mv1*gnd,kA=(0.5+0.8*runK)*mv1*gnd,kS=0.12*mv1*gnd;
+    let h0=s1*amp,h1=-s1*amp,k0=-(Math.max(0,Math.cos(ph-0.6))*kA+kS),k1=-(Math.max(0,-Math.cos(ph-0.6))*kA+kS);
+    h0+=ck*1.15;h1+=ck*1.15;k0-=ck*1.9;k1-=ck*1.9;
+    h0+=sl*0.3;k0+=sl*1.55;h1-=sl*0.45;k1-=sl*0.2;/* slide: lead leg out straight, trailing leg tucked under */
+    {const rise=clamp(a.vyS/5,-1,1)*up;h0+=ak*(0.55+0.45*rise)*up;k0-=ak*(0.9+0.5*rise)*up;h1+=ak*(-0.25+0.1*rise)*up;k1-=ak*(0.48+0.22*rise)*up;}/* jump: tuck on the way up, reach for the floor on the way down */
+    h0+=a.landK*0.45*up;h1+=a.landK*0.45*up;k0-=a.landK*0.85*up;k1-=a.landK*0.85*up;
+    h0+=a.wrK*a.wrK*0.25;k0-=a.wrK*a.wrK*0.2;k1-=a.wrK*a.wrK*0.2;
+    k0-=a.downK*0.35;k1-=a.downK*0.75;h1+=a.downK*0.3;
+    h0+=buckle*0.7*a.dieDir+fall*0.25;k0-=buckle*1.1+fall*0.5;h1+=buckle*0.3*a.dieDir-fall*0.1;k1-=buckle*0.8+fall*0.15;
+    a.legs[0].hip.rotation.set(h0,0,-fall*0.18-a.downK*0.1);a.legs[1].hip.rotation.set(h1,0,fall*0.22+a.downK*0.14);a.legs[0].knee.rotation.x=Math.min(0,k0);a.legs[1].knee.rotation.x=Math.min(0,k1);
+    const br=Math.sin(performance.now()*0.0017+i*1.3)*(1-mv1)*up;
+    a.hips.position.y=0.95-ck*0.36-sl*0.4-a.landK*0.2*up-buckle*0.25+Math.cos(ph*2)*(0.02+0.025*runK)*mv1*gnd*(1-ck)+br*0.004;
+    a.hips.rotation.set(0,-hy,c1*0.05*mv1*gnd);
+    const lean=-(0.05*mv1+0.2*runK)*gnd-a.landK*0.18*up+sl*0.35;
+    a.spine.rotation.set(clamp(a.pitchS,-1,1)*0.75*up-ck*0.1*(1-sl)+lean+br*0.012+a.flinch*0.16*up+fall*0.2*a.dieDir,
+      hy*0.92+s1*(0.05+0.09*a.gunLow)*mv1*gnd+fall*0.35*a.dieSide,-a.lean*0.38*up-c1*0.035*mv1*gnd+a.wrK*0.2+a.flinch*0.07*a.dieSide*up);
+    a.head.rotation.set(clamp(a.pitchS,-1,1)*0.3*up-lean*0.6+fall*0.35*a.dieDir-a.downK*0.25,-s1*0.04*mv1*gnd+fall*0.3*a.dieSide,a.flinch*0.1*a.dieSide);
+    /* gun arm: kicks on a shot, drops across the chest in a sprint, rolls over for a reload (support hand goes to the belt and back), dips on a weapon swap */
+    {const t=a.rlT,rlE=t>0?sstep(t/0.14)*(1-sstep((t-0.7)/0.22)):0,hand=t>0?sstep((t-0.13)/0.08)*(1-sstep((t-0.52)/0.1)):0,gl=a.gunLow*(1-rlE);
+      a.arms.rotation.set(a.rec*0.07-gl*0.5+rlE*0.32-a.swapK*0.9-sl*0.35+fall*0.9*a.dieDir+a.downK*0.25,gl*0.55+rlE*0.2,s1*0.07*gl+rlE*0.45+fall*0.3*a.dieSide);
+      a.arms.position.set(0,0.45+br*0.004+Math.cos(ph*2)*0.012*gl,a.rec*0.045);
+      a.armL.rotation.set(-1.05*hand-fall*0.5,0,fall*0.6);}
+    a.model.rotation.set(-a.downK*1.45+fall*1.5*a.dieDir+sl*0.15*(1-a.downK),0,fall*0.22*a.dieSide);a.model.position.set(0,a.downK*0.18+clamp(fall,0,1)*(a.dieDir>0?0.15:0.18)-sink*0.75,a.downK*0.45+(a.dieDir<0?clamp(fall,0,1)*0.45:0));
     // hurt flash
-    if(p.hp<a.prevHp&&p.st==='alive'||(p.st==='down'&&a.prevSt==='alive')){a.hurt=0.14;if(S.phase==='live'&&a.g.visible!==false&&!(performance.now()-(lastHit[i]||0)<400))fleshSound(a.rx,a.rz,0.8);}a.prevHp=p.hp;a.prevSt=p.st;
+    if(p.hp<a.prevHp&&p.st==='alive'||(p.st==='down'&&a.prevSt==='alive')){a.hurt=0.14;a.flinch=1;a.dieSide=Math.random()<0.5?-1:1;if(S.phase==='live'&&a.g.visible!==false&&!(performance.now()-(lastHit[i]||0)<400))fleshSound(a.rx,a.rz,0.8);}a.prevHp=p.hp;a.prevSt=p.st;
     a.hurt-=dt;a.armor.emissive.setRGB(a.hurt>0?0.9:0,a.hurt>0?0.9:0,a.hurt>0?0.9:0);
     const label=p.name+(dn?' · DOWN':'');const key=label+p.team;
     if(a.hpKey!==key){a.hpKey=key;drawLabel(a,label,p.team===0?'#a9c6ff':'#ffc29c');}
     a.flashT-=dt;a.flash.visible=a.flashT>0;
-    if(sh!==a.lastSh&&a.g.visible&&!dn&&S.phase==='live'){a.lastSh=sh;a.flashT=p.sx?0:0.05;a.flash.scale.setScalar(0.7+Math.random()*0.6);
+    if(sh!==a.lastSh&&a.g.visible&&!dn&&!dead&&S.phase==='live'){a.lastSh=sh;a.rec=clamp(0.55+0.45*wOf(p.w).recoil,0.6,2.2);a.shotAge=0;a.flashT=p.sx?0:0.05;a.flash.scale.setScalar(0.7+Math.random()*0.6);
       a.g.updateMatrixWorld(true);a.rifle.tip.getWorldPosition(_v);
       const cp=Math.cos(pitch);const dx=-Math.sin(yaw)*cp,dy=Math.sin(pitch),dz=-Math.cos(yaw)*cp;const oy=a.ry+1.5;const t=rayWorld(a.rx,oy,a.rz,dx,dy,dz,80);
       tracer(_v.x,_v.y,_v.z,a.rx+dx*t,oy+dy*t,a.rz+dz*t,p.team===0?0x5fd0ff:0xffa040);shotSound(p.w,a.rx,a.rz,p.sx);if(t<79){mark(a.rx+dx*t,oy+dy*t,a.rz+dz*t,dx,dy,dz,0xffa040);impactSound(a.rx+dx*t,a.rz+dz*t,0.8);}}
