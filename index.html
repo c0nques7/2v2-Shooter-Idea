@@ -930,7 +930,7 @@ const TOUCH={on:false,mx:0,my:0,run:false};
 
 /* ---------- settings (graphics, sound, controls), saved per browser ---------- */
 const OPT0={preset:'high',res:1,autoRes:true,shadows:2,bloom:1,fxaa:true,film:0.6,rain:true,tod:'night',particles:1,marks:true,crowd:1,fog:1,bright:1,fov:78,shake:1,fps:false,lights:true,ao:false,refl:false,beams:false,smaa:false,aniso:false,
-  vMaster:0.8,vWeapons:0.9,vFx:0.9,vSteps:0.8,vUi:0.8,vAmb:0.6,vMusic:0.6,vMatch:0.5,reverb:0.4,sens:1,adsSens:1,invertY:false,touch:'auto',tSens:1,tAdsSens:1,tSize:1,tFire2:true,tAutoRun:true};
+  vMaster:0.8,vWeapons:0.9,vFx:0.9,vSteps:0.8,vUi:0.8,vAmb:0.6,vRain:0,vMusic:0.6,vMatch:0.5,reverb:0.4,sens:1,adsSens:1,invertY:false,touch:'auto',tSens:1,tAdsSens:1,tSize:1,tFire2:true,tAutoRun:true};
 const PRESETS={low:{res:0.75,shadows:0,bloom:0,fxaa:false,film:0,rain:false,particles:0.5,marks:false,crowd:0.35,ao:false,refl:false,beams:false,smaa:false,aniso:false},
   medium:{res:1,shadows:1,bloom:1,fxaa:true,film:0.4,rain:true,particles:1,marks:true,crowd:0.7,ao:false,refl:false,beams:false,smaa:false,aniso:false},
   high:{res:1,shadows:2,bloom:1,fxaa:true,film:0.6,rain:true,particles:1,marks:true,crowd:1,ao:false,refl:false,beams:false,smaa:false,aniso:false},
@@ -1990,7 +1990,7 @@ function audioInit(){
   return true;}
 function audioApply(){if(!actx)return;const t=actx.currentTime,set=(g,v)=>g.gain.setTargetAtTime(v,t,0.03);
   set(AU.master,OPT.vMaster);set(AU.bus.weapons,OPT.vWeapons);set(AU.bus.fx,OPT.vFx);set(AU.bus.steps,OPT.vSteps*1.6);set(AU.bus.ui,OPT.vUi);set(AU.bus.amb,OPT.vAmb);set(AU.revG,OPT.reverb*1.2);
-  if(AU.rainG)set(AU.rainG,OPT.rain?0.08:0);}
+  if(AU.rainG)set(AU.rainG,OPT.rain?0.08*OPT.vRain:0);}/* rain has its own slider (off by default, it drowned everything else) */
 function audioWake(){if(audioInit()&&actx.state==='suspended')actx.resume().catch(()=>{});}
 /* main menu music: "Neon futuristic music" by ikoliks_aj (supplied by Joe; Pixabay 614622), 128 kbps stereo. Plays only while the main
    menu is up (it needs one click or key press first, like all browser audio), fades out when a match starts, and loops; the track
@@ -2252,7 +2252,7 @@ function impactSound(x,z,k){if(!audioInit())return;sfxInit();if(!SFXB)return;con
   playBuf(pick(SFXB.hit),{...o,vol:v,rate:0.88+Math.random()*0.24});
   if(Math.random()<0.45)playBuf(pick(SFXB.trickle),{...o,vol:v*0.35,rate:0.9+Math.random()*0.2,at:o.at+0.03+Math.random()*0.05});}
 function startAmbient(){const b=AU.bus.amb;
-  const r=actx.createBufferSource();r.buffer=AU.noise;r.loop=true;const rf=actx.createBiquadFilter();rf.type='highpass';rf.frequency.value=2400;const rf2=actx.createBiquadFilter();rf2.type='lowpass';rf2.frequency.value=9000;AU.rainG=actx.createGain();AU.rainG.gain.value=0;r.connect(rf);rf.connect(rf2);rf2.connect(AU.rainG);AU.rainG.connect(b);r.start(0,0.7);
+  const r=actx.createBufferSource();r.buffer=AU.noise;r.loop=true;const rf=actx.createBiquadFilter();rf.type='highpass';rf.frequency.value=2400;const rf2=actx.createBiquadFilter();rf2.type='lowpass';rf2.frequency.value=9000;AU.rainG=actx.createGain();AU.rainG.gain.value=0;r.connect(rf);rf.connect(rf2);rf2.connect(AU.rainG);AU.rainG.connect(AU.master);r.start(0,0.7);
   sfxInit();}
 /* match events to sound: countdowns, round stings, charge beeps, heartbeat, state changes */
 const AS={phase:'',said:{},armed:false,site:'A',cown:-2,sec:-1,beepT:0,heartT:0,st:''};
@@ -2904,7 +2904,7 @@ const SET=[
   ['g','fov','Field of view','rng',60,100,1,v=>v+'°'],
   ['g','shake','Screen shake','rng',0,1.5,0.05,pct],
   ['g','tod','Time of day','sel',[['night','Night (neon)'],['day','Day']]],
-  ['g','rain','Rain','chk'],
+  ['g','rain','Rain (visual)','chk'],
   ['g','lights','Reactive arena lights (flash on match events)','chk'],
   ['g','fxaa','Anti-aliasing (smooth edges)','chk'],
   ['g','marks','Glowing bullet marks','chk'],
@@ -2919,7 +2919,8 @@ const SET=[
   ['s','vFx','Impacts, explosions, charge beeps','rng',0,1,0.05,pct],
   ['s','vSteps','Footsteps','rng',0,1,0.05,pct],
   ['s','vUi','Hit markers and announcer','rng',0,1,0.05,pct],
-  ['s','vAmb','Ambience: rain and crowd','rng',0,1,0.05,pct],
+  ['s','vAmb','Crowd','rng',0,1,0.05,pct],
+  ['s','vRain','Rain (plays only when Rain is on in graphics)','rng',0,1,0.05,pct],
   ['s','vMusic','Main menu music','rng',0,1,0.05,pct],
   ['s','vMatch','Match music','rng',0,1,0.05,pct],
   ['s','reverb','Arena echo','rng',0,1,0.05,pct],
