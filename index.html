@@ -580,7 +580,7 @@ rebuildGrid();
 const cellOf=(x,z)=>[clamp(Math.floor(x+50),0,GW-1),clamp(Math.floor(z+20),0,GD-1)];
 function freeAt(x,z){const c=cellOf(x,z);return !blocked[c[0]*GD+c[1]];}
 function segClear(ax,az,bx,bz){const L=hyp(ax,az,bx,bz),n=Math.ceil(L/0.4);for(let i=1;i<=n;i++){const t=i/n;if(!freeAt(ax+(bx-ax)*t,az+(bz-az)*t))return false;}return true;}
-function nearestFree(gx,gz){if(!blocked[gx*GD+gz])return[gx,gz];for(let r=1;r<6;r++)for(let dx=-r;dx<=r;dx++)for(let dz=-r;dz<=r;dz++){const x=gx+dx,z=gz+dz;if(x>=0&&z>=0&&x<GW&&z<GD&&!blocked[x*GD+z])return[x,z];}return[gx,gz];}
+function nearestFree(gx,gz){if(!blocked[gx*GD+gz])return[gx,gz];for(let r=1;r<6;r++){let best=null,bd=1e9;for(let dx=-r;dx<=r;dx++)for(let dz=-r;dz<=r;dz++){if(Math.max(Math.abs(dx),Math.abs(dz))!==r)continue;const x=gx+dx,z=gz+dz,d=dx*dx+dz*dz;if(x>=0&&z>=0&&x<GW&&z<GD&&!blocked[x*GD+z]&&d<bd){bd=d;best=[x,z];}}if(best)return best;}return[gx,gz];}
 /* A* over the 1 m grid. The search buffers are allocated once and reused (a generation stamp marks which cells this search
    touched), and the path is smoothed in one forward pass, so a cross-map search stays well under a millisecond. */
 const FP={g:new Float32Array(GW*GD),came:new Int32Array(GW*GD),gen:new Uint32Array(GW*GD),closed:new Uint32Array(GW*GD),stamp:0,
@@ -659,16 +659,32 @@ const DM_HOME=[[46,-14],[46,14],[47.5,-17.5],[47.5,17.5]];
 function dmHome(p){const sx=p.team===0?-1:1,h=DM_HOME[(p.s>>1)%4],x=sx*h[0],z=sx*h[1];
   dmPlace(p,x,z,Math.atan2(-(Math.sign(x)*48.5-x),-(Math.sign(z)*9-z)));}
 function dmSpawnSpot(p){
-  /* score every spot by distance to the nearest living enemy, then line-of-sight check only the 24 best (the full check on
-     every spot was a several-millisecond hitch on the host at each respawn in 4v4) */
-  const foes=S.players.filter(e=>e.team!==p.team&&e.st==='alive');const cand=[];
-  for(const c of DM_PTS){let dmin=60;for(const e of foes){const d=hyp(c.x,c.z,e.x,e.z);if(d<dmin)dmin=d;}
-    const crowd=S.players.some(o=>o!==p&&o.st==='alive'&&hyp(c.x,c.z,o.x,o.z)<2.5);cand.push({c,sc:dmin-(crowd?50:0)+Math.random()*8});}
+  /* Safe respawn: score every open spot (all at least ~1.2 m clear of walls and cover), then line-of-sight check only the 24
+     best (the full check on every spot was a several-millisecond hitch on the host at each respawn in 4v4).
+     - distance to the nearest living enemy counts up to 40 m (past that every spot is equally safe), and under 18 m is heavily penalised
+     - a spot behind or beside an enemy within 30 m is penalised, so nobody pops up at someone's back
+     - in team modes, a spot 8-25 m from a living teammate gets a bonus, so teams regroup instead of trickling in alone
+     - a spot in sight of a living enemy loses 40 per enemy who can see it */
+  const foes=S.players.filter(e=>e.team!==p.team&&e.st==='alive'),mates=S.players.filter(e=>e!==p&&e.team===p.team&&e.st==='alive');const cand=[];
+  for(const c of DM_PTS){if(!freeAt(c.x,c.z))continue;let dmin=60,rear=0;
+    for(const e of foes){const d=hyp(c.x,c.z,e.x,e.z);if(d<dmin)dmin=d;
+      if(d<30){const dot=((c.x-e.x)*-Math.sin(e.yaw)+(c.z-e.z)*-Math.cos(e.yaw))/Math.max(d,0.1);if(dot<0.3)rear+=(30-d)*(0.3-dot);}}
+    let sc=Math.min(dmin,40)-(dmin<18?(18-dmin)*6:0)-rear*2+Math.random()*6;
+    if(S.players.some(o=>o!==p&&o.st==='alive'&&hyp(c.x,c.z,o.x,o.z)<3))sc-=50;
+    if(mates.length){let md=1e9;for(const o of mates)md=Math.min(md,hyp(c.x,c.z,o.x,o.z));if(md>=8&&md<=25)sc+=8;else if(md<=35)sc+=3;}
+    cand.push({c,sc});}
   cand.sort((a,b)=>b.sc-a.sc);let best=null,bs=-1e9;
   for(const k of cand.slice(0,24)){let seen=0;for(const e of foes){if(hyp(k.c.x,k.c.z,e.x,e.z)<50&&losPts(e.x,e.y+1.5,e.z,k.c.x,1.4,k.c.z))seen++;}
-    const sc=k.sc-seen*30;if(sc>bs){bs=sc;best=k.c;}}
+    const sc=k.sc-seen*40;if(sc>bs){bs=sc;best=k.c;}}
   return best||{x:p.team===0?-46:46,z:0};}
-function dmRespawn(p){if(S.range){const it=p.bot&&RG.list.find(q=>q.id===p.rgId);if(!p.bot)rgHome(p);else if(it)rgBotPlace(it);else p.deadT=1;return;}const c=dmSpawnSpot(p);dmPlace(p,c.x,c.z,Math.atan2(c.x,c.z*0.7));}/* face back toward the middle */
+/* spawn facing: the open direction (most clear floor ahead, up to 12 m) that points most toward the nearest enemy, or the middle */
+function dmFace(x,z,foes){let tx=-x,tz=-z,nd=1e9;for(const e of foes){const d=hyp(x,z,e.x,e.z);if(d<nd){nd=d;tx=e.x-x;tz=e.z-z;}}const tl=Math.hypot(tx,tz)||1;
+  let best=Math.atan2(-tx,-tz),bs=-1e9;
+  for(let i=0;i<16;i++){const a=i/16*Math.PI*2,dx=Math.cos(a),dz=Math.sin(a);let cl=0;while(cl<12&&freeAt(x+dx*(cl+1),z+dz*(cl+1)))cl++;
+    const sc=cl+6*(dx*tx+dz*tz)/tl;if(sc>bs){bs=sc;best=Math.atan2(-dx,-dz);}}
+  return best;}
+function dmRespawn(p){if(S.range){const it=p.bot&&RG.list.find(q=>q.id===p.rgId);if(!p.bot)rgHome(p);else if(it)rgBotPlace(it);else p.deadT=1;return;}
+  const c=dmSpawnSpot(p);dmPlace(p,c.x,c.z,dmFace(c.x,c.z,S.players.filter(e=>e.team!==p.team&&e.st==='alive')));}
 function dmStart(){S.cover=COVER.map(b=>b.max);S.regen=COVER.map(()=>0);S.center={own:-1,cap:-1,p:0};S.armed=null;S.tickets=[0,0];S.sudden=false;
   S.timer=CFG.dmTime;S.phase='buy';S.t=Math.max(CFG.buy,CFG.buy1);S.last=null;for(const p of S.players){p.k=0;p.d=0;dmHome(p);}}
 function endDM(){if(S.phase!=='live')return;const w=S.score[0]===S.score[1]?-1:S.score[0]>S.score[1]?0:1;S.phase='over';S.t=CFG.overT;S.last={team:w,why:''};
@@ -777,7 +793,7 @@ function actions(p,dt,role){
 function turnTo(a,b,max){let d=b-a;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;return a+clamp(d,-max,max);}
 function angDiff(a,b){let d=b-a;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;return Math.abs(d);}
 function botThink(b,dt){
-  const m=botMem[b.s]||(botMem[b.s]={path:null,pathT:0,pg:null,seeT:0,tgtS:-1,fireCd:0,burst:0,strafeT:0,strafeDir:1,giveT:0,stuckT:0,lx:0,lz:0,wr:0,wrT:0,wrB:null,wrCd:2,vy:0,kvx:0,kvz:0,tx:0,tz:0,nx:0,nz:0});
+  const m=botMem[b.s]||(botMem[b.s]={path:null,pathT:0,pg:null,seeT:0,tgtS:-1,fireCd:0,burst:0,strafeT:0,strafeDir:1,giveT:0,stuckT:0,lx:0,lz:0,sx:0,sz:0,sExp:0,stk:0,esc:null,wr:0,wrT:0,wrB:null,wrCd:2,vy:0,kvx:0,kvz:0,tx:0,tz:0,nx:0,nz:0});
   b.use=false;
   if(b.st!=='alive'||S.phase!=='live'){m.wr=0;b.wr=0;m.kvx=m.kvz=0;if(b.y>0){m.vy-=CFG.grav*dt;b.y+=m.vy*dt;const g=groundAt(b.x,b.z,b.y);if(b.y<=g){b.y=g;m.vy=0;}}}
   if(SB.on&&(S.range?!b.rgId:SB.bots==='off')){if(b.st!=='dead'){b.st='dead';b.hp=0;b.deadT=0;b.ak=null;b.ap=0;}return;}
@@ -810,11 +826,14 @@ function botThink(b,dt){
     while(m.path.length>1&&hyp(b.x,b.z,m.path[0].x,m.path[0].z)<0.7)m.path.shift();
     const w=m.path[0];const dx=w.x-b.x,dz=w.z-b.z,L=Math.hypot(dx,dz);if(L>0.05){mvx=dx/L;mvz=dz/L;}
   }
-  if(tgt&&!b.use){
+  if(m.esc){m.esc.t-=dt;const dx=m.esc.x-b.x,dz=m.esc.z-b.z,L=Math.hypot(dx,dz);if(L<0.4||m.esc.t<=0){m.esc=null;m.path=null;}else{mvx=dx/L;mvz=dz/L;}}
+  if(tgt&&!b.use&&!m.esc){
     m.strafeT-=dt;if(m.strafeT<=0){m.strafeDir=Math.random()<.5?-1:1;m.strafeT=0.5+Math.random()*0.9;}
     const ang=Math.atan2(tgt.z-b.z,tgt.x-b.x);const px=-Math.sin(ang),pz=Math.cos(ang);
     const adv=S.mode==='dm'?0.4:(role==='atk'&&!armed)||goal===mate?0.55:0;
-    mvx=mvx*adv+px*m.strafeDir*0.8;mvz=mvz*adv+pz*m.strafeDir*0.8;
+    // strafe only toward open floor: if a wall or crate is in the way, strafe the other way, and stand still if both sides are boxed in
+    let sd=m.strafeDir;if(botProbe(b,px*sd,pz*sd)<0.5){sd=-sd;if(botProbe(b,px*sd,pz*sd)<0.5)sd=0;else{m.strafeDir=sd;m.strafeT=Math.max(m.strafeT,0.4);}}
+    mvx=mvx*adv+px*sd*0.8;mvz=mvz*adv+pz*sd*0.8;
   }
   // wallrun: running along a tall wall with room ahead, a bot sometimes jumps onto it (more often in a fight) and may kick off at the end
   m.wrCd-=dt;
@@ -839,7 +858,8 @@ function botThink(b,dt){
   else if(air){const pos={x:b.x,z:b.z};moveCircle(pos,m.kvx*dt,m.kvz*dt,0.4,b.y);b.x=pos.x;b.z=pos.z;
     m.vy-=CFG.grav*dt;b.y+=m.vy*dt;const g=groundAt(b.x,b.z,b.y);if(b.y<=g){b.y=g;m.vy=0;m.kvx=m.kvz=0;}}
   else if(L>0.01){const sp=6*dt/Math.max(1,L);const pos={x:b.x,z:b.z};moveCircle(pos,mvx*sp,mvz*sp,0.4,b.y);b.x=pos.x;b.z=pos.z;
-    if(hyp(b.x,b.z,m.lx,m.lz)<0.3*dt*6&&!tgt){m.stuckT+=dt;if(m.stuckT>0.8){m.path=null;m.stuckT=0;const ox=b.x,oz=b.z;moveCircle(pos,(Math.random()-.5)*1.2,(Math.random()-.5)*1.2,0.4,0);b.x=pos.x;b.z=pos.z;if(!freeAt(b.x,b.z)){b.x=ox;b.z=oz;}}}else m.stuckT=0;}
+    botStuck(b,m,6*dt*Math.min(1,L),mvx/L,mvz/L);}
+  else{m.sExp=0;m.sx=b.x;m.sz=b.z;}
   m.lx=b.x;m.lz=b.z;
   let want=b.yaw;
   if(tgt)want=Math.atan2(-(tgt.x-b.x),-(tgt.z-b.z));else if(L>0.01)want=Math.atan2(-mvx,-mvz);
@@ -853,6 +873,22 @@ function botThink(b,dt){
     else{const tx=tgt.x+(Math.random()-.5)*1.8,ty=tgt.y+0.2+Math.random()*1.3,tz=tgt.z+(Math.random()-.5)*1.8,ey=b.y+1.5,ddx=tx-b.x,ddy=ty-ey,ddz=tz-b.z,LL=Math.hypot(ddx,ddy,ddz);rayWorld(b.x,ey,b.z,ddx/LL,ddy/LL,ddz/LL,LL+4);if(rayHitBox&&rayHitBox.ci!=null)damageCover(rayHitBox.ci,CFG.dmg);}
   }
 }
+
+/* how far (0..1) a bot could actually walk 0.8 m in direction (dx,dz), against the real collision boxes */
+function botProbe(b,dx,dz){const L=Math.hypot(dx,dz);if(L<1e-3)return 1;const pos={x:b.x,z:b.z};moveCircle(pos,dx/L*0.8,dz/L*0.8,0.4,b.y);return clamp(((pos.x-b.x)*dx+(pos.z-b.z)*dz)/L/0.8,0,1);}
+/* stuck detection: every ~0.5 s of intended walking, compare how far the bot got with how far it meant to go. Making under a third of
+   it (pinned on a wall corner, rubbing a crate while strafing, waypoint behind a box) counts as a strike: the bot flips its strafe,
+   re-plans its path and walks to an escape point, an open spot 1.5-4 m away that it can reach in a straight line, leaning toward
+   where it was trying to go. Each further strike in a row widens the search. */
+function botStuck(b,m,step,ux,uz){m.sExp+=step;if(m.sExp<3)return;
+  const got=hyp(b.x,b.z,m.sx,m.sz),exp=m.sExp;m.sx=b.x;m.sz=b.z;m.sExp=0;
+  if(got>=exp*0.33){m.stk=0;return;}
+  m.stk++;m.strafeDir=-m.strafeDir;m.strafeT=0.6;m.path=null;m.stuckT=0;
+  const w=m.pg||{x:b.x+ux*4,z:b.z+uz*4},gx=w.x-b.x,gz=w.z-b.z,gl=Math.hypot(gx,gz)||1;let best=null,bs=-1e9;
+  for(const r of m.stk>1?[2,3,4]:[1.5,2.5])for(let i=0;i<16;i++){const a=i/16*Math.PI*2,dx=Math.cos(a),dz=Math.sin(a),x=b.x+dx*r,z=b.z+dz*r;
+    if(!freeAt(x,z)||!segClear(x,z,w.x,w.z)&&!freeAt(x+dx,z+dz))continue;if(botProbe(b,dx,dz)<0.9)continue;
+    const sc=(dx*gx+dz*gz)/gl*2-(dx*ux+dz*uz)*1.5+Math.random();if(sc>bs){bs=sc;best={x,z};}}
+  if(best)m.esc={x:best.x,z:best.z,t:1.2};}
 
 /* ---------- networking ---------- */
 const net={mode:'none',room:null,lobby:null,myPeer:null,host:false,hostPeer:null,lastState:0,code:'',hitLog:{}};
@@ -3882,6 +3918,6 @@ mergeChildren(scene);
 refreshZoneLook('atk');
 // Compile every material's shader up front (in parallel where the browser supports it) so nothing compiles on the first shot or spawn.
 renderer.compileAsync(scene,camera).catch(()=>{}).finally(()=>requestAnimationFrame(frame));
-window.__za={BL,fire:()=>{const s=mySlot();if(s>=0)fire(s);},damage:(t,d,a,h)=>damage(t,d,a,h),prog:{PROG,PARTS,myW,modW,progSave,progLoad,rebuildVW,lvlOf,XPR},LX,MU,MM,WM,VB,OPT,AU,dev:{DEV,TUNE,GUN,W,COVER0,TWIN,STEP_MODE,devCollect,devApply},damageCover,COVER,coverVis,WH,openWheel:m=>openWheel(m),closeWheel:c=>closeWheel(c),wheelMove:(x,y)=>wheelMove(x,y),gfx:{renderer,scene,camera,applyGfx,DR,render:()=>renderScene(),FREF,BEAMS,get gtao(){return gtaoPass;}},openPause:()=>openPause(),closePause:()=>closePause(),leaveMatch:()=>leaveMatch(),get S(){return S;},me,net,rg:{RG,rgAdd,rgRemove,rgClear,BOXES},botMem,CFG,SB,OPT,AU,get actx(){return actx;},mySlot:()=>mySlot(),sfx:{hitCue,HITX,footstep,slideSound,shotSound,stepSound,get stepBufs(){return stepBufs;},get slideBuf(){return slideBuf;},get gunBufs(){return gunBufs;}}};
+window.__za={sim:{hostTick:dt=>hostTick(dt),coverTick:dt=>coverTick(dt),newMatch:()=>newMatch(),MATCH,dmSpawnSpot:p=>dmSpawnSpot(p),findPath:(a,b,c,d)=>findPath(a,b,c,d),freeAt:(x,z)=>freeAt(x,z),losPts:(...a)=>losPts(...a),DM_PTS,BOXES},BL,fire:()=>{const s=mySlot();if(s>=0)fire(s);},damage:(t,d,a,h)=>damage(t,d,a,h),prog:{PROG,PARTS,myW,modW,progSave,progLoad,rebuildVW,lvlOf,XPR},LX,MU,MM,WM,VB,OPT,AU,dev:{DEV,TUNE,GUN,W,COVER0,TWIN,STEP_MODE,devCollect,devApply},damageCover,COVER,coverVis,WH,openWheel:m=>openWheel(m),closeWheel:c=>closeWheel(c),wheelMove:(x,y)=>wheelMove(x,y),gfx:{renderer,scene,camera,applyGfx,DR,render:()=>renderScene(),FREF,BEAMS,get gtao(){return gtaoPass;}},openPause:()=>openPause(),closePause:()=>closePause(),leaveMatch:()=>leaveMatch(),get S(){return S;},me,net,rg:{RG,rgAdd,rgRemove,rgClear,BOXES},botMem,CFG,SB,OPT,AU,get actx(){return actx;},mySlot:()=>mySlot(),sfx:{hitCue,HITX,footstep,slideSound,shotSound,stepSound,get stepBufs(){return stepBufs;},get slideBuf(){return slideBuf;},get gunBufs(){return gunBufs;}}};
 })();
 </script>
