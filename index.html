@@ -1535,11 +1535,11 @@ const avatars=[0,1,2,3,4,5,6,7].map(i=>{
    test hides it behind walls and cover, so only the parts you can actually see are outlined. */
 const OUTLINE_U={uK:{value:0.002}};
 function outlineAvatar(a){
-  const mm=new Map(),hm=new THREE.ShaderMaterial({uniforms:OUTLINE_U,
+  const mm=new Map(),hm=new THREE.ShaderMaterial({uniforms:{uK:OUTLINE_U.uK,uCol:{value:new THREE.Color(1,0.04,0.03)}},
     vertexShader:'uniform float uK;attribute vec3 odir;void main(){vec4 wp=modelMatrix*vec4(position,1.0);'+
       'vec3 s=vec3(length(modelMatrix[0].xyz),length(modelMatrix[1].xyz),length(modelMatrix[2].xyz));'+
       'float t=uK*distance(cameraPosition,wp.xyz);gl_Position=projectionMatrix*viewMatrix*modelMatrix*vec4(position+odir*t/s,1.0);}',
-    fragmentShader:'void main(){gl_FragColor=vec4(1.0,0.04,0.03,1.0);}',
+    fragmentShader:'uniform vec3 uCol;void main(){gl_FragColor=vec4(uCol,1.0);}',
     depthWrite:false,stencilWrite:true,stencilRef:1,stencilFunc:THREE.NotEqualStencilFunc,stencilZPass:THREE.KeepStencilOp});
   hm.visible=false;a.hullM=hm;
   const nodes=[];a.root.traverse(n=>nodes.push(n));const q=new THREE.Vector3();
@@ -2500,8 +2500,10 @@ function renderOthers(dt){
     a.rx+=(x-a.rx)*k;a.ry+=(y-a.ry)*k;a.rz+=(z-a.rz)*k;a.ryaw=turnTo(a.ryaw,yaw,10*dt+0.01);
     const dn=p.st==='down';
     a.g.visible=p.st!=='dead';
-    // name tags only in the sandbox (Rules tab toggle); a red outline on every enemy you can see
-    a.label.visible=SB.on&&SB.names;a.hullM.visible=a.g.visible&&s>=0&&p.team!==S.players[s].team;
+    // enemies: red outline wherever you can see them, name tag only in the sandbox (Rules tab toggle);
+    // your teammate: outline in their team colour and their name tag always
+    {const mate=s>=0&&p.team===S.players[s].team;a.label.visible=mate||SB.on&&SB.names;a.hullM.visible=a.g.visible&&s>=0;
+      if(a.hullM.visible)a.hullM.uniforms.uCol.value.setRGB(...(!mate?[1,0.04,0.03]:p.team===0?[0.1,0.55,1]:[1,0.42,0.05]));}
     if(a.wk!==p.w){a.wk=p.w;const sc=p.w==='smg'?[0.95,0.95,0.72]:p.w==='br'?[1.12,1.15,1.18]:[1,1,1];a.rifle.g.scale.set(...sc);}
     a.g.position.set(a.rx,a.ry,a.rz);a.g.rotation.set(0,a.ryaw,-a.wrK*0.35);
     {const gy=groundAt(a.rx,a.rz,a.ry+0.05),h=Math.max(0,a.ry-gy);a.blob.visible=a.g.visible;a.blob.position.set(a.rx,gy+0.02,a.rz);a.blob.scale.setScalar(1+h*0.25+a.downK*0.6);a.blob.material.opacity=0.55/(1+h);a.h=h;}
