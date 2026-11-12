@@ -1624,7 +1624,8 @@ function audioInit(){
     const len=Math.floor(actx.sampleRate*2);AU.noise=actx.createBuffer(1,len,actx.sampleRate);const d=AU.noise.getChannelData(0);for(let i=0;i<len;i++)d[i]=Math.random()*2-1;
     const rl=Math.floor(actx.sampleRate*1.8),ir=actx.createBuffer(2,rl,actx.sampleRate);for(let c=0;c<2;c++){const b=ir.getChannelData(c);for(let i=0;i<rl;i++)b[i]=(Math.random()*2-1)*Math.pow(1-i/rl,2.6)*(i<400?i/400:1);}
     AU.rev=actx.createConvolver();AU.rev.buffer=ir;AU.revG=actx.createGain();AU.rev.connect(AU.revG);AU.revG.connect(AU.master);
-    for(const b of BUSES){const g=actx.createGain();g.connect(AU.master);AU.bus[b]=g;if(b==='weapons'||b==='fx'||b==='steps'){const s=actx.createGain();s.gain.value=b==='steps'?0.25:0.4;g.connect(s);s.connect(AU.rev);}}
+    AU.duck=actx.createGain();AU.duck.connect(AU.master);/* weapons dip briefly under hit-confirm cues */
+    for(const b of BUSES){const g=actx.createGain();g.connect(b==='weapons'?AU.duck:AU.master);AU.bus[b]=g;if(b==='weapons'||b==='fx'||b==='steps'){const s=actx.createGain();s.gain.value=b==='steps'?0.25:0.4;g.connect(s);s.connect(AU.rev);}}
     startAmbient();audioApply();try{voiceInit();}catch(e){}try{gunInit();}catch(e){}try{stepInit();}catch(e){}
   }catch(e){AU.dead=true;try{if(actx)actx.close();}catch(_){ }actx=null;return false;}
   return true;}
@@ -1690,21 +1691,33 @@ function snd(o){if(!audioInit())return;o=tuned({...o,tk:o.tk||SNDTK||(o.bus==='u
   if(o.noise){const s=actx.createBufferSource();s.buffer=AU.noise;s.loop=true;const f=actx.createBiquadFilter();f.type=o.type||'lowpass';f.frequency.setValueAtTime(Math.max(30,o.f),t);if(o.f1)f.frequency.exponentialRampToValueAtTime(Math.max(30,o.f1),t+dur);if(o.q)f.Q.value=o.q;s.connect(f);f.connect(g);s.start(t,Math.random()*1.5);s.stop(t+dur+0.02);}
   else{const os=actx.createOscillator();os.type=o.wave||'sine';os.frequency.setValueAtTime(Math.max(20,o.f),t);if(o.f1)os.frequency.exponentialRampToValueAtTime(Math.max(20,o.f1),t+dur);os.connect(g);os.start(t);os.stop(t+dur+0.02);}
 }catch(e){AU.err=String(e&&e.message);}}
-/* hit-confirm cues, all synth and percussive rather than musical, in the style of modern shooters' hitmarkers:
-   hit = a dry mid "tick" (band-passed noise snap + a fast downward click + a little body),
-   headshot = the same tick with a sharp metallic "tink" on top (inharmonic high partials),
-   down = a heavy low punch with a crunch and a glassy crack, kill = the down plus a deeper tail and a second crack.
-   A few percent of random pitch keeps repeated hits from sounding machine-stamped. */
-function hitCue(kind){const r=0.96+Math.random()*0.08,u=o=>snd(Object.assign({bus:'ui',tk:'hit'},o));
-  const tick=v=>{u({noise:1,type:'bandpass',q:2.2,f:2500*r,f1:1700*r,dur:0.04,vol:0.16*v});u({f:2100*r,f1:900*r,dur:0.028,vol:0.05*v,wave:'square',lp:6000});u({f:330*r,f1:170,dur:0.05,vol:0.07*v,wave:'sine'});};
-  if(kind==='hit')tick(1);
-  else if(kind==='head'){tick(0.9);u({f:3150*r,dur:0.11,vol:0.05,wave:'sine'});u({f:4720*r,dur:0.08,vol:0.035,wave:'sine'});u({f:7050*r,dur:0.05,vol:0.02,wave:'sine'});
-    u({noise:1,type:'highpass',f:6000,dur:0.022,vol:0.07});}
+/* hit-confirm cues. A rifle shot is broadband and sits near -12 dB RMS for its first 40 ms, but above 2 kHz it has fallen
+   25 dB by 50 ms, so the cues are built to live in that gap instead of fighting the crack:
+   - they start 45 ms after the shot, so every hit reads as crack-TICK and still fits between SMG shots;
+   - they are tonal and narrow, 2.5 to 6.5 kHz, where a pitched sound cuts through noise far better than more noise does;
+   - they have their own envelope (2 ms attack, short hold, fast release) with real level, and the weapons bus ducks a few dB
+     under them for a moment (AU.duck).
+   hit = a hard bright tick, headshot = a higher two-part "ti-tink" that rings longer, down = a falling zap over a crack
+   and thump, kill = the down followed by a rising two-tone confirm. */
+function hitCue(kind){if(!audioInit())return;try{
+  const T=TUNE.hit,t0=actx.currentTime+(kind==='hit'||kind==='head'?0.045:0.02),r=(0.97+Math.random()*0.06)*T.pitch;
+  let out=actx.createGain();out.gain.value=T.vol;const inp=out;
+  if(T.lp<18000){const f=actx.createBiquadFilter();f.type='lowpass';f.frequency.value=T.lp;out.connect(f);out=f;}
+  if(T.hp>0){const f=actx.createBiquadFilter();f.type='highpass';f.frequency.value=T.hp;out.connect(f);out=f;}
+  out.connect(AU.bus.ui);const w=actx.createGain();w.gain.value=0.06+T.wet;out.connect(w);w.connect(AU.rev);
+  const env=(g,pk,hold,tau,t)=>{g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(pk,t+0.002);g.gain.setTargetAtTime(0,t+0.002+hold,tau);return t+0.002+hold+tau*7;};
+  const tone=(f,f1,pk,hold,tau,at,wave)=>{const t=t0+(at||0),o=actx.createOscillator(),g=actx.createGain();o.type=wave||'sine';o.frequency.setValueAtTime(f*r,t);
+    if(f1)o.frequency.exponentialRampToValueAtTime(f1*r,t+hold+tau*3);const end=env(g,pk,hold,tau,t);o.connect(g);g.connect(inp);o.start(t);o.stop(end);};
+  const nz=(type,fc,q,pk,hold,tau,at)=>{const t=t0+(at||0),n=actx.createBufferSource(),f=actx.createBiquadFilter(),g=actx.createGain();n.buffer=AU.noise;n.loop=true;
+    f.type=type;f.frequency.value=fc*r;f.Q.value=q;const end=env(g,pk,hold,tau,t);n.connect(f);f.connect(g);g.connect(inp);n.start(t,Math.random()*1.5);n.stop(end);};
+  const duck=(to,len)=>{const p=AU.duck&&AU.duck.gain;if(!p)return;p.cancelScheduledValues(t0);p.setTargetAtTime(to,t0-0.005,0.004);p.setTargetAtTime(1,t0+len,0.03);};
+  if(kind==='hit'){tone(3000,2650,0.24,0.012,0.013);tone(4500,0,0.11,0.006,0.010);nz('bandpass',3200,6,0.5,0.004,0.008);duck(0.65,0.05);}
+  else if(kind==='head'){tone(4200,0,0.26,0.02,0.034);tone(6300,0,0.13,0.01,0.028);tone(2100,0,0.12,0.008,0.012);nz('highpass',6000,0.7,0.3,0.003,0.006);
+    tone(5000,0,0.16,0.005,0.02,0.055);duck(0.55,0.11);}
   else{const kill=kind==='kill';
-    u({f:165,f1:42,dur:kill?0.42:0.3,vol:0.2,wave:'sine'});u({f:95,f1:50,dur:0.12,vol:0.1,wave:'triangle'});
-    u({noise:1,type:'bandpass',q:1.2,f:1100,f1:320,dur:0.13,vol:0.14});
-    u({noise:1,type:'highpass',f:3800,dur:0.06,vol:0.09});u({f:1500*r,f1:480,dur:0.09,vol:0.045,wave:'square',lp:5000});
-    if(kill){u({noise:1,type:'highpass',f:4500,dur:0.05,vol:0.08,at:0.09});u({f:2600*r,f1:1300,dur:0.07,vol:0.04,wave:'square',lp:7000,at:0.09});u({f:3900*r,dur:0.12,vol:0.03,wave:'sine',at:0.09});}}}
+    tone(2800,650,0.3,0.05,0.05,0,'triangle');nz('bandpass',2500,1.5,0.6,0.02,0.03);tone(140,45,0.4,0.05,0.07);duck(0.45,0.22);
+    if(kill){tone(2600,0,0.2,0.03,0.045,0.17);tone(3900,0,0.15,0.03,0.055,0.235);tone(5200,0,0.08,0.02,0.05,0.235);}}
+}catch(e){AU.err='hit: '+String(e&&e.message);}}
 function blip(freq,dur,vol,noise,bus,pan,tk){snd({f:freq,dur,vol,noise,bus,pan,tk});}
 function tone(f0,f1,dur,vol,bus,pan,tk){snd({f:f0,f1,dur,vol,bus,pan,tk});}
 /* where a world position sits relative to the listener: distance, stereo pan, loudness */
