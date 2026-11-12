@@ -246,8 +246,8 @@ body.touch .stabhint{display:none}
 body.touch .mhint{visibility:hidden}
 @media (prefers-reduced-motion:reduce){.mi,.mi::before,.mi::after{transition:none}.mpanel{animation:none}}
 @media (max-width:1100px) and (min-height:521px){
-  .mwrap{grid-template-columns:minmax(0,1fr) minmax(0,400px);grid-template-areas:"logo logo" "card card" "list panel" "foot foot";grid-template-rows:auto auto 1fr auto}
-  .mcard{justify-self:start;width:min(360px,100%)}}
+  .mwrap{grid-template-columns:minmax(0,1fr) minmax(0,400px);grid-template-areas:"logo card" "list panel" "foot foot";grid-template-rows:auto 1fr auto}
+  .mcard{justify-self:end;width:min(300px,38vw)}.mlogo h1{font-size:clamp(40px,min(10vh,7.2vw),84px)}}
 @media (max-width:760px){
   .mwrap{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto 1fr auto;grid-template-areas:"logo" "card" "list" "foot";gap:16px}
   .mcard{justify-self:stretch;width:100%}
@@ -411,8 +411,8 @@ body.touch .chip{min-height:44px}
       <div id="msetup">
         <label for="modesel">Mode<select id="modesel"><option value="zone">Zone 2v2: attack and defend</option><option value="dm1">Deathmatch 1v1</option><option value="dm2">Team deathmatch 2v2</option><option value="dm4">Team deathmatch 4v4</option></select></label>
         <div class="cap" id="modecap"></div>
-        <label for="wsel">Weapon<select id="wsel"><option value="rifle">Rifle</option><option value="smg">SMG</option><option value="br">Battle rifle</option><option value="sg">Shotgun</option><option value="lmg">LMG</option><option value="sniper">Sniper rifle</option></select></label>
-        <div class="cap" id="wbuildcap"></div>
+        <label for="wsel" hidden>Weapon<select id="wsel"><option value="rifle">Rifle</option><option value="smg">SMG</option><option value="br">Battle rifle</option><option value="sg">Shotgun</option><option value="lmg">LMG</option><option value="sniper">Sniper rifle</option></select></label>
+        <div class="cap" id="wbuildcap" hidden></div>
         <label for="teampref">Team<select id="teampref"><option value="-1">Auto</option><option value="0">Blue</option><option value="1">Orange</option></select></label>
       </div>
       <div class="mpp" data-p="play">
