@@ -248,7 +248,10 @@ body.touch .stabhint{display:none}
 .msgo{width:100%}
 #mapscr{position:fixed;inset:0;z-index:11;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;padding:calc(12px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
   background:linear-gradient(180deg,rgba(10,7,20,.82) 0%,rgba(10,7,20,0) 22%,rgba(10,7,20,0) 66%,rgba(10,7,20,.88) 100%)}
-#mapscr>*{pointer-events:auto}
+#mapscr>*{pointer-events:auto}#mapscr>.msinfo{pointer-events:none}
+.mszoom{position:absolute;right:max(16px,env(safe-area-inset-right,0px));top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px}
+.mszoom .btn{width:48px;height:48px;padding:0;font-size:26px;line-height:1;background:rgba(20,15,36,.8)}.mszoom #mszfit{font-size:14px}
+#menu.mapon{cursor:grab;touch-action:none}#menu.mapon.drag{cursor:grabbing}
 #menu.mapon{background:none}#menu.mapon .mwrap{visibility:hidden}
 .mshd{display:flex;align-items:center;gap:12px}
 .msti{flex:1;display:flex;flex-direction:column;align-items:center;line-height:1}
@@ -471,6 +474,7 @@ body.touch .chip{min-height:44px}
 
 <div id="mapscr" hidden role="dialog" aria-label="Choose a map">
   <div class="mshd"><button class="btn mshb" type="button" id="msback">&#8249; Back</button><div class="msti"><b>Choose a map</b><span id="msmode"></span></div><button class="btn mshb" type="button" id="mstod" aria-label="Preview time of day">Night</button></div>
+  <div class="mszoom" role="group" aria-label="Zoom"><button class="btn" type="button" id="mszin" aria-label="Zoom in">+</button><button class="btn" type="button" id="mszout" aria-label="Zoom out">&minus;</button><button class="btn" type="button" id="mszfit" aria-label="Show the whole map">Fit</button></div>
   <div class="msinfo" aria-live="polite"><span class="msth" id="msth"></span><b id="msname"></b><span class="cap" id="mscap"></span></div>
   <div class="msbar">
     <div class="msrow"><button class="btn msar" type="button" id="msprev" aria-label="Previous map">&#8249;</button><div class="maps" id="maps" role="radiogroup" aria-label="Map"></div><button class="btn msar" type="button" id="msnext" aria-label="Next map">&#8250;</button></div>
@@ -611,7 +615,7 @@ function buildBoxes(id){const M=MAPS[id]||MAPS.yard;MAP.id=MAPS[id]?id:'yard';BO
   COVER.length=0;for(const b of BOXES)if(!b.wall)COVER.push(b);
   COVER.forEach((b,i)=>{b.ci=i;b.h0=b.y1;b.max=b.y1<1.5?150:300;b.stage=0;});}
 {let m0='yard';try{const v=localStorage.getItem('za-map');if(v&&MAPS[v])m0=v;}catch(e){}buildBoxes(m0);}
-const SHOW={seg:0,map:MAP_IDS.indexOf(MAP.id),fade:0,want:-1};const ISO={t:0,fade:0,on:false};/* map screen camera (isoView) *//* menu showcase state (see flyover) */
+const SHOW={seg:0,map:MAP_IDS.indexOf(MAP.id),fade:0,want:-1};const ISO={t:0,fade:0,on:false,z:1,zt:1,px:0,pz:0};/* map screen camera (isoView) *//* menu showcase state (see flyover) */
 
 function rayBox(ox,oy,oz,dx,dy,dz,b,maxT){
   let tmin=0,tmax=maxT;const o=[ox,oy,oz],d=[dx,dy,dz],lo=[b.x0,b.y0,b.z0],hi=[b.x1,b.y1,b.z1];
@@ -3297,7 +3301,7 @@ function mapPick(id,quiet){if(!MAPS[id])id='yard';MATCH.map=id;try{localStorage.
   MAPEL.querySelectorAll('.mapt').forEach(b=>{const on=b.dataset.m===id;b.setAttribute('aria-checked',on);b.tabIndex=on?0:-1;});
   const M=MAPS[id],T=M.theme;$('msname').textContent=M.name;$('msth').textContent=T.title;$('mscap').textContent=M.cap+' '+T.tag+'.';$('mapscr').style.setProperty('--mc',hexCss(T.a));
   if(!quiet)blip(980,0.022,0.012,false,'ui');
-  if(!S&&!SB.on){if(setMap(id)&&MS.open){ISO.fade=1;isoScene(true);}SHOW.map=MAP_IDS.indexOf(id);SHOW.want=-1;}/* nothing running: show it behind the menu */}
+  if(!S&&!SB.on){if(setMap(id)&&MS.open){ISO.fade=1;isoScene(true);isoReset();}SHOW.map=MAP_IDS.indexOf(id);SHOW.want=-1;}/* nothing running: show it behind the menu */}
 function mapStep(d){const n=MAP_IDS[(MAP_IDS.indexOf(MATCH.map)+d+MAP_IDS.length)%MAP_IDS.length];mapPick(n);}
 for(const id of MAP_IDS){const b=document.createElement('button');b.type='button';b.className='mapt';b.dataset.m=id;b.setAttribute('role','radio');
   const cv=document.createElement('canvas');cv.width=220;cv.height=88;b.append(cv);const sp=document.createElement('span');sp.textContent=MAPS[id].name;b.append(sp);MAPEL.append(b);mapThumb(cv,id);
@@ -3308,10 +3312,10 @@ $('mstod').addEventListener('click',()=>{TOD.force=(TOD.force||OPT.tod)==='day'?
 function msOpen(go){MS.go=go;MS.open=true;$('mapscr').hidden=false;$('menu').classList.add('mapon');
   const mv=$('modesel');$('msmode').textContent=(go==='online'?'Online · ':'')+mv.options[mv.selectedIndex].text.split(':')[0];
   $('msgo').textContent=go==='online'?'Join match':'Start match';msSync();
-  TOD.force=OPT.tod==='day'?'day':'night';applyGfx();isoScene(true);msTodLabel();ISO.t=0;mapPick(MATCH.map,true);blip(660,0.05,0.03,false,'ui');
+  TOD.force=OPT.tod==='day'?'day':'night';applyGfx();isoScene(true);msTodLabel();ISO.t=0;isoReset();mapPick(MATCH.map,true);blip(660,0.05,0.03,false,'ui');
   const on=MAPEL.querySelector('[aria-checked=true]');if(on)on.focus({preventScroll:true});}
 function msClose(){if(!MS.open)return;MS.open=false;$('mapscr').hidden=true;$('menu').classList.remove('mapon');isoScene(false);TOD.cur='';applyGfx();}
-function msSync(){const on=MS.go==='online';$('msgo').disabled=on&&$('joinbtn').disabled;$('msnote').textContent=on?$('netstatus').textContent:'';}
+function msSync(){const on=MS.go==='online';$('msgo').disabled=on&&$('joinbtn').disabled;$('msnote').textContent=on?$('netstatus').textContent:(matchMedia('(pointer:coarse)').matches?'Pinch to zoom, drag to look around':'Scroll or +/- to zoom, drag to look around');}
 new MutationObserver(()=>{if(MS.open)msSync();}).observe($('netstatus'),{childList:true,characterData:true,subtree:true});
 document.querySelectorAll('.msgo').forEach(b=>b.addEventListener('click',()=>msOpen(b.dataset.go)));
 $('msback').addEventListener('click',()=>{msClose();const b=document.querySelector(`.msgo[data-go="${MS.go}"]`);if(b)b.focus({preventScroll:true});});
@@ -3320,9 +3324,20 @@ window.addEventListener('keydown',e=>{if(!MS.open||$('menu').hidden||!$('setting
   if(e.code==='Escape'||e.code==='Backspace'){e.preventDefault();e.stopImmediatePropagation();$('msback').click();}
   else if(/^(ArrowLeft|KeyA)$/.test(e.code)){e.preventDefault();e.stopImmediatePropagation();mapStep(-1);MAPEL.querySelector('[aria-checked=true]').focus({preventScroll:true});}
   else if(/^(ArrowRight|KeyD)$/.test(e.code)){e.preventDefault();e.stopImmediatePropagation();mapStep(1);MAPEL.querySelector('[aria-checked=true]').focus({preventScroll:true});}
+  else if(/^(Equal|NumpadAdd|Minus|NumpadSubtract|Digit0|Numpad0)$/.test(e.code)){e.preventDefault();e.stopImmediatePropagation();if(/0$/.test(e.code))isoReset();else isoZoom(/Equal|Add/.test(e.code)?1.4:1/1.4);}
   else if(e.code==='Enter'&&!(e.target&&e.target.closest&&e.target.closest('#mapscr button:not(.mapt)'))){e.preventDefault();e.stopImmediatePropagation();$('msgo').click();}
 },true);
 mapPick(MAP.id,true);
+$('mszin').addEventListener('click',()=>isoZoom(1.5));$('mszout').addEventListener('click',()=>isoZoom(1/1.5));$('mszfit').addEventListener('click',()=>isoReset());
+/* zoom and drag on the map screen: the wheel zooms toward the cursor, two fingers pinch, one finger or the mouse drags */
+{const M=$('menu'),pts=new Map();let pinch=0;
+  M.addEventListener('wheel',e=>{if(!MS.open)return;e.preventDefault();isoZoom(Math.exp(-clamp(e.deltaY,-120,120)*0.0025),e.clientX,e.clientY);},{passive:false});
+  M.addEventListener('pointerdown',e=>{if(!MS.open||e.target!==M)return;pts.set(e.pointerId,{x:e.clientX,y:e.clientY});try{M.setPointerCapture(e.pointerId);}catch(_){}M.classList.add('drag');
+    if(pts.size===2){const [a,b]=[...pts.values()];pinch=Math.hypot(a.x-b.x,a.y-b.y);}});
+  M.addEventListener('pointermove',e=>{if(!MS.open||!pts.has(e.pointerId))return;const p=pts.get(e.pointerId),dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;
+    if(pts.size>=2){const [a,b]=[...pts.values()],d=Math.hypot(a.x-b.x,a.y-b.y);if(pinch>0&&d>0)isoZoom(d/pinch,(a.x+b.x)/2,(a.y+b.y)/2);pinch=d;}
+    else isoPan(dx,dy);});
+  const up=e=>{pts.delete(e.pointerId);pinch=0;if(!pts.size)M.classList.remove('drag');};M.addEventListener('pointerup',up);M.addEventListener('pointercancel',up);}
 function readMenu(){const mv=SB.on?SB.mode:$('modesel').value;MATCH.range=SB.on&&mv==='range';if(MATCH.range){MATCH.mode='dm';MATCH.size=4;}else if(!/^dm[124]$/.test(mv)){MATCH.mode='zone';MATCH.size=2;}else{MATCH.mode='dm';MATCH.size=+mv.slice(2);}
   if(W[$('wsel').value]){me.wPref=$('wsel').value;me.w=me.wPref;showWeapon(me.w);me.ammo=myW(me.w).mag;try{localStorage.setItem('za-w',me.wPref);}catch(e){}}me.name=($('nick').value||'Player').replace(/[^\w .'-]/g,'').slice(0,16)||'Player';me.teamPref=+$('teampref').value;diffMul=+$('diff').value;try{localStorage.setItem('za-name',me.name);}catch(e){}}
 function enterGame(){if(MS.open){MS.open=false;isoScene(false);TOD.cur='';}$('mapscr').hidden=true;$('menu').classList.remove('mapon');$('menu').hidden=true;for(const id of ['topbar','mini','vitals','ammo','cross','netpill'])$(id).hidden=false;requestLock();blip(660,0.05,0.03,false,'ui');}
@@ -4071,6 +4086,19 @@ function showTick(dt,u0,u1){const fe=$('flyfade'),idle=!$('menu').hidden&&$('set
    the free part of the screen (between the header and the bottom bar), with a slow sway. Portrait screens look down the long axis. */
 const isoTgt=new THREE.Vector3(),isoLook=new THREE.Vector3(),isoTmp=new THREE.Vector3(),isoCorners=[];for(const x of [-51,51])for(const y of [0,WALL_H])for(const z of [-21,21])isoCorners.push(new THREE.Vector3(x,y,z));
 const isoCam=new THREE.PerspectiveCamera();
+const ISO_ZMAX=4.5;
+function isoClamp(){const f=1-1/ISO.zt;ISO.px=clamp(ISO.px,-50*f,50*f);ISO.pz=clamp(ISO.pz,-20*f,20*f);}
+/* zoom by factor m toward the floor point under screen point (sx,sy) in pixels (or the middle) */
+const isoRay=new THREE.Raycaster(),isoNdc=new THREE.Vector2();
+function isoZoom(m,sx,sy){const z0=ISO.zt,z1=clamp(z0*m,1,ISO_ZMAX);if(z1===z0)return;
+  if(sx!=null){isoNdc.set(sx/innerWidth*2-1,-(sy/innerHeight)*2+1);isoRay.setFromCamera(isoNdc,camera);const r=isoRay.ray;if(r.direction.y<-0.01){const t=-r.origin.y/r.direction.y,gx=r.origin.x+r.direction.x*t,gz=r.origin.z+r.direction.z*t;
+    const a=1-z0/z1;ISO.px+=(clamp(gx,-50,50)-ISO.px)*a;ISO.pz+=(clamp(gz,-20,20)-ISO.pz)*a;}}
+  ISO.zt=z1;if(z1<=1){ISO.px=ISO.pz=0;}}
+function isoReset(){ISO.zt=1;ISO.px=ISO.pz=0;}
+/* drag: move the floor point under the finger by the pointer's motion (world units per pixel from the current camera distance) */
+function isoPan(dx,dy){if(ISO.zt<=1.01)return;const dist=camera.position.distanceTo(isoLook),wpp=2*dist*Math.tan(camera.fov*Math.PI/360)/innerHeight;
+  const fw=isoTmp.set(isoLook.x-camera.position.x,0,isoLook.z-camera.position.z).normalize(),rx=-fw.z,rz=fw.x,el=Math.max(0.35,Math.asin(Math.min(1,(camera.position.y-isoLook.y)/dist)));
+  ISO.px-=(dx*rx)*wpp-(dy*fw.x)*wpp/Math.sin(el);ISO.pz-=(dx*rz)*wpp-(dy*fw.z)*wpp/Math.sin(el);isoClamp();}
 /* while the map screen is up the city skyline is hidden (it stands between a far camera and the arena) and a dark grid floor in the
    map's colours fills the ground around the arena */
 const isoGround=(function(){const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,256,256);g.fillStyle='#000';g.fillRect(3,3,250,250);
@@ -4084,7 +4112,9 @@ function isoView(dt){ISO.t+=dt;const port=camera.aspect<1.05,fov=port?60:50;if(c
   const ly=port?-4:-3;let d=90;const cam=isoCam;cam.fov=fov;cam.aspect=camera.aspect;cam.near=camera.near;cam.far=camera.far;cam.updateProjectionMatrix();
   for(let k=0;k<6;k++){cam.position.copy(dir).multiplyScalar(d);cam.position.y+=ly;cam.lookAt(0,ly,0);cam.updateMatrixWorld();let mx=0,my=0;
     for(const c of isoCorners){const p=c.clone().project(cam);mx=Math.max(mx,Math.abs(p.x)/0.97);my=Math.max(my,(p.y>0?p.y/0.74:-p.y/0.5));}d*=Math.max(mx,my);}
-  isoTgt.copy(dir).multiplyScalar(d);isoTgt.y+=ly;const k=ISO.on?1-Math.exp(-dt*3):1;ISO.on=true;camera.position.lerp(isoTgt,k);isoLook.lerp(isoTmp.set(0,ly,0),k);camera.lookAt(isoLook);
+  // zoom: ISO.zt is the wanted zoom (wheel, pinch, keys, buttons), ISO.z eases to it; the view can be dragged around while zoomed in
+  ISO.z+=(ISO.zt-ISO.z)*(1-Math.exp(-dt*10));isoClamp();const lx=ISO.px,lz=ISO.pz,ly2=ly*(1/ISO.z);
+  isoTgt.copy(dir).multiplyScalar(d/ISO.z);isoTgt.x+=lx;isoTgt.z+=lz;isoTgt.y+=ly2;const k=ISO.on?1-Math.exp(-dt*6):1;ISO.on=true;camera.position.lerp(isoTgt,k);isoLook.lerp(isoTmp.set(lx,ly2,lz),k);camera.lookAt(isoLook);
   scene.fog.near=d*1.6;scene.fog.far=d*3.5;vm.visible=false;
   const fe=$('flyfade');ISO.fade=Math.max(0,ISO.fade-dt*2.5);fe.style.opacity=(ISO.fade*0.85).toFixed(3);}
 function flyover(dt){if(MS.open){isoView(dt);return;}if(ISO.on){ISO.on=false;flyLs.copy(isoLook);$('flyfade').style.opacity=0;}const u0=flyU;flyU=(flyU+dt/FLY_LOOP)%1;showTick(dt,u0,flyU);FLY_POS.getPoint(flyU,flyP);FLY_LOOK.getPoint(flyU,flyL);
@@ -4124,6 +4154,6 @@ mergeChildren(scene);
 refreshZoneLook('atk');
 // Compile every material's shader up front (in parallel where the browser supports it) so nothing compiles on the first shot or spawn.
 renderer.compileAsync(scene,camera).catch(()=>{}).finally(()=>requestAnimationFrame(frame));
-window.__za={sim:{hostTick:dt=>hostTick(dt),coverTick:dt=>coverTick(dt),newMatch:()=>newMatch(),MATCH,dmSpawnSpot:p=>dmSpawnSpot(p),findPath:(a,b,c,d)=>findPath(a,b,c,d),freeAt:(x,z)=>freeAt(x,z),losPts:(...a)=>losPts(...a),DM_PTS,BOXES},BL,fire:()=>{const s=mySlot();if(s>=0)fire(s);},damage:(t,d,a,h)=>damage(t,d,a,h),prog:{PROG,PARTS,myW,modW,progSave,progLoad,rebuildVW,lvlOf,XPR},LX,MU,MM,WM,VB,OPT,AU,dev:{DEV,TUNE,GUN,W,COVER0,TWIN,STEP_MODE,devCollect,devApply},damageCover,COVER,coverVis,WH,openWheel:m=>openWheel(m),closeWheel:c=>closeWheel(c),wheelMove:(x,y)=>wheelMove(x,y),gfx:{renderer,scene,camera,applyGfx,DR,render:()=>renderScene(),FREF,BEAMS,get gtao(){return gtaoPass;}},openPause:()=>openPause(),closePause:()=>closePause(),leaveMatch:()=>leaveMatch(),get S(){return S;},me,net,rg:{RG,rgAdd,rgRemove,rgClear,BOXES},maps:{MAPS,MAP,MATCH,setMap,SITES,DM_PTS,findPath,freeAt,simTick:dt=>netTick(dt),SHOW,showCut:i=>showCut(i),TOD},botMem,CFG,SB,OPT,AU,get actx(){return actx;},mySlot:()=>mySlot(),sfx:{hitCue,HITX,footstep,slideSound,shotSound,stepSound,get stepBufs(){return stepBufs;},get slideBuf(){return slideBuf;},get gunBufs(){return gunBufs;}}};
+window.__za={sim:{hostTick:dt=>hostTick(dt),coverTick:dt=>coverTick(dt),newMatch:()=>newMatch(),MATCH,dmSpawnSpot:p=>dmSpawnSpot(p),findPath:(a,b,c,d)=>findPath(a,b,c,d),freeAt:(x,z)=>freeAt(x,z),losPts:(...a)=>losPts(...a),DM_PTS,BOXES},BL,fire:()=>{const s=mySlot();if(s>=0)fire(s);},damage:(t,d,a,h)=>damage(t,d,a,h),prog:{PROG,PARTS,myW,modW,progSave,progLoad,rebuildVW,lvlOf,XPR},LX,MU,MM,WM,VB,OPT,AU,dev:{DEV,TUNE,GUN,W,COVER0,TWIN,STEP_MODE,devCollect,devApply},damageCover,COVER,coverVis,WH,openWheel:m=>openWheel(m),closeWheel:c=>closeWheel(c),wheelMove:(x,y)=>wheelMove(x,y),gfx:{renderer,scene,camera,applyGfx,DR,render:()=>renderScene(),FREF,BEAMS,get gtao(){return gtaoPass;}},openPause:()=>openPause(),closePause:()=>closePause(),leaveMatch:()=>leaveMatch(),get S(){return S;},me,net,rg:{RG,rgAdd,rgRemove,rgClear,BOXES},maps:{MAPS,MAP,MATCH,setMap,SITES,DM_PTS,findPath,freeAt,simTick:dt=>netTick(dt),SHOW,showCut:i=>showCut(i),TOD,ISO},botMem,CFG,SB,OPT,AU,get actx(){return actx;},mySlot:()=>mySlot(),sfx:{hitCue,HITX,footstep,slideSound,shotSound,stepSound,get stepBufs(){return stepBufs;},get slideBuf(){return slideBuf;},get gunBufs(){return gunBufs;}}};
 })();
 </script>
