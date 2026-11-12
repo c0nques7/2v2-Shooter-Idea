@@ -577,24 +577,29 @@ const cellOf=(x,z)=>[clamp(Math.floor(x+50),0,GW-1),clamp(Math.floor(z+20),0,GD-
 function freeAt(x,z){const c=cellOf(x,z);return !blocked[c[0]*GD+c[1]];}
 function segClear(ax,az,bx,bz){const L=hyp(ax,az,bx,bz),n=Math.ceil(L/0.4);for(let i=1;i<=n;i++){const t=i/n;if(!freeAt(ax+(bx-ax)*t,az+(bz-az)*t))return false;}return true;}
 function nearestFree(gx,gz){if(!blocked[gx*GD+gz])return[gx,gz];for(let r=1;r<6;r++)for(let dx=-r;dx<=r;dx++)for(let dz=-r;dz<=r;dz++){const x=gx+dx,z=gz+dz;if(x>=0&&z>=0&&x<GW&&z<GD&&!blocked[x*GD+z])return[x,z];}return[gx,gz];}
+/* A* over the 1 m grid. The search buffers are allocated once and reused (a generation stamp marks which cells this search
+   touched), and the path is smoothed in one forward pass, so a cross-map search stays well under a millisecond. */
+const FP={g:new Float32Array(GW*GD),came:new Int32Array(GW*GD),gen:new Uint32Array(GW*GD),closed:new Uint32Array(GW*GD),stamp:0,
+  hf:new Float32Array(GW*GD*8),hi:new Int32Array(GW*GD*8),hn:0};
 function findPath(sx,sz,tx,tz){
   if(segClear(sx,sz,tx,tz))return[{x:tx,z:tz}];
   const s=nearestFree(...cellOf(sx,sz)),t=nearestFree(...cellOf(tx,tz));
-  const N=GW*GD,g=new Float32Array(N).fill(1e9),came=new Int32Array(N).fill(-1),closed=new Uint8Array(N);
-  const heap=[];const push=(i,f)=>{heap.push([f,i]);let k=heap.length-1;while(k>0){const p=(k-1)>>1;if(heap[p][0]<=heap[k][0])break;[heap[p],heap[k]]=[heap[k],heap[p]];k=p;}};
-  const pop=()=>{const top=heap[0],last=heap.pop();if(heap.length){heap[0]=last;let k=0;for(;;){const l=2*k+1,r=l+1;let m=k;if(l<heap.length&&heap[l][0]<heap[m][0])m=l;if(r<heap.length&&heap[r][0]<heap[m][0])m=r;if(m===k)break;[heap[m],heap[k]]=[heap[k],heap[m]];k=m;}}return top;};
-  const si=s[0]*GD+s[1],ti=t[0]*GD+t[1];g[si]=0;push(si,0);
-  const H=(i)=>{const x=(i/GD)|0,z=i%GD;return Math.hypot(x-t[0],z-t[1]);};
+  const {g,came,gen,closed,hf,hi}=FP,st=++FP.stamp;let hn=0;
+  const push=(i,f)=>{let k=hn++;while(k>0){const p=(k-1)>>1;if(hf[p]<=f)break;hf[k]=hf[p];hi[k]=hi[p];k=p;}hf[k]=f;hi[k]=i;};
+  const pop=()=>{const top=hi[0];hn--;if(hn>0){const f=hf[hn],i=hi[hn];let k=0;for(;;){const l=2*k+1,r=l+1;let m=-1,mf=f;if(l<hn&&hf[l]<mf){m=l;mf=hf[l];}if(r<hn&&hf[r]<mf)m=r;if(m<0)break;hf[k]=hf[m];hi[k]=hi[m];k=m;}hf[k]=f;hi[k]=i;}return top;};
+  const si=s[0]*GD+s[1],ti=t[0]*GD+t[1];gen[si]=st;g[si]=0;came[si]=-1;push(si,0);
+  const H=i=>{const x=(i/GD)|0,z=i%GD;return Math.hypot(x-t[0],z-t[1]);};
   let found=false,iter=0;
-  while(heap.length&&iter++<6000){const cur=pop()[1];if(cur===ti){found=true;break;}if(closed[cur])continue;closed[cur]=1;
-    const cx=(cur/GD)|0,cz=cur%GD;
-    for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){if(!dx&&!dz)continue;const nx=cx+dx,nz=cz+dz;if(nx<0||nz<0||nx>=GW||nz>=GD)continue;const ni=nx*GD+nz;if(blocked[ni]||closed[ni])continue;
+  while(hn&&iter++<6000){const cur=pop();if(cur===ti){found=true;break;}if(closed[cur]===st)continue;closed[cur]=st;
+    const cx=(cur/GD)|0,cz=cur%GD,gc=g[cur];
+    for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){if(!dx&&!dz)continue;const nx=cx+dx,nz=cz+dz;if(nx<0||nz<0||nx>=GW||nz>=GD)continue;const ni=nx*GD+nz;if(blocked[ni]||closed[ni]===st)continue;
       if(dx&&dz&&(blocked[(cx+dx)*GD+cz]||blocked[cx*GD+cz+dz]))continue;
-      const ng=g[cur]+(dx&&dz?1.414:1);if(ng<g[ni]){g[ni]=ng;came[ni]=cur;push(ni,ng+H(ni));}}}
+      const ng=gc+(dx&&dz?1.414:1);if(gen[ni]!==st||ng<g[ni]){gen[ni]=st;g[ni]=ng;came[ni]=cur;push(ni,ng+H(ni));}}}
   if(!found)return[{x:tx,z:tz}];
   const pts=[];for(let i=ti;i!==-1&&i!==si;i=came[i])pts.push({x:((i/GD)|0)-50+0.5,z:(i%GD)-20+0.5});pts.reverse();pts.push({x:tx,z:tz});
+  // string-pull: from each corner, go as far along the path as stays in clear line of sight
   const out=[];let ax=sx,az=sz,i=0;
-  while(i<pts.length){let j=pts.length-1;while(j>i&&!segClear(ax,az,pts[j].x,pts[j].z))j--;out.push(pts[j]);ax=pts[j].x;az=pts[j].z;i=j+1;}
+  while(i<pts.length){let j=i;while(j+1<pts.length&&segClear(ax,az,pts[j+1].x,pts[j+1].z))j++;out.push(pts[j]);ax=pts[j].x;az=pts[j].z;i=j+1;}
   return out;
 }
 
@@ -648,11 +653,14 @@ const DM_HOME=[[46,-14],[46,14],[47.5,-17.5],[47.5,17.5]];
 function dmHome(p){const sx=p.team===0?-1:1,h=DM_HOME[(p.s>>1)%4],x=sx*h[0],z=sx*h[1];
   dmPlace(p,x,z,Math.atan2(-(Math.sign(x)*48.5-x),-(Math.sign(z)*9-z)));}
 function dmSpawnSpot(p){
-  const foes=S.players.filter(e=>e.team!==p.team&&e.st==='alive');let best=null,bs=-1e9;
-  for(const c of DM_PTS){let dmin=60,seen=0;
-    for(const e of foes){const d=hyp(c.x,c.z,e.x,e.z);if(d<dmin)dmin=d;if(d<50&&losPts(e.x,e.y+1.5,e.z,c.x,1.4,c.z))seen++;}
-    const crowd=S.players.some(o=>o!==p&&o.st==='alive'&&hyp(c.x,c.z,o.x,o.z)<2.5);
-    const sc=dmin-seen*30-(crowd?50:0)+Math.random()*8;if(sc>bs){bs=sc;best=c;}}
+  /* score every spot by distance to the nearest living enemy, then line-of-sight check only the 24 best (the full check on
+     every spot was a several-millisecond hitch on the host at each respawn in 4v4) */
+  const foes=S.players.filter(e=>e.team!==p.team&&e.st==='alive');const cand=[];
+  for(const c of DM_PTS){let dmin=60;for(const e of foes){const d=hyp(c.x,c.z,e.x,e.z);if(d<dmin)dmin=d;}
+    const crowd=S.players.some(o=>o!==p&&o.st==='alive'&&hyp(c.x,c.z,o.x,o.z)<2.5);cand.push({c,sc:dmin-(crowd?50:0)+Math.random()*8});}
+  cand.sort((a,b)=>b.sc-a.sc);let best=null,bs=-1e9;
+  for(const k of cand.slice(0,24)){let seen=0;for(const e of foes){if(hyp(k.c.x,k.c.z,e.x,e.z)<50&&losPts(e.x,e.y+1.5,e.z,k.c.x,1.4,k.c.z))seen++;}
+    const sc=k.sc-seen*30;if(sc>bs){bs=sc;best=k.c;}}
   return best||{x:p.team===0?-46:46,z:0};}
 function dmRespawn(p){const c=dmSpawnSpot(p);dmPlace(p,c.x,c.z,Math.atan2(c.x,c.z*0.7));}/* face back toward the middle */
 function dmStart(){S.cover=COVER.map(b=>b.max);S.regen=COVER.map(()=>0);S.center={own:-1,cap:-1,p:0};S.armed=null;S.tickets=[0,0];S.sudden=false;
@@ -850,7 +858,7 @@ const notes=$('netstatus');
   else notes.textContent='Online play works when this page is opened on claude.ai. Play works anywhere.';
 })();
 
-function myPresence(){return{n:me.name,p:[+me.x.toFixed(2),+me.y.toFixed(2),+me.z.toFixed(2)],yw:+viewYaw().toFixed(3),pt:+viewPitch().toFixed(3),c:me.crouch||me.slideT>0?1:0,l:+((me.leanOff||0)/0.55).toFixed(2),wr:me.wr,u:me.use,k:me.pick,g:me.give,sh:me.sh,tm:me.teamPref,w:me.w,sx:myW(me.w).supp?1:0};}
+function myPresence(){return{n:me.name,p:[+me.x.toFixed(2),+me.y.toFixed(2),+me.z.toFixed(2)],yw:+viewYaw().toFixed(3),pt:+viewPitch().toFixed(3),c:me.crouch||me.slideT>0?1:0,l:+((me.leanOff||0)/0.55).toFixed(2),wr:me.wr,u:me.use,k:me.pick,g:me.give,sh:me.sh,tm:me.teamPref,w:me.w,sx:myW(me.w).supp?1:0,h:net.host&&net.mode==='online'?net.hostSince:0};}
 function peerList(){
   if(net.mode==='solo')return[{peer:'local',presence:myPresence(),isMe:true}];
   if(!net.room)return[];
@@ -866,9 +874,16 @@ function electHost(){
   const ps=peerList().map(p=>p.peer).sort();
   if(!net.myPeer){const mine=net.room.peers().find(p=>p.isMe&&p.sameTab);if(mine)net.myPeer=mine.peer;}
   if(net.myPeer&&!ps.includes(net.myPeer))ps.push(net.myPeer),ps.sort();
-  net.hostPeer=ps[0]||null;
+  /* whoever is already running the match keeps it: hosts say since when in presence (h), the longest-running one wins (then the
+     lowest label), so a newcomer whose label sorts first doesn't restart it. With no host yet, the newcomer waits a moment
+     (the room lists the others over the first second or two after joining), then the lowest label hosts. */
+  const hs=peerList().filter(p=>p.peer!==net.myPeer&&p.presence&&+p.presence.h>0).map(p=>[+p.presence.h,p.peer]);
+  if(net.host&&net.myPeer)hs.push([net.hostSince,net.myPeer]);hs.sort((a,b)=>a[0]-b[0]||(a[1]<b[1]?-1:1));
+  net.hostPeer=hs.length?hs[0][1]:ps[0]||null;
+  if(!hs.length&&!net.lastState&&performance.now()-net.joinT<1800)net.hostPeer=null;
   const was=net.host;net.host=!!net.myPeer&&net.hostPeer===net.myPeer;
-  if(net.host&&!was){if(!S)newMatch();S.diff=diffMul;for(const k in botMem)delete botMem[k];}
+  if(was&&!net.host){me.sp=-1;S=null;}/* someone else's match replaces the one you ran: drop yours and take your spawn from theirs */
+  if(net.host&&!was){net.hostSince=Date.now();if(!S)newMatch();S.diff=diffMul;for(const k in botMem)delete botMem[k];}
 }
 function syncRoster(){
   const list=peerList();const ids=list.map(p=>p.peer);
@@ -887,10 +902,22 @@ function syncRoster(){
     p.yaw=+inp.yw||0;p.pitch=+inp.pt||0;p.use=!!inp.u;p.give=!!inp.g;p.pick=Number.isInteger(inp.k)?inp.k:-1;if(W[inp.w])p.w=inp.w;p.sx=!!inp.sx;
     if(typeof inp.n==='string')p.name=inp.n.replace(/[^\w .'-]/g,'').slice(0,16)||'Player';}
 }
+/* A room message is capped at 4 KiB of JSON, and a bigger one is refused outright (guests would freeze), so the state only carries
+   what a guest needs: fields that only matter in one state (downT, deadT, ak) ride along only then, zero counts are left out, and the
+   host's tuning goes out once a second. If a packet still runs long (8 players with long names), tuning waits and each packet carries
+   match stats for only a quarter of the players, taking turns. */
+const NET_MAX=4000;let packN=0,packWarn=false;
 function packState(){
-  const r=v=>typeof v==='number'?Math.round(v*100)/100:v;
-  const o={...S,tn:tunePack(),t:r(S.t),timer:r(S.timer),clock:r(S.clock),armed:S.armed?{site:S.armed.site,t:r(S.armed.t)}:null,regen:(S.regen||[]).map(r),
-    players:S.players.map(p=>({s:p.s,team:p.team,bot:p.bot,peer:p.peer,name:p.name,hp:r(p.hp),st:p.st,x:r(p.x),y:r(p.y),z:r(p.z),yaw:r(p.yaw),pitch:r(p.pitch),dhp:r(p.dhp),downT:r(p.downT),deadT:r(p.deadT),ak:p.ak,at:p.at,ap:r(p.ap),lastZ:p.lastZ,w:p.w,sp:p.sp,spx:p.spx,spz:p.spz,spyaw:r(p.spyaw),sh:p.sh,wr:p.wr|0,prot:r(p.prot||0),k:p.k|0,d:p.d|0,xs:p.bot?null:p.xs,sx:p.sx?1:0}))};
+  const r=v=>typeof v==='number'?Math.round(v*100)/100:v,dm=S.mode==='dm';
+  const xsPack=x=>{if(!x)return null;const o={w:{}};for(const f in x)if(f!=='w'&&x[f])o[f]=x[f];for(const k in x.w||{})if(x.w[k])o.w[k]=x.w[k];return o;};
+  const pl=(p,xs)=>{const o={s:p.s,team:p.team,bot:p.bot?1:0,name:p.name,hp:r(p.hp),st:p.st,x:r(p.x),y:r(p.y),z:r(p.z),yaw:r(p.yaw),pitch:r(p.pitch),w:p.w,sp:p.sp,spx:p.spx,spz:p.spz,spyaw:r(p.spyaw),sh:p.sh};
+    if(!p.bot)o.peer=p.peer;if(!dm)o.lastZ=p.lastZ;if(p.st==='down'){o.dhp=r(p.dhp);o.downT=r(p.downT);}if(p.st==='dead')o.deadT=r(p.deadT);
+    if(p.ak){o.ak=p.ak;o.at=p.at;o.ap=r(p.ap);}if(p.wr)o.wr=p.wr|0;if(p.prot>0)o.prot=r(p.prot);if(dm){o.k=p.k|0;o.d=p.d|0;}if(p.sx)o.sx=1;
+    if(xs(p)&&!p.bot)o.xs=xsPack(p.xs);return o;};
+  const mk=(tn,xs)=>{const o={...S,t:r(S.t),timer:r(S.timer),clock:r(S.clock),armed:S.armed?{site:S.armed.site,t:r(S.armed.t)}:null,regen:(S.regen||[]).map(v=>v>0?r(v):0),
+    players:S.players.map(p=>pl(p,xs))};delete o.tn;if(tn)o.tn=tunePack();return o;};
+  const n=packN++,all=()=>true,turn=p=>(p.s+n)%4===0;let o=mk(n%10===0,all);
+  if(JSON.stringify(o).length>NET_MAX){o=mk(false,all);if(JSON.stringify(o).length>NET_MAX){o=mk(false,turn);if(JSON.stringify(o).length>NET_MAX)o.feed=o.feed.slice(-2);if(!packWarn){packWarn=true;console.warn('state packet near the 4 KiB room limit; match stats take turns');}}}
   return o;
 }
 function onRemoteState(msg){
@@ -911,7 +938,7 @@ async function joinOnline(code){
   net.mode='online';net.code=code;
   notes.textContent='Joining…';
   try{
-    net.room=await roomNS.join('za-'+code+(MATCH.mode==='dm'?'-dm'+MATCH.size:''));
+    net.room=await roomNS.join('za-'+code+(MATCH.mode==='dm'?'-dm'+MATCH.size:''));net.joinT=performance.now();net.lastState=0;
     net.room.on('state',onRemoteState,e=>console.warn('room',e.code));
     net.room.on('hit',onRemoteHit);
     net.room.onPeers(()=>{});
@@ -922,7 +949,7 @@ let presT=0,stateT=0;
 function netTick(dt){
   if(net.mode==='online'){
     electHost();
-    presT-=dt;if(presT<=0&&net.room){presT=1/30;net.room.presence(myPresence()).catch(()=>{});}
+    presT-=dt;if(presT<=0&&net.room){presT=1/20;/* presence and emits share ~40 a second; the host also sends 10 state packets */net.room.presence(myPresence()).catch(()=>{});}
     if(net.host&&S){syncRoster();hostTick(dt);stateT-=dt;if(stateT<=0){stateT=0.1;net.room.emit('state',packState()).catch(()=>{});}}
   }else if(net.mode==='solo'){if(S){syncRoster();hostTick(dt);}}
 }
@@ -3422,7 +3449,7 @@ function hud(dt){
     if(locked)document.exitPointerLock();
     $('picker').hidden=dm;
     if(dm){$('deadT').textContent='Respawning';$('deadS').textContent=`Back in ${Math.max(0,Math.ceil(P.deadT))}s, away from the enemy · ${P.k|0} kills, ${P.d|0} deaths`;
-      const key='dm'+me.wPref;if(key!==lastPickerKey){lastPickerKey=key;$('deadK').innerHTML='Press <kbd>1</kbd>–<kbd>3</kbd> or click to pick a weapon.';deadWheel.refresh();deadWheel.set(me.wPref,null);}}
+      const key='dm'+me.wPref;if(key!==lastPickerKey){lastPickerKey=key;$('deadK').innerHTML='Press <kbd>1</kbd>–<kbd>6</kbd> or click to pick a weapon.';deadWheel.refresh();deadWheel.set(me.wPref,null);}}
     else{
     if(lastPickerKey.startsWith('dm')){lastPickerKey='';$('deadK').innerHTML='Press <kbd>1</kbd>–<kbd>5</kbd> or click a zone. Closer to the enemy means less HP.';}
     const noT=S.tickets[myTeam]<=0;

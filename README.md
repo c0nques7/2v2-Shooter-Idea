@@ -7,7 +7,7 @@ The whole game is one file, `index.html`, built on Three.js r186 (ES modules loa
 ## Play it
 
 - **Locally:** open `index.html` in a desktop browser, or serve the folder (`npx serve .` or `python3 -m http.server`) and open the page. Practice and Sandbox work anywhere.
-- **Online:** online matches use the claude.ai Artifact `room` capability, so they only work when the page is opened as the published Artifact on claude.ai. Players who join the same match code and mode play together; bots fill empty slots. The host's tab must stay in the foreground.
+- **Online:** online matches use the claude.ai Artifact `room` capability, so they only work when the page is opened as the published Artifact on claude.ai. Players who join the same match code and mode play together; bots fill empty slots. The host's tab must stay in the foreground. Whoever is already running a match keeps hosting when others join; if the host leaves, the next player takes over the match where it stands. Room messages are capped at 4 KiB, so the host's state packet is kept compact (see `packState`).
 
 Play with a keyboard and mouse, or with the on-screen touch controls on phones, tablets and foldables (see Touch controls below).
 
@@ -26,7 +26,7 @@ Play with a keyboard and mouse, or with the on-screen touch controls on phones, 
 | F (hold) | Revive, arm, defuse |
 | R | Reload |
 | G (hold) | Give up when down |
-| 1 to 3 | Pick a weapon during the buy phase |
+| 1 to 6 | Pick a weapon during the buy phase (and while respawning in deathmatch) |
 | Hold middle mouse | Weapon wheel: point at a weapon, release to equip (Sandbox any time, other modes during the buy phase) |
 | 1 to 5 | Pick a return zone when respawning |
 | O | Settings (graphics, sound, controls) |
