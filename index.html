@@ -368,6 +368,8 @@ import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
 import {ShaderPass} from 'three/addons/postprocessing/ShaderPass.js';
 import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
 import {FXAAPass} from 'three/addons/postprocessing/FXAAPass.js';
+import {GTAOPass} from 'three/addons/postprocessing/GTAOPass.js';
+import {SMAAPass} from 'three/addons/postprocessing/SMAAPass.js';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
 (function(){
@@ -843,12 +845,14 @@ const me={x:0,y:0,z:0,vy:0,yaw:0,pitch:0,ground:true,use:false,pick:-1,give:fals
 const keys={};let mouseDown=false,adsDown=false,locked=false,dragMode=false;
 
 /* ---------- settings (graphics, sound, controls), saved per browser ---------- */
-const OPT0={preset:'high',res:1,autoRes:true,shadows:2,bloom:1,fxaa:true,film:0.6,rain:true,tod:'night',particles:1,marks:true,crowd:1,fog:1,bright:1,fov:78,shake:1,fps:false,lights:true,
+const OPT0={preset:'high',res:1,autoRes:true,shadows:2,bloom:1,fxaa:true,film:0.6,rain:true,tod:'night',particles:1,marks:true,crowd:1,fog:1,bright:1,fov:78,shake:1,fps:false,lights:true,ao:false,refl:false,beams:false,smaa:false,aniso:false,
   vMaster:0.8,vWeapons:0.9,vFx:0.9,vSteps:0.8,vUi:0.8,vAmb:0.6,vMusic:0.6,vMatch:0.5,reverb:0.4,sens:1,adsSens:1,invertY:false};
-const PRESETS={low:{res:0.75,shadows:0,bloom:0,fxaa:false,film:0,rain:false,particles:0.5,marks:false,crowd:0.35},
-  medium:{res:1,shadows:1,bloom:1,fxaa:true,film:0.4,rain:true,particles:1,marks:true,crowd:0.7},
-  high:{res:1,shadows:2,bloom:1,fxaa:true,film:0.6,rain:true,particles:1,marks:true,crowd:1},
-  ultra:{res:1.25,shadows:3,bloom:1,fxaa:true,film:0.6,rain:true,particles:2,marks:true,crowd:1}};
+const PRESETS={low:{res:0.75,shadows:0,bloom:0,fxaa:false,film:0,rain:false,particles:0.5,marks:false,crowd:0.35,ao:false,refl:false,beams:false,smaa:false,aniso:false},
+  medium:{res:1,shadows:1,bloom:1,fxaa:true,film:0.4,rain:true,particles:1,marks:true,crowd:0.7,ao:false,refl:false,beams:false,smaa:false,aniso:false},
+  high:{res:1,shadows:2,bloom:1,fxaa:true,film:0.6,rain:true,particles:1,marks:true,crowd:1,ao:false,refl:false,beams:false,smaa:false,aniso:false},
+  ultra:{res:1.25,shadows:3,bloom:1,fxaa:true,film:0.6,rain:true,particles:2,marks:true,crowd:1,ao:false,refl:false,beams:false,smaa:false,aniso:false},
+  // Max is for high-end GPUs only; nothing below it pays for these effects (each is off and costs nothing when off)
+  max:{res:1.25,shadows:4,bloom:1,fxaa:true,film:0.6,rain:true,particles:2,marks:true,crowd:1,ao:true,refl:true,beams:true,smaa:true,aniso:true}};
 const OPT=Object.assign({},OPT0);
 (function(){try{const d=JSON.parse(localStorage.getItem('za-opt')||'null');
   if(d){for(const k in OPT0)if(typeof d[k]===typeof OPT0[k])OPT[k]=d[k];}
@@ -933,7 +937,8 @@ function grainCanvas(size,base,amt,draw){const c=document.createElement('canvas'
   for(let i=0;i<size*size/90;i++){const r=Math.random()*size/14;g.fillStyle=`rgba(${Math.random()<.5?'0,0,0':'255,255,255'},${Math.random()*0.03})`;g.beginPath();g.arc(Math.random()*size,Math.random()*size,r,0,7);g.fill();}
   const img=g.getImageData(0,0,size,size),d=img.data;for(let i=0;i<d.length;i+=4){const n=(Math.random()-.5)*amt;d[i]+=n;d[i+1]+=n;d[i+2]+=n;}g.putImageData(img,0,0);if(draw)draw(g,size);return c;}
 function lineCanvas(size,draw){const c=document.createElement('canvas');c.width=c.height=size;const g=c.getContext('2d');g.fillStyle='#000';g.fillRect(0,0,size,size);draw(g,size);return c;}
-function tex(c,rx,ry){const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(rx||1,ry||1);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());return t;}
+const ANISO=[];
+function tex(c,rx,ry){const t=new THREE.CanvasTexture(c);ANISO.push(t);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(rx||1,ry||1);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());return t;}
 const floorC=grainCanvas(512,'#3a3c48',14,(g,s)=>{g.strokeStyle='rgba(0,0,0,.5)';g.lineWidth=4;g.strokeRect(2,2,s-4,s-4);g.beginPath();g.moveTo(s/2,0);g.lineTo(s/2,s);g.moveTo(0,s/2);g.lineTo(s,s/2);g.stroke();});
 const floorE=lineCanvas(512,(g,s)=>{g.strokeStyle='#fff';g.lineWidth=3;g.strokeRect(1.5,1.5,s-3,s-3);g.strokeStyle='rgba(255,255,255,.35)';g.lineWidth=1.5;g.beginPath();g.moveTo(s/2,0);g.lineTo(s/2,s);g.moveTo(0,s/2);g.lineTo(s,s/2);g.stroke();
   g.fillStyle='#fff';for(const [x,y] of [[0,0],[s,0],[0,s],[s,s],[s/2,s/2]]){g.fillRect(x-7,y-1.5,14,3);g.fillRect(x-1.5,y-7,3,14);}});
@@ -943,8 +948,8 @@ const highC=grainCanvas(256,'#2e3140',14,(g,s)=>{for(let x=8;x<s;x+=21){g.fillSt
 const highE=lineCanvas(256,(g,s)=>{g.fillStyle='#fff';g.fillRect(16,s*0.2,s-32,4);g.fillRect(16,s*0.2+10,(s-32)*0.4,3);g.font='bold 26px monospace';g.fillText('ZA//'+(10+Math.floor(Math.random()*89)),18,s-26);g.fillRect(s-44,s-46,24,24);});
 const wallC=grainCanvas(512,'#262836',12,(g,s)=>{g.fillStyle='rgba(0,0,0,.4)';for(let x=0;x<s;x+=128)g.fillRect(x,0,5,s);g.fillRect(0,s*0.62,s,8);});
 const wallE=lineCanvas(512,(g,s)=>{g.fillStyle='#fff';g.fillRect(0,s*0.62+1,s,5);for(let x=20;x<s;x+=128){g.fillRect(x,s*0.3,40,3);g.fillRect(x,s*0.3+8,22,3);}});
-const floorMats=[];
-for(let i=0;i<5;i++){const m=new THREE.MeshStandardMaterial({color:0xffffff,map:tex(floorC,5,10),emissive:lin(NEON.cy),emissiveMap:tex(floorE,5,10),emissiveIntensity:0.85,roughness:0.62,metalness:0.25});softBloom(m);floorMats.push(m);const pl=new THREE.Mesh(new THREE.PlaneGeometry(20,40),m);pl.rotation.x=-Math.PI/2;pl.position.set(-40+i*20,0,0);pl.receiveShadow=true;scene.add(pl);}
+const floorMats=[],floorMeshes=[];
+for(let i=0;i<5;i++){const m=new THREE.MeshStandardMaterial({color:0xffffff,map:tex(floorC,5,10),emissive:lin(NEON.cy),emissiveMap:tex(floorE,5,10),emissiveIntensity:0.85,roughness:0.62,metalness:0.25});softBloom(m);floorMats.push(m);const pl=new THREE.Mesh(new THREE.PlaneGeometry(20,40),m);pl.rotation.x=-Math.PI/2;pl.position.set(-40+i*20,0,0);pl.receiveShadow=true;scene.add(pl);floorMeshes.push(pl);}
 const stripMat=new THREE.MeshBasicMaterial({color:lin(0xffffff),toneMapped:false});
 const stripFloor=softBloom(stripMat.clone());
 for(const x of [-30,-10,10,30]){const s=new THREE.Mesh(new THREE.PlaneGeometry(0.2,40),stripFloor);s.rotation.x=-Math.PI/2;s.position.set(x,0.015,0);scene.add(s);
@@ -1060,7 +1065,7 @@ function sponsorTex(sp,W,H,tile){const c=document.createElement('canvas');c.widt
   if(tile){for(let i=0;i<tile;i++){one(i*W/tile,W/tile);g.fillStyle='rgba(0,0,0,.5)';g.fillRect(i*W/tile,0,3,H);}}else one(0,W);
   // a little print wear so boards don't look brand new
   for(let i=0;i<70;i++){g.fillStyle=`rgba(${Math.random()<.5?'0,0,0':'255,255,255'},${Math.random()*0.08})`;g.fillRect(Math.random()*W,Math.random()*H,2+Math.random()*10,1+Math.random()*4);}
-  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());return t;}
+  const t=new THREE.CanvasTexture(c);ANISO.push(t);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());return t;}
 // backlit boards: the emissive map is the print itself, so they glow at night and read as plain printed boards by day (TOD scales emissives)
 const boardMat=t=>new THREE.MeshStandardMaterial({map:t,emissive:0xffffff,emissiveMap:t,emissiveIntensity:0.55,roughness:0.45,metalness:0});
 (function(){
@@ -1256,7 +1261,86 @@ for(const k of ['A','B']){const s=SITES[k];
   siteMeshes[k]={ring,core,capM};}
 const alarm=new THREE.PointLight(raw(0xff4433),0,14,1);alarm.position.set(SITES.A.x,2,SITES.A.z);scene.add(alarm);
 /* post-processing: bloom, anti-aliasing and lens effects when the helper scripts loaded */
-let composer=null,bloomPass=null,fxaaPass=null,filmPass=null;
+/* ---------- Max graphics (high-end GPUs): ambient occlusion, wet floor reflections, volumetric lamp beams ----------
+   Every effect here is off below the Max preset and costs nothing while off: the AO pass is disabled, the floor shader only
+   gets its reflection code when FLOOR_REFL is defined, and the beams are hidden. */
+const MAXFAIL={};
+function makeGtao(){
+  const p=new GTAOPass(scene,camera,innerWidth,innerHeight);p.blendIntensity=0.9;
+  p.updateGtaoMaterial({radius:1.4,distanceExponent:1.6,thickness:1.5,distanceFallOff:1,scale:1.5,samples:16});
+  p.updatePdMaterial({lumaPhi:10,depthPhi:2,normalPhi:3,radius:6,rings:2,samples:16});
+  // Only solid, opaque surfaces go into the AO depth/normal buffer: glass, light pools, rain, sprites and beams would cast AO they shouldn't.
+  p._overrideVisibility=function(){const c=this._visibilityCache;this.scene.traverse(o=>{if(!o.visible)return;
+    const m=o.material;if(o.isPoints||o.isLine||o.isSprite||(m&&(Array.isArray(m)||m.transparent||m.blending===THREE.AdditiveBlending))){o.visible=false;c.push(o);}});};
+  return p;}
+const FREF=(function(){
+  const rt=new THREE.WebGLRenderTarget(2,2,{type:THREE.HalfFloatType,generateMipmaps:true,minFilter:THREE.LinearMipmapLinearFilter,magFilter:THREE.LinearFilter});
+  rt.texture.colorSpace=THREE.LinearSRGBColorSpace;
+  // puddle mask in world XZ: bright = standing water (sharp mirror), dark = damp concrete (blurry, faint)
+  const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.fillStyle='#000';g.fillRect(0,0,256,256);
+  for(let i=0;i<24;i++){const x=Math.random()*256,y=Math.random()*256,r=8+Math.random()*24;
+    for(const [dx,dy] of [[0,0],[256,0],[-256,0],[0,256],[0,-256]]){const gr=g.createRadialGradient(x+dx,y+dy,0,x+dx,y+dy,r);
+      gr.addColorStop(0,'rgba(255,255,255,.95)');gr.addColorStop(0.55,'rgba(255,255,255,.6)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(x+dx-r,y+dy-r,2*r,2*r);}}
+  const pud=new THREE.CanvasTexture(c);pud.wrapS=pud.wrapT=THREE.RepeatWrapping;
+  const cam=new THREE.PerspectiveCamera(),M=new THREE.Matrix4(),BIAS=new THREE.Matrix4().set(0.5,0,0,0.5,0,0.5,0,0.5,0,0,0.5,0.5,0,0,0,1);
+  const U={uRefl:{value:rt.texture},uReflMat:{value:M},uPud:{value:pud},uReflStr:{value:1}};
+  const fw=new THREE.Vector3(),up=new THREE.Vector3(),pos=new THREE.Vector3(),tgt=new THREE.Vector3(),plane=new THREE.Plane(),cp=new THREE.Vector4(),q=new THREE.Vector4(),sz=new THREE.Vector2();
+  let on=false;
+  for(const m of floorMats){const prev=m.onBeforeCompile;
+    m.onBeforeCompile=(sh,r)=>{prev(sh,r);Object.assign(sh.uniforms,U);
+      sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\n#ifdef FLOOR_REFL\nuniform mat4 uReflMat;varying vec4 vReflC;varying vec2 vReflW;\n#endif')
+        .replace('#include <fog_vertex>','#include <fog_vertex>\n#ifdef FLOOR_REFL\n{vec4 rw=modelMatrix*vec4(transformed,1.0);vReflC=uReflMat*rw;vReflW=rw.xz;}\n#endif');
+      sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\n#ifdef FLOOR_REFL\nuniform sampler2D uRefl,uPud;uniform float uReflStr;varying vec4 vReflC;varying vec2 vReflW;\n#endif')
+        .replace('#include <opaque_fragment>',`#ifdef FLOOR_REFL
+{float pd=texture2D(uPud,vReflW*0.045).r;pd=smoothstep(0.3,0.8,pd);
+ float ndv=clamp(dot(normal,geometryViewDir),0.0,1.0);float fr=0.05+0.95*pow(1.0-ndv,5.0);
+ vec2 ruv=vReflC.xy/vReflC.w;ruv.x+=(texture2D(uPud,vReflW*0.9).r-0.5)*0.004*(1.0-pd);
+ vec3 rc=textureLod(uRefl,ruv,mix(4.2,0.5,pd)).rgb;
+ outgoingLight+=rc*uReflStr*mix(0.18,0.85,pd)*mix(0.4,1.0,fr);}
+#endif
+#include <opaque_fragment>`);};}
+  function set(v,day){U.uReflStr.value=day?0.55:1;if(v===on)return;on=v;
+    for(const m of floorMats){if(on){m.defines=m.defines||{};m.defines.FLOOR_REFL='';}else if(m.defines)delete m.defines.FLOOR_REFL;m.needsUpdate=true;}}
+  // The floor is the plane y=0: mirror the camera through it (as three's Reflector does) and clip everything under the floor with an oblique near plane.
+  function render(){if(!on)return;
+    renderer.getDrawingBufferSize(sz);const w=Math.max(2,sz.x>>1),h=Math.max(2,sz.y>>1);if(rt.width!==w||rt.height!==h)rt.setSize(w,h);
+    camera.updateMatrixWorld();pos.setFromMatrixPosition(camera.matrixWorld);fw.set(0,0,-1).transformDirection(camera.matrixWorld);up.set(0,1,0).transformDirection(camera.matrixWorld);
+    tgt.copy(pos).add(fw);pos.y=-pos.y;tgt.y=-tgt.y;up.y=-up.y;
+    cam.position.copy(pos);cam.up.copy(up);cam.lookAt(tgt);cam.far=camera.far;cam.updateMatrixWorld();cam.projectionMatrix.copy(camera.projectionMatrix);
+    M.copy(BIAS).multiply(cam.projectionMatrix).multiply(cam.matrixWorldInverse);
+    plane.set(new THREE.Vector3(0,1,0),-0.002).applyMatrix4(cam.matrixWorldInverse);cp.set(plane.normal.x,plane.normal.y,plane.normal.z,plane.constant);
+    const e=cam.projectionMatrix.elements;q.set((Math.sign(cp.x)+e[8])/e[0],(Math.sign(cp.y)+e[9])/e[5],-1,(1+e[10])/e[14]);cp.multiplyScalar(2/cp.dot(q));
+    e[2]=cp.x;e[6]=cp.y;e[10]=cp.z+1;e[14]=cp.w;cam.projectionMatrixInverse.copy(cam.projectionMatrix).invert();
+    const prev=renderer.getRenderTarget(),vmOn=vm.visible;vm.visible=false;for(const f of floorMeshes)f.visible=false;
+    renderer.setRenderTarget(rt);renderer.state.buffers.depth.setMask(true);renderer.clear();renderer.render(scene,cam);renderer.setRenderTarget(prev);
+    vm.visible=vmOn;for(const f of floorMeshes)f.visible=true;}
+  return{set,render,rt};
+})();
+// Volumetric beams: a soft cone of light under every neon wall lamp, brightest at the tube and gone before it reaches the floor,
+// with slow drifting dust. Additive and depth-tested, so walls and players cut it naturally.
+const BEAMS=(function(){
+  const U={uTime:{value:0}},list=[],H=4.2;
+  const geo=new THREE.CylinderGeometry(0.3,2.6,H,32,8,true);geo.translate(0,-H/2,0);geo.scale(1.25,1,0.75);
+  const vs=`varying vec3 vW,vN;varying float vT;void main(){vT=-position.y/${H.toFixed(1)};vec4 w=modelMatrix*vec4(position,1.0);vW=w.xyz;vN=normalize(mat3(modelMatrix)*normal);gl_Position=projectionMatrix*viewMatrix*w;}`;
+  const fs=`uniform vec3 uCol;uniform float uI,uTime;varying vec3 vW,vN;varying float vT;
+float h3(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
+float vn(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
+  return mix(mix(mix(h3(i),h3(i+vec3(1,0,0)),f.x),mix(h3(i+vec3(0,1,0)),h3(i+vec3(1,1,0)),f.x),f.y),mix(mix(h3(i+vec3(0,0,1)),h3(i+vec3(1,0,1)),f.x),mix(h3(i+vec3(0,1,1)),h3(i+vec3(1,1,1)),f.x),f.y),f.z);}
+void main(){vec3 V=normalize(cameraPosition-vW);float ed=pow(abs(dot(normalize(vN),V)),1.6);
+  float fall=pow(clamp(1.0-vT,0.0,1.0),2.2)*smoothstep(0.0,0.06,vT);
+  float d=vn(vW*vec3(1.1,0.7,1.1)+vec3(0.0,-uTime*0.18,uTime*0.05))*0.6+vn(vW*2.7-vec3(uTime*0.1))*0.4;
+  float near=smoothstep(0.4,2.2,length(cameraPosition-vW));
+  gl_FragColor=vec4(uCol*(uI*ed*fall*near*(0.35+1.3*d*d)),1.0);}`;
+  for(const L of lamps){const col=L.tube.material.color.clone().lerp(new THREE.Color(1,1,1),0.3);
+    const m=new THREE.ShaderMaterial({uniforms:{uTime:U.uTime,uCol:{value:col},uI:{value:0.4}},vertexShader:vs,fragmentShader:fs,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,fog:false});
+    const b=new THREE.Mesh(geo,m);const p=L.tube.position,sz=Math.sign(p.z);b.position.set(p.x,p.y-0.05,p.z-sz*0.12);b.rotation.x=sz*0.5;
+    b.renderOrder=4;b.visible=false;b.userData.noMerge=true;scene.add(b);list.push({b,L});}
+  let on=false;
+  function set(v){on=v;if(!v)for(const o of list)o.b.visible=false;}
+  function tick(t){U.uTime.value=t%1000;const night=TOD.cur!=='day';for(const o of list)o.b.visible=on&&night&&o.L.tube.visible;}
+  return{set,tick,list};
+})();
+let composer=null,bloomPass=null,fxaaPass=null,filmPass=null,gtaoPass=null,smaaPass=null;
 const FilmShader={uniforms:{tDiffuse:{value:null},amt:{value:0.6},time:{value:0}},
   vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
   fragmentShader:['uniform sampler2D tDiffuse;uniform float amt;uniform float time;varying vec2 vUv;',
@@ -1274,11 +1358,11 @@ const FilmShader={uniforms:{tDiffuse:{value:null},amt:{value:0.6},time:{value:0}
     {const hp=bloomPass.materialHighPassFilter;hp.fragmentShader=hp.fragmentShader.replace('gl_FragColor = mix( outputColor, texel, alpha );','gl_FragColor = mix( outputColor, texel, alpha ); gl_FragColor.rgb *= clamp( texel.a, 0.0, 1.0 );');hp.needsUpdate=true;}
     // The film pass also encodes sRGB, so it always runs (at amt 0 it is a plain sRGB pass); FXAA then works on the sRGB image.
     filmPass=new ShaderPass(FilmShader);composer.addPass(filmPass);
-    fxaaPass=new FXAAPass();composer.addPass(fxaaPass);}catch(e){composer=null;bloomPass=fxaaPass=filmPass=null;}})();
+    fxaaPass=new FXAAPass();composer.addPass(fxaaPass);}catch(e){composer=null;bloomPass=fxaaPass=filmPass=gtaoPass=smaaPass=null;}})();
 function resize(){const w=window.innerWidth,h=window.innerHeight;renderer.setSize(w,h,false);if(composer)composer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();}
 window.addEventListener('resize',resize);resize();
-function usePost(){return composer&&(OPT.bloom>0.01||(OPT.fxaa&&fxaaPass)||OPT.film>0.01);}
-function renderScene(){OUTLINE_U.uK.value=2.2*2*Math.tan(camera.fov*Math.PI/360)/Math.max(1,innerHeight);if(usePost()){filmPass.uniforms.time.value=(performance.now()/1000)%100;composer.render();}else renderer.render(scene,camera);}
+function usePost(){return composer&&(OPT.bloom>0.01||(OPT.fxaa&&fxaaPass)||OPT.film>0.01||(OPT.ao&&gtaoPass)||(OPT.smaa&&smaaPass));}
+function renderScene(){OUTLINE_U.uK.value=2.2*2*Math.tan(camera.fov*Math.PI/360)/Math.max(1,innerHeight);if(OPT.refl)FREF.render();if(usePost()){filmPass.uniforms.time.value=(performance.now()/1000)%100;composer.render();}else renderer.render(scene,camera);}
 
 /* ---------- atmosphere: rain, hologram signs, glowing bullet marks ---------- */
 const RAIN_N=1600,rainPos=new Float32Array(RAIN_N*6),rainSeed=new Float32Array(RAIN_N*3);
@@ -1495,6 +1579,7 @@ function fxTick(dt,now){
   holos.forEach((m,i)=>{m.material.opacity=TOD.holo*(0.46+0.06*Math.sin(t*2.3+i*1.7)-(!calm&&Math.random()<0.006?0.3:0));});
   if(!calm){flk.next-=dt;if(flk.next<=0&&flk.i<0){flk.i=Math.floor(Math.random()*lamps.length);flk.t=0.18+Math.random()*0.25;flk.next=4+Math.random()*7;}
     if(flk.i>=0){const L=lamps[flk.i];flk.t-=dt;const on=flk.t<=0||Math.random()<0.55;const f=on?1:1/6;L.floor.material.opacity=POOL_FLOOR*f;L.wall.material.opacity=POOL_WALL*f;L.tube.visible=on;if(flk.t<=0)flk.i=-1;}}
+  if(OPT.beams)BEAMS.tick(t);
   if(OPT.fps){fpsN++;fpsT+=dt;if(fpsT>=0.5){$('fps').textContent=Math.round(fpsN/fpsT)+' fps'+(OPT.autoRes&&DR.scale<1?` · ${Math.round(DR.scale*100)}% res`:'');fpsN=0;fpsT=0;}}
 }
 /* auto resolution: every half second, lower the render scale when frames are slow and step it back up when there is headroom.
@@ -1528,7 +1613,8 @@ function applyTod(){const k=TODS[OPT.tod]?OPT.tod:'night';if(TOD.cur===k)return;
   for(const m of wallMats)m.color.setScalar(P.wall);
   rain.material.color.copy(lin(P.rain));rain.material.opacity=P.rainOp;GLASS.tod(day);}
 function applyGfx(){
-  const sh=OPT.shadows|0,en=sh>0,size=[0,1024,2048,4096][sh]||2048,chg=renderer.shadowMap.enabled!==en;
+  const sh=OPT.shadows|0,en=sh>0,size=[0,1024,2048,4096,4096][sh]||2048,chg=renderer.shadowMap.enabled!==en;
+  sun.shadow.radius=sh>=4?2.6:1;
   renderer.shadowMap.enabled=en;sun.castShadow=en;
   renderer.shadowMap.needsUpdate=true;
   if(en&&sun.shadow.mapSize.x!==size){sun.shadow.mapSize.set(size,size);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null;}}
@@ -1537,7 +1623,14 @@ function applyGfx(){
   applyTod();
   renderer.toneMappingExposure=TOD.exp*OPT.bright;
   if(bloomPass){bloomPass.enabled=OPT.bloom>0.01;bloomPass.strength=0.4125*OPT.bloom*TOD.bloom;bloomPass.threshold=TOD.thr;}
-  if(fxaaPass)fxaaPass.enabled=!!OPT.fxaa;
+  // the AO and SMAA passes are only built the first time they are switched on, so lower presets don't even allocate their buffers
+  if(composer&&OPT.ao&&!gtaoPass&&!MAXFAIL.ao){try{gtaoPass=makeGtao();composer.insertPass(gtaoPass,1);}catch(e){MAXFAIL.ao=true;gtaoPass=null;}}
+  if(composer&&OPT.smaa&&!smaaPass&&!MAXFAIL.smaa){try{smaaPass=new SMAAPass();composer.addPass(smaaPass);}catch(e){MAXFAIL.smaa=true;smaaPass=null;}}
+  if(smaaPass)smaaPass.enabled=!!OPT.smaa;
+  if(fxaaPass)fxaaPass.enabled=!!OPT.fxaa&&!(OPT.smaa&&smaaPass);
+  if(gtaoPass)gtaoPass.enabled=!!OPT.ao;
+  FREF.set(!!OPT.refl,TOD.cur==='day');BEAMS.set(!!OPT.beams);
+  {const an=OPT.aniso?renderer.capabilities.getMaxAnisotropy():Math.min(8,renderer.capabilities.getMaxAnisotropy());for(const t of ANISO)if(t.anisotropy!==an){t.anisotropy=an;t.needsUpdate=true;}}
   if(filmPass)filmPass.uniforms.amt.value=OPT.film;
   if(OPT.fog>0.01){scene.fog.near=TOD.fogN/Math.max(0.5,OPT.fog);scene.fog.far=TOD.fogN+TOD.fogF/OPT.fog;}else{scene.fog.near=9000;scene.fog.far=10000;}
   crowd.count=Math.round(crowd.userData.N*OPT.crowd);crowd.visible=crowd.count>0;
@@ -2672,10 +2765,10 @@ $('joinbtn').addEventListener('click',async()=>{sbDefaults();SB.on=false;readMen
 /* ---------- settings menu ---------- */
 const pct=v=>Math.round(v*100)+'%';
 const SET=[
-  ['g','preset','Quality preset','sel',[['low','Low (fastest)'],['medium','Medium'],['high','High'],['ultra','Ultra'],['custom','Custom']]],
+  ['g','preset','Quality preset','sel',[['low','Low (fastest)'],['medium','Medium'],['high','High'],['ultra','Ultra'],['max','Max (high-end GPUs)'],['custom','Custom']]],
   ['g','res','Resolution scale','rng',0.5,1.5,0.05,pct],
   ['g','autoRes','Auto resolution: lower the render scale when the frame rate drops','chk'],
-  ['g','shadows','Shadows','sel',[[0,'Off'],[1,'Low'],[2,'High'],[3,'Ultra']]],
+  ['g','shadows','Shadows','sel',[[0,'Off'],[1,'Low'],[2,'High'],[3,'Ultra'],[4,'Max (soft edges)']]],
   ['g','bloom','Neon glow','rng',0,2,0.05,pct],
   ['g','film','Lens effects: vignette, grain, colour fringe','rng',0,1,0.05,pct],
   ['g','particles','Sparks and debris','rng',0.25,2,0.25,pct],
@@ -2689,6 +2782,11 @@ const SET=[
   ['g','lights','Reactive arena lights (flash on match events)','chk'],
   ['g','fxaa','Anti-aliasing (smooth edges)','chk'],
   ['g','marks','Glowing bullet marks','chk'],
+  ['g','ao','High-end: ambient occlusion (soft contact shadows in corners and under cover)','chk'],
+  ['g','refl','High-end: wet floor reflections','chk'],
+  ['g','beams','High-end: volumetric light beams from the wall lamps','chk'],
+  ['g','smaa','High-end: sharper anti-aliasing (SMAA)','chk'],
+  ['g','aniso','High-end: 16x texture filtering','chk'],
   ['g','fps','Show frame rate','chk'],
   ['s','vMaster','Master volume','rng',0,1,0.05,pct],
   ['s','vWeapons','Weapons','rng',0,1,0.05,pct],
@@ -3180,6 +3278,6 @@ mergeChildren(scene);
 refreshZoneLook('atk');
 // Compile every material's shader up front (in parallel where the browser supports it) so nothing compiles on the first shot or spawn.
 renderer.compileAsync(scene,camera).catch(()=>{}).finally(()=>requestAnimationFrame(frame));
-window.__za={fire:()=>{const s=mySlot();if(s>=0)fire(s);},damage:(t,d,a,h)=>damage(t,d,a,h),prog:{PROG,PARTS,myW,modW,progSave,progLoad,rebuildVW,lvlOf,XPR},LX,MU,MM,VB,dev:{DEV,TUNE,GUN,W,COVER0,TWIN,STEP_MODE,devCollect,devApply},damageCover,COVER,coverVis,WH,openWheel:m=>openWheel(m),closeWheel:c=>closeWheel(c),wheelMove:(x,y)=>wheelMove(x,y),gfx:{renderer,scene,camera,applyGfx,DR},openPause:()=>openPause(),closePause:()=>closePause(),leaveMatch:()=>leaveMatch(),get S(){return S;},me,net,botMem,CFG,SB,OPT,AU,get actx(){return actx;},mySlot:()=>mySlot(),sfx:{hitCue,HITX,footstep,slideSound,shotSound,stepSound,get stepBufs(){return stepBufs;},get slideBuf(){return slideBuf;},get gunBufs(){return gunBufs;}}};
+window.__za={fire:()=>{const s=mySlot();if(s>=0)fire(s);},damage:(t,d,a,h)=>damage(t,d,a,h),prog:{PROG,PARTS,myW,modW,progSave,progLoad,rebuildVW,lvlOf,XPR},LX,MU,MM,VB,dev:{DEV,TUNE,GUN,W,COVER0,TWIN,STEP_MODE,devCollect,devApply},damageCover,COVER,coverVis,WH,openWheel:m=>openWheel(m),closeWheel:c=>closeWheel(c),wheelMove:(x,y)=>wheelMove(x,y),gfx:{renderer,scene,camera,applyGfx,DR,render:()=>renderScene(),FREF,BEAMS,get gtao(){return gtaoPass;}},openPause:()=>openPause(),closePause:()=>closePause(),leaveMatch:()=>leaveMatch(),get S(){return S;},me,net,botMem,CFG,SB,OPT,AU,get actx(){return actx;},mySlot:()=>mySlot(),sfx:{hitCue,HITX,footstep,slideSound,shotSound,stepSound,get stepBufs(){return stepBufs;},get slideBuf(){return slideBuf;},get gunBufs(){return gunBufs;}}};
 })();
 </script>
