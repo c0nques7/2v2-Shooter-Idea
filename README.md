@@ -78,6 +78,25 @@ Current default numbers (from `CFG` in `index.html`):
 | Ledge grab reach above feet | 2.3 m (Sandbox slider; 0 turns it off) |
 | Destroyed cover rebuilds after | 5 to 10 s, picked at random per piece (Sandbox sliders) |
 
+## Experience and the Workshop
+
+Every match against bots or online pays XP (not the sandbox): 100 per down or kill, 50 per finish, +50 for a headshot, 40 per assist,
+75 per revive, 150 per charge armed, 200 per defuse, 100 per center capture, then 150 per round won and 500 for a win (300 draw,
+200 loss). Leaving a match early still pays for what you did, without the round and result bonuses. Levels run 1 to 30.
+
+The XP you earn in fights with a gun also levels that gun (400 XP per level, up to 10).
+
+- **Player level** unlocks sights (red dot 2, holo 6, 2x scope 12), muzzles (compensator 4, brake 9, suppressor 15), stocks
+  (light 3, heavy 7, none 18), glow colours (8 to 30) and the second and third build slot (levels 5 and 10).
+- **Gun level** unlocks that gun's barrels (long 2, short 4, heavy 7) and magazines (extended 3, fast 5, drum 9).
+
+The **Workshop** on the main menu fits parts into five slots per gun, shows each change on the stat bars and a 3D model, and keeps up
+to three named builds per gun. The equipped build is the one you spawn with, and you can switch builds on the respawn screen.
+Parts are side-grades: they never change damage or fire rate, every gain costs something (range against handling, recoil
+against mobility, capacity against reload), and the product of all parts stays inside a fixed band (`MW_BAND`). The suppressor
+hides your muzzle flash and makes your shots quieter for other players online too. "Unlock everything (testing)" in the
+Workshop opens all parts. Progress saves in the browser under `za-prog`.
+
 ## Sandbox
 
 Sandbox is a solo test range. Press **T** (or **`**) to open the dev overlay. Everything applies live and only in the sandbox; practice and online always use the defaults.
