@@ -169,10 +169,19 @@ body{background:var(--bg);color:var(--fg);overflow:hidden;font-family:var(--disp
 .setcard .hd{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .setcard .hd b{font-size:24px;letter-spacing:.08em;text-transform:uppercase}
 .setcard .hd span{font-size:13px;color:var(--muted)}
-.setgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 28px}
-@media (max-width:720px){.setgrid{grid-template-columns:minmax(0,1fr)}}
-.setgrid section{display:flex;flex-direction:column;gap:7px;min-width:0}
-.setgrid h3{margin:6px 0 0;font-size:14px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.settabs{display:flex;align-items:flex-end;gap:4px;border-bottom:1px solid var(--line);margin:-2px 0 0}
+.stab{appearance:none;background:none;border:1px solid transparent;border-bottom:none;border-radius:6px 6px 0 0;margin-bottom:-1px;padding:9px 18px 8px;min-height:42px;font:inherit;font-size:15px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);cursor:pointer;touch-action:manipulation}
+.stab:hover{color:var(--fg)}
+.stab[aria-selected=true]{color:var(--accent);background:var(--panel-solid);border-color:var(--line);box-shadow:inset 0 2px 0 var(--accent)}
+.stab:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.stabhint{margin-left:auto;padding-bottom:8px;font-size:12px;color:var(--muted)}
+body.touch .stabhint{display:none}
+.setgrid{min-height:min(430px,58vh)}
+.setgrid section{columns:2;column-gap:28px}
+@media (max-width:720px){.setgrid section{columns:1}.stab{flex:1;padding:9px 6px 8px;letter-spacing:.06em}.stabhint{display:none}}
+.setgrid section>*{break-inside:avoid;margin-bottom:7px}
+.setgrid .sgrp{display:flex;flex-direction:column;gap:7px}
+.setgrid h3{break-after:avoid;margin:6px 0 0;font-size:14px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:600}
 .srow{display:grid;grid-template-columns:minmax(0,1fr) 58px;gap:1px 8px;align-items:center;font-size:14px;color:var(--muted)}
 .srow input[type=range]{grid-column:1/-1}
 .srow select{grid-column:1/-1;font-size:15px;padding:5px 8px}
@@ -376,7 +385,8 @@ body.touch .chip{min-height:44px}
 <div class="overlay" id="settings" hidden role="dialog" aria-label="Settings">
   <div class="setcard">
     <div class="hd"><b>Settings</b><span>Changes apply right away and are saved in this browser · <kbd>O</kbd> or <kbd>Esc</kbd> closes</span></div>
-    <div class="setgrid"><section id="setG"></section><section id="setS"></section></div>
+    <div class="settabs" role="tablist" aria-label="Settings sections"><button type="button" role="tab" class="stab" data-t="g" aria-controls="setG">Graphics</button><button type="button" role="tab" class="stab" data-t="s" aria-controls="setS">Sound</button><button type="button" role="tab" class="stab" data-t="c" aria-controls="setC">Controls</button><span class="stabhint"><kbd>Q</kbd> <kbd>E</kbd> switch tabs</span></div>
+    <div class="setgrid"><section id="setG" role="tabpanel" data-t="g"></section><section id="setS" role="tabpanel" data-t="s" hidden></section><section id="setC" role="tabpanel" data-t="c" hidden></section></div>
     <div class="btns"><button class="btn" type="button" id="settest">Test sound</button><button class="btn" type="button" id="setreset">Reset to defaults</button><button class="btn primary" type="button" id="setclose">Close</button></div>
   </div>
 </div>
@@ -2937,8 +2947,8 @@ const setEls={};
 function applyOpt(){applyGfx();audioApply();saveOpt();touchApply();}
 function syncSettings(){for(const d of SET){const el=setEls[d[1]];if(!el)continue;const v=OPT[d[1]];if(d[3]==='chk')el.inp.checked=!!v;else{el.inp.value=String(v);if(el.out)el.out.textContent=d[7](v);}}}
 (function(){const mk=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e;};
-  const G=$('setG'),Sd=$('setS');G.append(mk('h3',null,'Graphics'));Sd.append(mk('h3',null,'Sound'));let ctl=false;
-  for(const d of SET){const [sec,key,label,type]=d;const host=sec==='g'?G:Sd;if(sec==='c'&&!ctl){ctl=true;Sd.append(mk('h3',null,'Controls'));}
+  const PANE={g:$('setG'),s:$('setS'),c:$('setC')},SUBHEAD={ao:'High-end',sens:'Mouse',touch:'Touch'};
+  const grp={};for(const d of SET){const [sec,key,label,type]=d;const pane=PANE[sec]||PANE.g;if(SUBHEAD[key]){grp[sec]=mk('div','sgrp');grp[sec].append(mk('h3',null,SUBHEAD[key]));pane.append(grp[sec]);}const host=grp[sec]||pane;
     const row=mk('label','srow'+(type==='chk'?' chk':''));let inp,out=null;
     if(type==='chk'){inp=mk('input');inp.type='checkbox';row.append(inp,mk('span',null,label));}
     else if(type==='sel'){inp=mk('select');for(const o of d[4]){const op=mk('option',null,o[1]);op.value=String(o[0]);inp.append(op);}row.append(mk('span',null,label),mk('span'),inp);}
@@ -2949,11 +2959,25 @@ function syncSettings(){for(const d of SET){const el=setEls[d[1]];if(!el)continu
       else{OPT[key]=type==='chk'?inp.checked:type==='sel'?(isNaN(+inp.value)?inp.value:+inp.value):+inp.value;if(key in PRESETS.high)OPT.preset='custom';}
       applyOpt();syncSettings();});}
   syncSettings();
+  const TABS=[...document.querySelectorAll('#settings .stab')];
+  setTab(OPT_TAB());
+  for(const b of TABS){b.addEventListener('click',()=>setTab(b.dataset.t,true));
+    b.addEventListener('keydown',e=>{if(e.code==='ArrowLeft'||e.code==='ArrowRight'){e.preventDefault();setTab(stepTab(e.code==='ArrowRight'?1:-1),true,true);}});}
+  document.addEventListener('keydown',e=>{if($('settings').hidden||!/^(KeyQ|KeyE)$/.test(e.code))return;
+    if(e.target&&/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)&&e.target.type!=='range'&&e.target.type!=='checkbox')return;
+    e.preventDefault();e.stopPropagation();setTab(stepTab(e.code==='KeyE'?1:-1),true);},true);
   $('setbtn').addEventListener('click',()=>toggleSettings(true));
   $('setclose').addEventListener('click',()=>toggleSettings(false));
   $('setreset').addEventListener('click',()=>{Object.assign(OPT,OPT0);applyOpt();syncSettings();});
   $('settest').addEventListener('click',()=>{shotSound('rifle');stepSound(false,1);sting('win',0.35);});
 })();
+/* settings tabs: Graphics / Sound / Controls; the last tab used is remembered in this browser */
+function OPT_TAB(){try{const t=localStorage.getItem('za_settab');if(/^[gsc]$/.test(t))return t;}catch(e){}return 'g';}
+function stepTab(d){const o=['g','s','c'],cur=document.querySelector('#settings .stab[aria-selected=true]'),i=o.indexOf(cur?cur.dataset.t:'g');return o[(i+d+3)%3];}
+function setTab(t,user,focus){for(const b of document.querySelectorAll('#settings .stab')){const on=b.dataset.t===t;b.setAttribute('aria-selected',on);b.tabIndex=on?0:-1;if(on&&focus)b.focus();}
+  for(const p of document.querySelectorAll('#settings [role=tabpanel]'))p.hidden=p.dataset.t!==t;
+  $('settest').hidden=t!=='s';
+  if(user){try{localStorage.setItem('za_settab',t);}catch(e){}$('settings').scrollTop=0;}}
 function toggleSettings(force){const el=$('settings');const open=force!==undefined?force:el.hidden;if(open===!el.hidden)return;el.hidden=!open;
   if(open){if(locked)document.exitPointerLock();for(const k in keys)keys[k]=false;mouseDown=false;adsDown=false;}
   else autoLock();}
