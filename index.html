@@ -1674,7 +1674,7 @@ document.addEventListener('pointerdown',audioWake,true);document.addEventListene
 /* dev overlay sound tuning: per sound volume x, pitch x, tone (low-pass Hz), low cut (high-pass Hz), extra echo send.
    Neutral everywhere outside the sandbox; the sandbox dev overlay (T) edits it and can save/export it. */
 const TUNE_N={vol:1,pitch:1,lp:20000,hp:0,wet:0};
-const SND_KEYS=['rifle','smg','br','impact','boltCatch','boltSlam','click','steps','slide','cover','crowd','announcer','boom','ui'];
+const SND_KEYS=['rifle','smg','br','impact','boltCatch','boltSlam','click','steps','slide','cover','crowd','announcer','hit','boom','ui'];
 const TUNE={};for(const k of SND_KEYS)TUNE[k]={...TUNE_N};
 let SNDTK=null;
 function tuned(o){const T=o.tk&&TUNE[o.tk];if(!T)return o;return{...o,vol:o.vol*T.vol,rate:(o.rate||1)*T.pitch,lp:Math.min(o.lp||20000,T.lp),hp:Math.max(o.hp||0,T.hp)||0,wet:(o.wet||0)+T.wet};}
@@ -1690,6 +1690,20 @@ function snd(o){if(!audioInit())return;o=tuned({...o,tk:o.tk||SNDTK||(o.bus==='u
   if(o.noise){const s=actx.createBufferSource();s.buffer=AU.noise;s.loop=true;const f=actx.createBiquadFilter();f.type=o.type||'lowpass';f.frequency.setValueAtTime(Math.max(30,o.f),t);if(o.f1)f.frequency.exponentialRampToValueAtTime(Math.max(30,o.f1),t+dur);if(o.q)f.Q.value=o.q;s.connect(f);f.connect(g);s.start(t,Math.random()*1.5);s.stop(t+dur+0.02);}
   else{const os=actx.createOscillator();os.type=o.wave||'sine';os.frequency.setValueAtTime(Math.max(20,o.f),t);if(o.f1)os.frequency.exponentialRampToValueAtTime(Math.max(20,o.f1),t+dur);os.connect(g);os.start(t);os.stop(t+dur+0.02);}
 }catch(e){AU.err=String(e&&e.message);}}
+/* hit-confirm cues, all synth: body hits are plucks that climb a pentatonic ladder while you keep landing shots (it resets
+   after 0.9 s without a hit), a headshot is a bell-like ding on the same ladder, a down is a rising arpeggio over a sub drop,
+   and a kill adds one more note and a sparkle */
+const HITC={n:0,t:0},PENT=[0,2,4,7,9,12,14,16,19,21,24];
+function hitCue(kind){const now=performance.now(),u=o=>snd(Object.assign({bus:'ui',tk:'hit'},o));
+  if(kind==='hit'||kind==='head'){HITC.n=now-HITC.t<900?Math.min(HITC.n+1,PENT.length-1):0;HITC.t=now;}
+  const f=659.25*Math.pow(2,PENT[HITC.n]/12);
+  if(kind==='hit'){u({f,dur:0.07,vol:0.05,wave:'square',lp:3800,atk:0.002});u({f:f*2,dur:0.05,vol:0.028,wave:'triangle'});u({noise:1,type:'highpass',f:5000,dur:0.018,vol:0.02});}
+  else if(kind==='head'){u({f:f*2,dur:0.26,vol:0.06,wave:'sine',wet:0.25});u({f:f*3,dur:0.2,vol:0.035,wave:'triangle',at:0.045,wet:0.25});u({f:f*5.52,dur:0.09,vol:0.016,wave:'sine'});
+    u({f,dur:0.06,vol:0.045,wave:'square',lp:4200});u({noise:1,type:'highpass',f:6500,dur:0.03,vol:0.03});}
+  else{const kill=kind==='kill',seq=kill?[0,7,12,19]:[0,7,12];
+    seq.forEach((st,i)=>{const g=329.63*Math.pow(2,st/12);u({f:g,dur:0.2,vol:0.05,wave:'sawtooth',lp:2600+i*900,at:i*0.055,wet:0.3,atk:0.004});u({f:g*2,dur:0.16,vol:0.022,wave:'triangle',at:i*0.055,wet:0.3});});
+    u({f:190,f1:55,dur:0.3,vol:0.11,wave:'sine'});
+    if(kill){u({f:2637,dur:0.3,vol:0.02,wave:'sine',at:0.22,wet:0.4});u({f:3136,dur:0.3,vol:0.016,wave:'sine',at:0.27,wet:0.4});}}}
 function blip(freq,dur,vol,noise,bus,pan,tk){snd({f:freq,dur,vol,noise,bus,pan,tk});}
 function tone(f0,f1,dur,vol,bus,pan,tk){snd({f:f0,f1,dur,vol,bus,pan,tk});}
 /* where a world position sits relative to the listener: distance, stereo pan, loudness */
@@ -2078,7 +2092,7 @@ const GUN_FIELDS=[['crack','Supersonic crack',0,1.5,0.01],['blastF','Blast brigh
  ['mech','Action clicks',0,1,0.01],['boltT','Second click delay (s)',0.02,0.15,0.001],['drive','Grit (saturation)',0.5,6,0.05],['refl','Wall reflections',0,0.6,0.01],['len','Clip length (s)',0.2,1.5,0.01]];
 const STEP_FIELDS=[['vol','Volume',0,1,0.005],['rate','Pitch',0.5,1.6,0.01],['lp','Tone (low-pass Hz)',500,18000,100]];
 const SND_INFO={rifle:['Rifle shot'],smg:['SMG shot'],br:['Battle rifle shot'],boltCatch:['Bolt catch (last round fired)'],boltSlam:['Bolt slam (reload from empty)'],click:['Dry-fire click'],
- steps:['Footsteps and landings'],slide:['Slide scrape'],cover:['Cover breaking and rebuilding'],impact:['Bullets hitting cover and walls'],announcer:['Announcer (countdown and round calls)'],crowd:['Crowd (murmur, cheers on knocks, points and wins)'],boom:['Charge explosion'],ui:['Round stings, beeps and menu clicks']};
+ steps:['Footsteps and landings'],slide:['Slide scrape'],cover:['Cover breaking and rebuilding'],impact:['Bullets hitting cover and walls'],announcer:['Announcer (countdown and round calls)'],hit:['Hit confirms (hit, headshot, down, kill)'],crowd:['Crowd (murmur, cheers on knocks, points and wins)'],boom:['Charge explosion'],ui:['Round stings, beeps and menu clicks']};
 const TUNE_FIELDS=[['vol','Volume (x)',0,3,0.01],['pitch','Pitch (x)',0.5,2,0.01],['lp','Tone: cut highs above (Hz)',300,20000,50],['hp','Cut lows below (Hz)',0,2000,10],['wet','Extra echo',0,1.5,0.01]];
 /* cover: the layout as loaded, and each piece's mirrored twin ((x,z) -> (-x,-z)) */
 const cGeo=b=>({x:(b.x0+b.x1)/2,z:(b.z0+b.z1)/2,w:b.x1-b.x0,d:b.z1-b.z0,h:b.h0,hp:b.max});
@@ -2171,7 +2185,7 @@ function devTest(k,far){const fx=camera.position.x+35,fz=camera.position.z;
   if(GUN[k]){shotSound(k,far?fx:undefined,far?fz:undefined);return;}
   ({boltCatch:()=>boltSound(false,0,0.32),boltSlam:()=>boltSound(true,0.1,0.52),click:()=>dryFire(),steps:()=>devSteps('walk',far),
     slide:()=>{const h=slideSound();setTimeout(()=>sndFade(h,0.08),650);},cover:()=>{coverBreakSound(false,false,0,1);setTimeout(()=>coverBreakSound(true,true,0,1),600);},
-    boom:()=>boom(camera.position.x+12,camera.position.z),announcer:()=>{[3,2,1,'fight','won','lost','sides','offense','defense','planted'].forEach((k,i)=>announce(k,i<4?i:4.6+(i-4)*1.9));},crowd:()=>{crowdCheer('knock',1);setTimeout(()=>crowdCheer('point',1),2500);setTimeout(()=>crowdCheer('win',1),7000);},impact:()=>{for(let i=0;i<5;i++)setTimeout(()=>impactSound(camera.position.x+(far?35:6),camera.position.z+(Math.random()-.5)*2,1),i*140);},ui:()=>sting('win')}[k]||(()=>{}))();}
+    boom:()=>boom(camera.position.x+12,camera.position.z),announcer:()=>{[3,2,1,'fight','won','lost','sides','offense','defense','planted'].forEach((k,i)=>announce(k,i<4?i:4.6+(i-4)*1.9));},crowd:()=>{crowdCheer('knock',1);setTimeout(()=>crowdCheer('point',1),2500);setTimeout(()=>crowdCheer('win',1),7000);},impact:()=>{for(let i=0;i<5;i++)setTimeout(()=>impactSound(camera.position.x+(far?35:6),camera.position.z+(Math.random()-.5)*2,1),i*140);},hit:()=>{for(let i=0;i<5;i++)setTimeout(()=>hitCue('hit'),i*130);setTimeout(()=>hitCue('head'),780);setTimeout(()=>hitCue('down'),1500);setTimeout(()=>hitCue('kill'),2500);},ui:()=>sting('win')}[k]||(()=>{}))();}
 function buildWpn(el,mk){
   el.append(mk('div','note','Stats for each weapon, for you and the bots. The rifle’s first five also show on the Rules tab.'));
   const sl=mk('label','');sl.append(document.createTextNode('Weapon'));const ws=document.createElement('select');for(const k of WKEYS){const o=document.createElement('option');o.value=k;o.textContent=W[k].name;ws.append(o);}
@@ -2473,7 +2487,7 @@ function fire(s){
   if(hit>=0){
     const dmg=wDmg(me.w,head,best);sendHit(hit,dmg);hitT=head?0.24:0.16;lastHit[hit]=performance.now();
     $('hitmark').classList.toggle('head',head);
-    if(head){tone(1500,2100,0.09,0.06,'ui');tone(2400,3000,0.06,0.03,'ui');}else blip(1250,0.04,0.045,false,'ui');
+    hitCue(head?'head':'hit');
     spawnSparks(hx,hy,hz,S.players[hit].team===0?0x9cc0ff:0xffbf94,head?9:5,dx,dy,dz);
     _v.set(hx,hy+0.25,hz).project(camera);
     if(_v.z<1){const el=document.createElement('span');el.textContent=dmg;if(head)el.className='head';el.style.left=((_v.x*0.5+0.5)*innerWidth+(Math.random()-.5)*26)+'px';el.style.top=((-_v.y*0.5+0.5)*innerHeight)+'px';$('dmg').appendChild(el);setTimeout(()=>el.remove(),620);}
@@ -2490,9 +2504,9 @@ function feelHud(dt){
   const now=performance.now();
   for(let i=0;i<S.players.length;i++){const p=S.players[i],st=p.st;
     if(P&&i!==s&&now-lastHit[i]<1500&&prevSt[i]!==st){
-      if(prevSt[i]==='alive'&&st==='down'){$('confirm').textContent='Downed '+p.name;confirmT=1.3;tone(520,900,0.16,0.06,'ui');}
-      else if(prevSt[i]==='alive'&&st==='dead'){$('confirm').textContent='Killed '+p.name;confirmT=1.3;tone(700,1100,0.16,0.06,'ui');tone(1050,1650,0.2,0.03,'ui');}
-      else if(prevSt[i]==='down'&&st==='dead'){$('confirm').textContent='Finished '+p.name;confirmT=1.3;tone(700,1100,0.16,0.06,'ui');tone(1050,1650,0.2,0.03,'ui');}
+      if(prevSt[i]==='alive'&&st==='down'){$('confirm').textContent='Downed '+p.name;confirmT=1.3;hitCue('down');}
+      else if(prevSt[i]==='alive'&&st==='dead'){$('confirm').textContent='Killed '+p.name;confirmT=1.3;hitCue('kill');}
+      else if(prevSt[i]==='down'&&st==='dead'){$('confirm').textContent='Finished '+p.name;confirmT=1.3;hitCue('kill');}
     }
     prevSt[i]=st;}
 }
@@ -2727,6 +2741,6 @@ mergeChildren(scene);
 refreshZoneLook('atk');
 // Compile every material's shader up front (in parallel where the browser supports it) so nothing compiles on the first shot or spawn.
 renderer.compileAsync(scene,camera).catch(()=>{}).finally(()=>requestAnimationFrame(frame));
-window.__za={MU,MM,VB,dev:{DEV,TUNE,GUN,W,COVER0,TWIN,STEP_MODE,devCollect,devApply},damageCover,COVER,coverVis,WH,openWheel:m=>openWheel(m),closeWheel:c=>closeWheel(c),wheelMove:(x,y)=>wheelMove(x,y),gfx:{renderer,scene,camera,applyGfx,DR},openPause:()=>openPause(),closePause:()=>closePause(),leaveMatch:()=>leaveMatch(),get S(){return S;},me,net,botMem,CFG,SB,OPT,AU,get actx(){return actx;},mySlot:()=>mySlot(),sfx:{footstep,slideSound,shotSound,stepSound,get stepBufs(){return stepBufs;},get slideBuf(){return slideBuf;},get gunBufs(){return gunBufs;}}};
+window.__za={MU,MM,VB,dev:{DEV,TUNE,GUN,W,COVER0,TWIN,STEP_MODE,devCollect,devApply},damageCover,COVER,coverVis,WH,openWheel:m=>openWheel(m),closeWheel:c=>closeWheel(c),wheelMove:(x,y)=>wheelMove(x,y),gfx:{renderer,scene,camera,applyGfx,DR},openPause:()=>openPause(),closePause:()=>closePause(),leaveMatch:()=>leaveMatch(),get S(){return S;},me,net,botMem,CFG,SB,OPT,AU,get actx(){return actx;},mySlot:()=>mySlot(),sfx:{hitCue,footstep,slideSound,shotSound,stepSound,get stepBufs(){return stepBufs;},get slideBuf(){return slideBuf;},get gunBufs(){return gunBufs;}}};
 })();
 </script>
