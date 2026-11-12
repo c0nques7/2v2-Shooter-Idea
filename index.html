@@ -1675,7 +1675,7 @@ document.addEventListener('pointerdown',audioWake,true);document.addEventListene
 /* dev overlay sound tuning: per sound volume x, pitch x, tone (low-pass Hz), low cut (high-pass Hz), extra echo send.
    Neutral everywhere outside the sandbox; the sandbox dev overlay (T) edits it and can save/export it. */
 const TUNE_N={vol:1,pitch:1,lp:20000,hp:0,wet:0};
-const SND_KEYS=['rifle','smg','br','impact','boltCatch','boltSlam','click','steps','slide','cover','crowd','announcer','hit','boom','ui'];
+const SND_KEYS=['rifle','smg','br','impact','boltCatch','boltSlam','click','steps','slide','cover','crowd','announcer','hit','hitHead','hitDown','hitKill','boom','ui'];
 const TUNE={};for(const k of SND_KEYS)TUNE[k]={...TUNE_N};
 let SNDTK=null;
 function tuned(o){const T=o.tk&&TUNE[o.tk];if(!T)return o;return{...o,vol:o.vol*T.vol,rate:(o.rate||1)*T.pitch,lp:Math.min(o.lp||20000,T.lp),hp:Math.max(o.hp||0,T.hp)||0,wet:(o.wet||0)+T.wet};}
@@ -1700,22 +1700,27 @@ function snd(o){if(!audioInit())return;o=tuned({...o,tk:o.tk||SNDTK||(o.bus==='u
    hit = a hard bright tick, headshot = a higher two-part "ti-tink" that rings longer, down = a falling zap over a crack
    and thump, kill = the down followed by a rising two-tone confirm. Joe asked for crunch, so the tones are squares and saws,
    each cue carries a crackle of 3 ms noise grains, and the whole cue is hard-clipped. */
+const HIT_K={hit:'hit',head:'hitHead',down:'hitDown',kill:'hitKill'};
+/* per-cue extras on the sandbox Sound tab: distortion drive, level of the noise-grain crackle, overall length, delay after the shot */
+const HITX0={hit:{crunch:1,crackle:1,len:1,delay:45},hitHead:{crunch:1,crackle:1,len:1,delay:45},hitDown:{crunch:1,crackle:1,len:1,delay:20},hitKill:{crunch:1,crackle:1,len:1,delay:20}};
+const HITX=JSON.parse(JSON.stringify(HITX0));
+const HITX_FIELDS=[['crunch','Crunch: distortion drive (x)',0,2.5,0.05],['crackle','Crackle: noise grains (x)',0,2.5,0.05],['len','Length (x)',0.4,3,0.05],['delay','Delay after the shot (ms)',0,150,1]];
 function hitCue(kind){if(!audioInit())return;try{
-  const T=TUNE.hit,t0=actx.currentTime+(kind==='hit'||kind==='head'?0.045:0.02),r=(0.97+Math.random()*0.06)*T.pitch;
+  const hk=HIT_K[kind]||'hit',T=TUNE[hk],X=HITX[hk],L=X.len,t0=actx.currentTime+X.delay/1000,r=(0.97+Math.random()*0.06)*T.pitch;
   /* crunch: everything is driven into a hard clipper, so the square tones and noise grains break up together */
   if(!AU.crunch){const n=1024,c=new Float32Array(n);for(let i=0;i<n;i++){const x=i/(n-1)*2-1;c[i]=Math.max(-0.62,Math.min(0.62,x*1.9))+0.1*Math.sign(x)*Math.pow(Math.abs(x),0.3);}AU.crunch=c;}
-  const inp=actx.createGain();inp.gain.value=2.2;const sh=actx.createWaveShaper();sh.curve=AU.crunch;sh.oversample='2x';inp.connect(sh);
-  let out=actx.createGain();out.gain.value=0.62*T.vol;sh.connect(out);
+  const drive=0.45+1.75*X.crunch,inp=actx.createGain();inp.gain.value=drive;const sh=actx.createWaveShaper();sh.curve=AU.crunch;sh.oversample='2x';
+  let out=actx.createGain();out.gain.value=0.62*T.vol*Math.pow(2.2/drive,0.75);if(X.crunch>0.02){inp.connect(sh);sh.connect(out);}else inp.connect(out);
   if(T.lp<18000){const f=actx.createBiquadFilter();f.type='lowpass';f.frequency.value=T.lp;out.connect(f);out=f;}
   if(T.hp>0){const f=actx.createBiquadFilter();f.type='highpass';f.frequency.value=T.hp;out.connect(f);out=f;}
   out.connect(AU.bus.ui);const w=actx.createGain();w.gain.value=0.06+T.wet;out.connect(w);w.connect(AU.rev);
-  const env=(g,pk,hold,tau,t)=>{g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(pk,t+0.002);g.gain.setTargetAtTime(0,t+0.002+hold,tau);return t+0.002+hold+tau*7;};
+  const env=(g,pk,hold,tau,t)=>{hold*=L;tau*=L;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(pk,t+0.002);g.gain.setTargetAtTime(0,t+0.002+hold,tau);return t+0.002+hold+tau*7;};
   const tone=(f,f1,pk,hold,tau,at,wave)=>{const t=t0+(at||0),o=actx.createOscillator(),g=actx.createGain();o.type=wave||'sine';o.frequency.setValueAtTime(f*r,t);
-    if(f1)o.frequency.exponentialRampToValueAtTime(f1*r,t+hold+tau*3);const end=env(g,pk,hold,tau,t);o.connect(g);g.connect(inp);o.start(t);o.stop(end);};
+    if(f1)o.frequency.exponentialRampToValueAtTime(f1*r,t+(hold+tau*3)*L);const end=env(g,pk,hold,tau,t);o.connect(g);g.connect(inp);o.start(t);o.stop(end);};
   const nz=(type,fc,q,pk,hold,tau,at)=>{const t=t0+(at||0),n=actx.createBufferSource(),f=actx.createBiquadFilter(),g=actx.createGain();n.buffer=AU.noise;n.loop=true;
     f.type=type;f.frequency.value=fc*r;f.Q.value=q;const end=env(g,pk,hold,tau,t);n.connect(f);f.connect(g);g.connect(inp);n.start(t,Math.random()*1.5);n.stop(end);};
   const duck=(to,len)=>{const p=AU.duck&&AU.duck.gain;if(!p)return;p.cancelScheduledValues(t0);p.setTargetAtTime(to,t0-0.005,0.004);p.setTargetAtTime(1,t0+len,0.03);};
-  const grains=(n,gap,fc,pk,at)=>{for(let i=0;i<n;i++)nz('bandpass',fc*(0.8+Math.random()*0.5),1.2,pk*(1-i/(n+1)),0.002,0.0035,(at||0)+i*gap*(0.8+Math.random()*0.4));};
+  const grains=(n,gap,fc,pk,at)=>{if(X.crackle>0)for(let i=0;i<n;i++)nz('bandpass',fc*(0.8+Math.random()*0.5),1.2,pk*X.crackle*(1-i/(n+1)),0.002,0.0035,(at||0)+i*gap*(0.8+Math.random()*0.4));};
   if(kind==='hit'){tone(3000,2500,0.2,0.012,0.013,0,'square');tone(4500,0,0.07,0.006,0.010,0,'square');nz('bandpass',2600,2,0.5,0.005,0.01);grains(3,0.009,3200,0.45,0.004);duck(0.65,0.05);}
   else if(kind==='head'){tone(4200,0,0.2,0.02,0.034,0,'square');tone(6300,0,0.1,0.01,0.028);tone(2100,0,0.1,0.008,0.012,0,'square');nz('highpass',5000,0.7,0.35,0.004,0.008);
     grains(4,0.008,4200,0.4,0.004);tone(5000,0,0.14,0.005,0.02,0.055,'square');grains(2,0.008,5200,0.3,0.058);duck(0.55,0.11);}
@@ -2111,7 +2116,7 @@ const GUN_FIELDS=[['crack','Supersonic crack',0,1.5,0.01],['blastF','Blast brigh
  ['mech','Action clicks',0,1,0.01],['boltT','Second click delay (s)',0.02,0.15,0.001],['drive','Grit (saturation)',0.5,6,0.05],['refl','Wall reflections',0,0.6,0.01],['len','Clip length (s)',0.2,1.5,0.01]];
 const STEP_FIELDS=[['vol','Volume',0,1,0.005],['rate','Pitch',0.5,1.6,0.01],['lp','Tone (low-pass Hz)',500,18000,100]];
 const SND_INFO={rifle:['Rifle shot'],smg:['SMG shot'],br:['Battle rifle shot'],boltCatch:['Bolt catch (last round fired)'],boltSlam:['Bolt slam (reload from empty)'],click:['Dry-fire click'],
- steps:['Footsteps and landings'],slide:['Slide scrape'],cover:['Cover breaking and rebuilding'],impact:['Bullets hitting cover and walls'],announcer:['Announcer (countdown and round calls)'],hit:['Hit confirms (hit, headshot, down, kill)'],crowd:['Crowd (murmur, cheers on knocks, points and wins)'],boom:['Charge explosion'],ui:['Round stings, beeps and menu clicks']};
+ steps:['Footsteps and landings'],slide:['Slide scrape'],cover:['Cover breaking and rebuilding'],impact:['Bullets hitting cover and walls'],announcer:['Announcer (countdown and round calls)'],hit:['Hit confirm: body hit'],hitHead:['Hit confirm: headshot'],hitDown:['Hit confirm: down'],hitKill:['Hit confirm: kill or finish'],crowd:['Crowd (murmur, cheers on knocks, points and wins)'],boom:['Charge explosion'],ui:['Round stings, beeps and menu clicks']};
 const TUNE_FIELDS=[['vol','Volume (x)',0,3,0.01],['pitch','Pitch (x)',0.5,2,0.01],['lp','Tone: cut highs above (Hz)',300,20000,50],['hp','Cut lows below (Hz)',0,2000,10],['wet','Extra echo',0,1.5,0.01]];
 /* cover: the layout as loaded, and each piece's mirrored twin ((x,z) -> (-x,-z)) */
 const cGeo=b=>({x:(b.x0+b.x1)/2,z:(b.z0+b.z1)/2,w:b.x1-b.x0,d:b.z1-b.z0,h:b.h0,hp:b.max});
@@ -2129,6 +2134,7 @@ function devFlush(){DEV.raf=0;for(const ci of DEV.pend){const o=coverVis[ci];sce
 function coverEq(a,b){return ['x','z','w','d','h','hp'].every(k=>Math.abs(a[k]-b[k])<1e-6);}
 function devCollect(){const d={};const put=(sec,k,f,v)=>{((d[sec]=d[sec]||{})[k]=d[sec][k]||{})[f]=r2(v);};
   for(const k of SND_KEYS)for(const f in TUNE_N)if(TUNE[k][f]!==TUNE_N[f])put('sound',k,f,TUNE[k][f]);
+  for(const k in HITX)for(const f in HITX0[k])if(HITX[k][f]!==HITX0[k][f])put('hitfx',k,f,HITX[k][f]);
   for(const k in GUN)for(const f in GUN[k])if(GUN[k][f]!==GUN0[k][f])put('gunLayers',k,f,GUN[k][f]);
   for(const k in STEP_MODE)for(const f in STEP_MODE[k])if(STEP_MODE[k][f]!==STEP0[k][f])put('steps',k,f,STEP_MODE[k][f]);
   for(const k of WKEYS)for(const [f] of W_FIELDS){if(k==='rifle'&&RIFLE_CFG[f])continue;if(W[k][f]!==W0[k][f])put('weapons',k,f,W[k][f]);}
@@ -2138,6 +2144,7 @@ const num=v=>typeof v==='number'&&isFinite(v);
 /* back to defaults, then lay d on top (ignores anything malformed) */
 function devApply(d){d=d&&typeof d==='object'?d:{};
   for(const k of SND_KEYS){Object.assign(TUNE[k],TUNE_N);const o=(d.sound||{})[k]||{};for(const f in TUNE_N)if(num(o[f]))TUNE[k][f]=o[f];}
+  for(const k in HITX){const o=(d.hitfx||{})[k]||{};for(const f in HITX0[k])HITX[k][f]=num(o[f])?o[f]:HITX0[k][f];}
   let gch=false;for(const k in GUN){const o=(d.gunLayers||{})[k]||{};for(const f in GUN[k]){const v=num(o[f])?o[f]:GUN0[k][f];if(GUN[k][f]!==v){GUN[k][f]=v;gch=true;}}}if(gch)gunRerender(0);
   for(const k in STEP_MODE){const o=(d.steps||{})[k]||{};for(const f in STEP0[k])STEP_MODE[k][f]=num(o[f])?o[f]:STEP0[k][f];}
   for(const k of WKEYS){const o=(d.weapons||{})[k]||{};for(const [f] of W_FIELDS){if(k==='rifle'&&RIFLE_CFG[f])continue;W[k][f]=num(o[f])?o[f]:W0[k][f];}}
@@ -2180,11 +2187,12 @@ function devFooter(el,mk){el.append(mk('h3','','Save and export'));
   devStatus();}
 function buildSnd(el,mk){
   el.append(mk('div','note','Each sound has its own volume, pitch, tone, low cut and echo. Test plays it where you stand; double-click a slider to reset it. Mix levels per category are in Settings (O).'));
-  for(const k of SND_KEYS){const T=TUNE[k],dt=document.createElement('details');const sm=mk('summary','',SND_INFO[k][0]);const ch=()=>sm.classList.toggle('chg',Object.keys(TUNE_N).some(f=>T[f]!==TUNE_N[f]));ch();dt.append(sm);
+  for(const k of SND_KEYS){const T=TUNE[k],dt=document.createElement('details');const sm=mk('summary','',SND_INFO[k][0]);const ch=()=>sm.classList.toggle('chg',Object.keys(TUNE_N).some(f=>T[f]!==TUNE_N[f])||(HITX[k]&&Object.keys(HITX0[k]).some(f=>HITX[k][f]!==HITX0[k][f])));ch();dt.append(sm);
     for(const [f,txt,lo,hi,st] of TUNE_FIELDS)devKnob(dt,txt,lo,hi,st,()=>T[f],v=>{T[f]=v;},TUNE_N[f],ch);
+    if(HITX[k])for(const [f,txt,lo,hi,st] of HITX_FIELDS)devKnob(dt,txt,lo,hi,st,()=>HITX[k][f],v=>{HITX[k][f]=v;},HITX0[k][f],ch);
     const bb=mk('div','btns');const ab=(t,fn)=>{const b=mk('button','btn',t);b.type='button';b.addEventListener('click',()=>{audioWake();fn();});bb.append(b);};
-    if(k!=='amb')ab('Test',()=>devTest(k,false));if(GUN[k]||k==='steps'||k==='impact')ab('Test 35 m away',()=>devTest(k,true));
-    ab('Reset',()=>{Object.assign(T,TUNE_N);buildSB();});dt.append(bb);el.append(dt);}
+    if(k!=='amb')ab('Test',()=>devTest(k,false));if(GUN[k]||k==='steps'||k==='impact')ab('Test 35 m away',()=>devTest(k,true));if(HITX[k])ab('Test over rifle fire',()=>devTest(k,true));
+    ab('Reset',()=>{Object.assign(T,TUNE_N);if(HITX[k])Object.assign(HITX[k],HITX0[k]);buildSB();});dt.append(bb);el.append(dt);}
   // gunshot layers
   el.append(mk('h3','','Gunshot layers'));
   el.append(mk('div','note','Gunshots are built from these layers. Each shot is normalised to the same peak, so these set the balance and character; use Volume above for loudness. Changes re-render the shot.'));
@@ -2200,11 +2208,14 @@ function buildSnd(el,mk){
     const b=mk('button','btn','Test');b.type='button';b.addEventListener('click',()=>{audioWake();devSteps(m,null);});const bb=mk('div','btns');bb.append(b);dt.append(bb);el.append(dt);}
   devFooter(el,mk);}
 function devSteps(m,far){const p=far?[camera.position.x+35,camera.position.z]:[null,null];const n=m==='land'||m==='push'?1:4;for(let i=0;i<n;i++)setTimeout(()=>footstep(m,1,p[0],p[1]),i*(m==='crouch'?520:m==='run'?300:420));}
+/* n body hits (the last one a headshot for 'head'), then the down or kill cue; with gun=true each hit comes with a rifle shot */
+function devHit(kind,n,gun){const cd=CFG.fireCd*1000;for(let i=0;i<n;i++)setTimeout(()=>{if(gun)shotSound('rifle');const c=kind==='head'&&i===n-1?'head':kind==='hit'||kind==='head'||gun?'hit':'';if(c)hitCue(c);},i*cd);
+  if(kind==='down'||kind==='kill')setTimeout(()=>hitCue(kind),gun?(n-1)*cd+60:0);}
 function devTest(k,far){const fx=camera.position.x+35,fz=camera.position.z;
   if(GUN[k]){shotSound(k,far?fx:undefined,far?fz:undefined);return;}
   ({boltCatch:()=>boltSound(false,0,0.32),boltSlam:()=>boltSound(true,0.1,0.52),click:()=>dryFire(),steps:()=>devSteps('walk',far),
     slide:()=>{const h=slideSound();setTimeout(()=>sndFade(h,0.08),650);},cover:()=>{coverBreakSound(false,false,0,1);setTimeout(()=>coverBreakSound(true,true,0,1),600);},
-    boom:()=>boom(camera.position.x+12,camera.position.z),announcer:()=>{[3,2,1,'fight','won','lost','sides','offense','defense','planted'].forEach((k,i)=>announce(k,i<4?i:4.6+(i-4)*1.9));},crowd:()=>{crowdCheer('knock',1);setTimeout(()=>crowdCheer('point',1),2500);setTimeout(()=>crowdCheer('win',1),7000);},impact:()=>{for(let i=0;i<5;i++)setTimeout(()=>impactSound(camera.position.x+(far?35:6),camera.position.z+(Math.random()-.5)*2,1),i*140);},hit:()=>{for(let i=0;i<5;i++)setTimeout(()=>hitCue('hit'),i*130);setTimeout(()=>hitCue('head'),780);setTimeout(()=>hitCue('down'),1500);setTimeout(()=>hitCue('kill'),2500);},ui:()=>sting('win')}[k]||(()=>{}))();}
+    boom:()=>boom(camera.position.x+12,camera.position.z),announcer:()=>{[3,2,1,'fight','won','lost','sides','offense','defense','planted'].forEach((k,i)=>announce(k,i<4?i:4.6+(i-4)*1.9));},crowd:()=>{crowdCheer('knock',1);setTimeout(()=>crowdCheer('point',1),2500);setTimeout(()=>crowdCheer('win',1),7000);},impact:()=>{for(let i=0;i<5;i++)setTimeout(()=>impactSound(camera.position.x+(far?35:6),camera.position.z+(Math.random()-.5)*2,1),i*140);},hit:()=>devHit('hit',5,far),hitHead:()=>devHit('head',3,far),hitDown:()=>devHit('down',3,far),hitKill:()=>devHit('kill',3,far),ui:()=>sting('win')}[k]||(()=>{}))();}
 function buildWpn(el,mk){
   el.append(mk('div','note','Stats for each weapon, for you and the bots. The rifle’s first five also show on the Rules tab.'));
   const sl=mk('label','');sl.append(document.createTextNode('Weapon'));const ws=document.createElement('select');for(const k of WKEYS){const o=document.createElement('option');o.value=k;o.textContent=W[k].name;ws.append(o);}
@@ -2760,6 +2771,6 @@ mergeChildren(scene);
 refreshZoneLook('atk');
 // Compile every material's shader up front (in parallel where the browser supports it) so nothing compiles on the first shot or spawn.
 renderer.compileAsync(scene,camera).catch(()=>{}).finally(()=>requestAnimationFrame(frame));
-window.__za={MU,MM,VB,dev:{DEV,TUNE,GUN,W,COVER0,TWIN,STEP_MODE,devCollect,devApply},damageCover,COVER,coverVis,WH,openWheel:m=>openWheel(m),closeWheel:c=>closeWheel(c),wheelMove:(x,y)=>wheelMove(x,y),gfx:{renderer,scene,camera,applyGfx,DR},openPause:()=>openPause(),closePause:()=>closePause(),leaveMatch:()=>leaveMatch(),get S(){return S;},me,net,botMem,CFG,SB,OPT,AU,get actx(){return actx;},mySlot:()=>mySlot(),sfx:{hitCue,footstep,slideSound,shotSound,stepSound,get stepBufs(){return stepBufs;},get slideBuf(){return slideBuf;},get gunBufs(){return gunBufs;}}};
+window.__za={MU,MM,VB,dev:{DEV,TUNE,GUN,W,COVER0,TWIN,STEP_MODE,devCollect,devApply},damageCover,COVER,coverVis,WH,openWheel:m=>openWheel(m),closeWheel:c=>closeWheel(c),wheelMove:(x,y)=>wheelMove(x,y),gfx:{renderer,scene,camera,applyGfx,DR},openPause:()=>openPause(),closePause:()=>closePause(),leaveMatch:()=>leaveMatch(),get S(){return S;},me,net,botMem,CFG,SB,OPT,AU,get actx(){return actx;},mySlot:()=>mySlot(),sfx:{hitCue,HITX,footstep,slideSound,shotSound,stepSound,get stepBufs(){return stepBufs;},get slideBuf(){return slideBuf;},get gunBufs(){return gunBufs;}}};
 })();
 </script>
