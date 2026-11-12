@@ -22,6 +22,7 @@ Play with a keyboard and mouse, or with the on-screen touch controls on phones, 
 | Shift | Sprint |
 | Space | Jump; jump off a wall during a wallrun |
 | C | Crouch, slide from a sprint |
+| V | Dash: a short burst the way you're moving (forward if you aren't). Two charges, each refills after 3.5 s; the pips under your health show them |
 | Q / E | Lean left / right |
 | F (hold) | Revive, arm, defuse |
 | R | Reload |
@@ -39,7 +40,7 @@ On a touch screen the game shows on-screen controls by itself (Settings > Contro
 
 - **Left side:** a floating move stick appears where your thumb lands. Push it gently to walk, push it to the rim (forward) to sprint. Drag past the rim and it follows your thumb.
 - **Right side:** drag anywhere to look. The big Fire button also looks while held, so one thumb can aim and shoot.
-- **Buttons:** Fire (plus an optional second Fire above the stick), Aim (tap to toggle), Jump, Slide (hold to crouch, slide from a sprint), Reload, Use (hold to revive, arm or defuse; turns into Give up while you are down), Menu, Guns (weapon wheel, when switching is allowed) and Tune (Sandbox overlay).
+- **Buttons:** Fire (plus an optional second Fire above the stick), Aim (tap to toggle), Jump, Slide (hold to crouch, slide from a sprint), Dash, Reload, Use (hold to revive, arm or defuse; turns into Give up while you are down), Menu, Guns (weapon wheel, when switching is allowed) and Tune (Sandbox overlay).
 - Menus, the Workshop, the weapon wheel and the respawn picker are all tappable. Tap outside the switch-weapon wheel to close it.
 - Settings has touch look sensitivity, touch sensitivity while aiming, button size, the second Fire button and auto-sprint. The main menu has a Full screen button where the browser allows it.
 
@@ -86,6 +87,7 @@ Current default numbers (from `CFG` in `index.html`):
 | Rifle damage / headshot | 25 / 50 |
 | Wallrun time / gravity / kick | 1.3 s / 0.22x / 7 m/s |
 | Ledge grab reach above feet | 2.3 m (Sandbox slider; 0 turns it off) |
+| Dash | 2 charges, 22 m/s for 0.16 s (about 3.5 m), 3.5 s recharge per charge (Sandbox sliders) |
 | Destroyed cover rebuilds after | 5 to 10 s, picked at random per piece (Sandbox sliders) |
 
 ## Guns

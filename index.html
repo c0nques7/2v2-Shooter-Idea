@@ -132,6 +132,9 @@ body{background:var(--bg);color:var(--fg);overflow:hidden;font-family:var(--disp
 #hpnum{font-size:44px;font-weight:700;line-height:.9}
 #hpbar{height:8px;background:rgba(255,255,255,.12);border-radius:4px;overflow:hidden}
 #hpfill{height:100%;width:100%;background:var(--good);transition:width .12s}
+#dashpips{display:flex;align-items:center;gap:5px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+#dashpips span{margin-right:3px}
+#dashpips i{width:30px;height:7px;border-radius:2px;transform:skewX(-20deg);background:linear-gradient(90deg,var(--accent) calc(var(--f,1)*100%),rgba(255,255,255,.14) 0);box-shadow:0 0 6px rgba(95,242,255,calc(var(--g,1)*.5))}
 #zoneline{font-size:15px;background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:4px 8px}
 #zoneline b{font-weight:700}
 #ammo{right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));text-align:right}
@@ -323,6 +326,7 @@ input,select{font:inherit;font-size:16px;color:var(--fg);background:#0b0f12;bord
 #tFire{right:calc(var(--u)*.5 + env(safe-area-inset-right,0px));bottom:calc(var(--u)*1.75 + env(safe-area-inset-bottom,0px))}
 #tJump{right:calc(var(--u)*.55 + env(safe-area-inset-right,0px));bottom:calc(var(--u)*.25 + env(safe-area-inset-bottom,0px))}
 #tCrouch{right:calc(var(--u)*2.15 + env(safe-area-inset-right,0px));bottom:calc(var(--u)*.25 + env(safe-area-inset-bottom,0px))}
+#tDash{right:calc(var(--u)*3.75 + env(safe-area-inset-right,0px));bottom:calc(var(--u)*.3 + env(safe-area-inset-bottom,0px));--s:1.15}
 #tAds{right:calc(var(--u)*2.95 + env(safe-area-inset-right,0px));bottom:calc(var(--u)*1.8 + env(safe-area-inset-bottom,0px))}
 #tReload{right:calc(var(--u)*3.0 + env(safe-area-inset-right,0px));bottom:calc(var(--u)*3.4 + env(safe-area-inset-bottom,0px));--s:1.1}
 #tUse{right:calc(var(--u)*1.2 + env(safe-area-inset-right,0px));bottom:calc(var(--u)*4.25 + env(safe-area-inset-bottom,0px));--s:1.2}
@@ -366,6 +370,7 @@ body.touch .chip{min-height:44px}
 <div class="hud" id="vitals" hidden>
   <div id="hpnum" class="num">100</div>
   <div id="hpbar"><div id="hpfill"></div></div>
+  <div id="dashpips" title="Dash charges"><span>Dash</span></div>
   <div id="zoneline"></div>
 </div>
 <div class="hud" id="ammo" hidden><div id="ammonum" class="num">24</div><div id="ammosub">Rifle · R to reload</div></div>
@@ -388,6 +393,7 @@ body.touch .chip{min-height:44px}
   <div class="tb" id="tAds" data-a="ads">Aim</div>
   <div class="tb" id="tJump" data-a="jump">Jump</div>
   <div class="tb" id="tCrouch" data-a="crouch">Slide</div>
+  <div class="tb" id="tDash" data-a="dash">Dash</div>
   <div class="tb" id="tReload" data-a="reload">Reload</div>
   <div class="tb" id="tUse" data-a="use">Use</div>
   <div class="tb sq" id="tMenu" data-a="menu">Menu</div>
@@ -419,7 +425,7 @@ body.touch .chip{min-height:44px}
     <div class="hd"><b>Menu</b><span><kbd>Esc</kbd> closes</span></div>
     <div class="sub" id="pauseS" style="color:var(--muted);font-size:15px"></div>
     <div class="pbtns"><button class="btn primary" type="button" id="presume">Resume</button><button class="btn" type="button" id="psettings">Settings</button><button class="btn" type="button" id="prestart">Restart match</button><button class="btn" type="button" id="pleave">Leave match</button></div>
-    <div class="keys"><span><kbd>WASD</kbd> move</span><span><kbd>Left click</kbd> fire</span><span><kbd>Shift</kbd> sprint</span><span><kbd>Right click</kbd> aim</span><span><kbd>Space</kbd> jump</span><span><kbd>C</kbd> crouch, slide</span><span><kbd>Q</kbd> <kbd>E</kbd> lean</span><span><kbd>F</kbd> revive, arm, defuse</span><span><kbd>R</kbd> reload</span><span><kbd>G</kbd> give up when down</span><span><kbd>O</kbd> settings</span><span><kbd>Esc</kbd> this menu</span></div>
+    <div class="keys"><span><kbd>WASD</kbd> move</span><span><kbd>Left click</kbd> fire</span><span><kbd>Shift</kbd> sprint</span><span><kbd>Right click</kbd> aim</span><span><kbd>Space</kbd> jump</span><span><kbd>C</kbd> crouch, slide</span><span><kbd>V</kbd> dash</span><span><kbd>Q</kbd> <kbd>E</kbd> lean</span><span><kbd>F</kbd> revive, arm, defuse</span><span><kbd>R</kbd> reload</span><span><kbd>G</kbd> give up when down</span><span><kbd>O</kbd> settings</span><span><kbd>Esc</kbd> this menu</span></div>
   </div>
 </div>
 <div class="overlay" id="settings" hidden role="dialog" aria-label="Settings">
@@ -529,7 +535,7 @@ const ZHP=[100,80,60,45,30];
 const ZX=[-46,-20,0,20,46];
 const TEAMN=['Blue','Orange'];
 const BOTN=['Bot Ash','Bot Rook','Bot Vex','Bot Juno','Bot Kade','Bot Nyx','Bot Orin','Bot Sable'];
-const CFG={roundTime:75,buy:3,post:6,overT:10,multiT:5,fuse:25,arm:5,defuse:7,revive:2.5,bleed:8,respawn:4,tickets:4,downHP:30,winScore:4,killHeal:25,block:15,dmg:25,head:50,fireCd:0.12,mag:24,reload:1.8,buy1:8,speed:6,sprint:9.5,crawl:1.8,jump:5,grav:19,wallRun:1.3,wallGrav:0.22,wallKick:7,grab:2.3,regenMin:5,regenMax:10,spawnProt:3,dmTime:600,dmRespawn:3,dmKills1:15,dmKills2:30,dmKills4:50};
+const CFG={roundTime:75,buy:3,post:6,overT:10,multiT:5,fuse:25,arm:5,defuse:7,revive:2.5,bleed:8,respawn:4,tickets:4,downHP:30,winScore:4,killHeal:25,block:15,dmg:25,head:50,fireCd:0.12,mag:24,reload:1.8,buy1:8,speed:6,sprint:9.5,crawl:1.8,jump:5,grav:19,wallRun:1.3,wallGrav:0.22,wallKick:7,grab:2.3,dash:22,dashT:0.16,dashN:2,dashCd:3.5,regenMin:5,regenMax:10,spawnProt:3,dmTime:600,dmRespawn:3,dmKills1:15,dmKills2:30,dmKills4:50};
 const SITES={A:{x:22,z:-9},B:{x:22,z:9}};
 /* weapons: the rifle reads CFG so the sandbox sliders tune it. near/far = full damage up to near m, down to fall x at far m */
 const W={
@@ -717,7 +723,7 @@ function spawnAt(p,zi,role){
   p.lastZ=zi;p.x=ZX[zi];p.z=p.s<2?-14:14;p.y=0;p.st='alive';p.hp=retHP(p.team,role,zi);if(p.bot)p.w=WKEYS[(Math.random()*WKEYS.length)|0];p.ak=null;p.ap=0;p.at=-1;p.pick=-1;p.give=false;
   p.spyaw=zi===homeZ(role)?Math.atan2(-(ZX[zi]+(zi?2.5:-2.5)-p.x),-((p.z<0?-9:9)-p.z)):role==='atk'?-Math.PI/2:Math.PI/2;// home spawns face the way out of their alcove
   p.yaw=p.spyaw;p.pitch=0;p.spx=p.x;p.spz=p.z;p.sp++;
-  p.prot=CFG.spawnProt;p.wr=0;const m=botMem[p.s];if(m){m.path=null;m.wr=0;m.vy=0;m.kvx=m.kvz=0;}
+  p.prot=CFG.spawnProt;p.wr=0;const m=botMem[p.s];if(m){m.path=null;m.wr=0;m.vy=0;m.kvx=m.kvz=0;m.dashN=null;m.dashT=0;}
 }
 function damageCover(ci,d){if(!S||S.phase!=='live'||!S.cover||!(ci>=0&&ci<S.cover.length))return;if(S.cover[ci]>0){S.cover[ci]=Math.max(0,S.cover[ci]-d);if(S.cover[ci]<=0){if(!S.regen)S.regen=COVER.map(()=>0);S.regen[ci]=CFG.regenMin+Math.random()*Math.max(0,CFG.regenMax-CFG.regenMin);}}}
 /* rebuilt cover turns solid in one step, so anyone standing in it is pushed out of the nearest side (guests do the same for themselves in resolveCircle) */
@@ -740,7 +746,7 @@ const DM_PTS=[];
 function dmPts(){DM_PTS.length=0;for(let x=-46;x<=46;x+=4)for(let z=-16;z<=16;z+=4){let ok=true;for(let dx=-1;dx<=1&&ok;dx++)for(let dz=-1;dz<=1&&ok;dz++)if(!freeAt(x+dx,z+dz))ok=false;if(ok)DM_PTS.push({x,z});}}
 dmPts();
 function dmPlace(p,x,z,yaw){p.x=x;p.z=z;p.y=0;p.st='alive';p.hp=100;p.dhp=0;if(p.bot)p.w=WKEYS[(Math.random()*WKEYS.length)|0];p.ak=null;p.ap=0;p.at=-1;p.pick=-1;p.give=false;p.lastZ=zoneOf(x);
-  p.spyaw=yaw;p.yaw=yaw;p.pitch=0;p.spx=x;p.spz=z;p.sp++;p.prot=CFG.spawnProt;p.wr=0;const m=botMem[p.s];if(m){m.path=null;m.wr=0;m.vy=0;m.kvx=m.kvz=0;}}
+  p.spyaw=yaw;p.yaw=yaw;p.pitch=0;p.spx=x;p.spz=z;p.sp++;p.prot=CFG.spawnProt;p.wr=0;const m=botMem[p.s];if(m){m.path=null;m.wr=0;m.vy=0;m.kvx=m.kvz=0;m.dashN=null;m.dashT=0;}}
 /* match start: each team in its own base's spawn alcoves (two to an alcove in 4v4), mirrored through the center like the arena */
 const DM_HOME=[[46,-14],[46,14],[47.5,-17.5],[47.5,17.5]];
 function dmHome(p){const sx=p.team===0?-1:1,h=DM_HOME[(p.s>>1)%4],x=sx*h[0],z=sx*h[1];
@@ -932,8 +938,18 @@ function botThink(b,dt){
         for(let d=1;ok&&d<=run;d++){const qx=b.x+tx*d,qz=b.z+tz*d,q=wallNear(qx,qz,1.8,b.y+0.5);if(!q||q.b!==wl.b||!freeAt(qx,qz))ok=false;}
         if(ok){m.wr=1;m.wrT=CFG.wallRun;m.wrB=wl.b;m.vy=3;m.tx=tx;m.tz=tz;m.nx=wl.nx;m.nz=wl.nz;b.wr=(Math.cos(Math.atan2(-tx,-tz))*wl.nx-Math.sin(Math.atan2(-tx,-tz))*wl.nz)>0?-1:1;}}}}
   if(m.wr){mvx=m.tx;mvz=m.tz;}
+  // dash: same charges as players. In a fight a bot dashes sideways along its strafe when it gets hit, or now and then,
+  // only toward open floor it can actually reach
+  {const dN=Math.max(1,CFG.dashN|0);if(m.dashN==null){m.dashN=dN;m.dashR=0;m.dashT=0;m.dashGap=1;m.lastHp=b.hp;}
+    if(m.dashN<dN){m.dashR+=dt;if(m.dashR>=CFG.dashCd){m.dashN++;m.dashR=0;}}else m.dashR=0;
+    m.dashGap-=dt;const hurt=b.hp<m.lastHp-0.5;m.lastHp=b.hp;
+    if(tgt&&!air&&!m.wr&&!b.use&&!m.esc&&m.dashT<=0&&m.dashN>0&&m.dashGap<=0&&(hurt&&Math.random()<0.5||Math.random()<dt*0.2)){
+      const ang=Math.atan2(tgt.z-b.z,tgt.x-b.x),px=-Math.sin(ang),pz=Math.cos(ang),run=CFG.dash*CFG.dashT+1;
+      for(const sd of [m.strafeDir,-m.strafeDir]){const ex=b.x+px*sd*run,ez=b.z+pz*sd*run;
+        if(Math.abs(ex)<48&&Math.abs(ez)<18&&freeAt(ex,ez)&&segClear(b.x,b.z,ex,ez)){m.dashN--;m.dashT=CFG.dashT;m.dx=px*sd;m.dz=pz*sd;m.strafeDir=sd;m.dashGap=0.7+Math.random()*1.6;b.ds=((b.ds|0)+1)%1000;break;}}}}
   const L=Math.hypot(mvx,mvz);
-  if(m.wr){const sp=CFG.sprint*wOf(b.w).move;m.wrT-=dt;
+  if(m.dashT>0){m.dashT-=dt;const pos={x:b.x,z:b.z};moveCircle(pos,m.dx*CFG.dash*dt,m.dz*CFG.dash*dt,0.4,b.y);b.x=pos.x;b.z=pos.z;m.sExp=0;m.sx=b.x;m.sz=b.z;}
+  else if(m.wr){const sp=CFG.sprint*wOf(b.w).move;m.wrT-=dt;
     const pos={x:b.x,z:b.z};moveCircle(pos,(m.tx*sp-m.nx*4)*dt,(m.tz*sp-m.nz*4)*dt,0.4,b.y);b.x=pos.x;b.z=pos.z;
     m.vy=Math.max(-1.5,m.vy-CFG.grav*CFG.wallGrav*dt);b.y=Math.max(0,b.y+m.vy*dt);
     const wl=wallNear(b.x,b.z,1.6,b.y);
@@ -987,7 +1003,7 @@ const notes=$('netstatus');
   else notes.textContent='Online play works when this page is opened on claude.ai. Play works anywhere.';
 })();
 
-function myPresence(){return{n:me.name,p:[+me.x.toFixed(2),+me.y.toFixed(2),+me.z.toFixed(2)],yw:+viewYaw().toFixed(3),pt:+viewPitch().toFixed(3),c:me.crouch||me.slideT>0?1:0,l:+((me.leanOff||0)/0.55).toFixed(2),wr:me.wr,u:me.use,k:me.pick,g:me.give,sh:me.sh,tm:me.teamPref,w:me.w,r:me.reloadT>0?1:0,sx:myW(me.w).supp?1:0,h:net.host&&net.mode==='online'?net.hostSince:0};}
+function myPresence(){return{n:me.name,p:[+me.x.toFixed(2),+me.y.toFixed(2),+me.z.toFixed(2)],yw:+viewYaw().toFixed(3),pt:+viewPitch().toFixed(3),c:me.crouch||me.slideT>0?1:0,l:+((me.leanOff||0)/0.55).toFixed(2),wr:me.wr,u:me.use,k:me.pick,g:me.give,sh:me.sh,tm:me.teamPref,w:me.w,r:me.reloadT>0?1:0,sx:myW(me.w).supp?1:0,ds:(me.dashSeq|0)%1000,h:net.host&&net.mode==='online'?net.hostSince:0};}
 function peerList(){
   if(net.mode==='solo')return[{peer:'local',presence:myPresence(),isMe:true}];
   if(!net.room)return[];
@@ -1041,7 +1057,7 @@ function packState(){
   const xsPack=x=>{if(!x)return null;const o={w:{}};for(const f in x)if(f!=='w'&&x[f])o[f]=x[f];for(const k in x.w||{})if(x.w[k])o.w[k]=x.w[k];return o;};
   const pl=(p,xs)=>{const o={s:p.s,team:p.team,bot:p.bot?1:0,name:p.name,hp:r(p.hp),st:p.st,x:r(p.x),y:r(p.y),z:r(p.z),yaw:r(p.yaw),pitch:r(p.pitch),w:p.w,sp:p.sp,spx:p.spx,spz:p.spz,spyaw:r(p.spyaw),sh:p.sh};
     if(!p.bot)o.peer=p.peer;if(!dm)o.lastZ=p.lastZ;if(p.st==='down'){o.dhp=r(p.dhp);o.downT=r(p.downT);}if(p.st==='dead')o.deadT=r(p.deadT);
-    if(p.ak){o.ak=p.ak;o.at=p.at;o.ap=r(p.ap);}if(p.wr)o.wr=p.wr|0;if(p.prot>0)o.prot=r(p.prot);if(dm){o.k=p.k|0;o.d=p.d|0;}if(p.sx)o.sx=1;
+    if(p.ak){o.ak=p.ak;o.at=p.at;o.ap=r(p.ap);}if(p.wr)o.wr=p.wr|0;if(p.prot>0)o.prot=r(p.prot);if(dm){o.k=p.k|0;o.d=p.d|0;}if(p.sx)o.sx=1;if(p.ds)o.ds=p.ds|0;
     if(xs(p)&&!p.bot)o.xs=xsPack(p.xs);return o;};
   const mk=(tn,xs)=>{const o={...S,t:r(S.t),timer:r(S.timer),clock:r(S.clock),armed:S.armed?{site:S.armed.site,t:r(S.armed.t)}:null,regen:(S.regen||[]).map(v=>v>0?r(v):0),
     players:S.players.map(p=>pl(p,xs))};delete o.tn;if(tn)o.tn=tunePack();return o;};
@@ -2246,7 +2262,7 @@ document.addEventListener('pointerdown',audioWake,true);document.addEventListene
 /* dev overlay sound tuning: per sound volume x, pitch x, tone (low-pass Hz), low cut (high-pass Hz), extra echo send.
    Neutral everywhere outside the sandbox; the sandbox dev overlay (T) edits it and can save/export it. */
 const TUNE_N={vol:1,pitch:1,lp:20000,hp:0,wet:0};
-const SND_KEYS=['rifle','smg','br','sg','lmg','sniper','impact','boltCatch','boltSlam','click','steps','slide','cover','crowd','announcer','hit','hitHead','hitDown','hitKill','boom','ui'];
+const SND_KEYS=['rifle','smg','br','sg','lmg','sniper','impact','boltCatch','boltSlam','click','steps','slide','dash','cover','crowd','announcer','hit','hitHead','hitDown','hitKill','boom','ui'];
 /* Joe's tuned defaults (from his sandbox export, 2026-11-11); anything not listed is neutral */
 const TUNE_D={boltCatch:{vol:1.31},boltSlam:{pitch:1.06},click:{vol:1.01},steps:{pitch:0.88},slide:{pitch:1.54},announcer:{pitch:0.91}};
 const tuneDef=k=>({...TUNE_N,...(TUNE_D[k]||{})});
@@ -2317,6 +2333,11 @@ function footstep(mode,k,x,z,who){if(!audioInit())return;stepInit();if(!stepBufs
   if(mode==='land')stepVoice(m,v*(0.6+0.3*k),at+0.03+0.03*Math.random(),pan,lp*0.8,wet,ft);}
 /* old call shape kept for the settings test button and anything else */
 function stepSound(crouch,k,x,z){footstep(crouch?'crouch':k>0.8?'run':'walk',k,x,z);}
+/* dash: a short air rush (band-passed noise sweeping up) over a low push; spatialised for other players */
+function dashSound(x,z){if(!audioInit())return;let v=1,pan=0,at=0,lp=9000;
+  if(x!=null){const s=spat(x,z);v=s.vol*1.4;if(v<0.02)return;pan=s.pan;at=s.d/343;lp=Math.max(1200,9000*Math.exp(-s.d/25));}
+  snd({noise:true,type:'bandpass',f:450,f1:2600,q:0.9,dur:0.34,atk:0.03,vol:0.34*v,bus:'steps',pan,at,lp,tk:'dash',wet:x!=null?0.12:0.04});
+  snd({f:130,f1:55,dur:0.18,atk:0.01,vol:0.16*v,bus:'steps',pan,at,lp,tk:'dash'});}
 /* slide: the recorded scrape, faded out when the slide ends (or is cut short by a jump) */
 function slideSound(x,z){if(!audioInit())return;stepInit();if(!slideBuf)return null;let v=0.15,pan=0,lp=5200,at=0;
   if(x!=null){const s=spat(x,z);v*=s.vol*1.5;if(v<0.012)return null;pan=s.pan;lp=Math.max(900,5200*Math.exp(-s.d/25));at=s.d/343;}
@@ -2509,6 +2530,7 @@ document.addEventListener('keydown',e=>{
   if((e.code==='KeyT'||e.code==='Backquote')&&SB.on&&!e.repeat)toggleSB();
   if(/^Digit[1-6]$/.test(e.code)){const zi=+e.code.slice(5)-1;if(WH.open){WH.hov=WKEYS[zi];closeWheel(true);}else if(S&&S.phase==='buy'){setWeapon(WKEYS[zi]);}else choosePick(zi);}
   if(e.code==='Space'){e.preventDefault();if(!e.repeat)me.jumpBuf=0.14;}
+  if(e.code==='KeyV'&&!e.repeat)me.dashBuf=0.12;
 });
 document.addEventListener('keyup',e=>{keys[e.code]=false;});
 window.addEventListener('blur',()=>{for(const k in keys)keys[k]=false;mouseDown=false;adsDown=false;});
@@ -2607,7 +2629,7 @@ const SB={on:false,timer:false,tickets:true,bots:'on',god:false,ammo:false,names
 const CFG0={...CFG},ZHP0=[...ZHP];
 const SB_KNOBS=[
  ['Gunplay',[['dmg','Rifle body damage',5,100,1],['head','Rifle head damage',5,200,1],['fireCd','Rifle seconds between shots',0.03,0.5,0.01],['mag','Rifle magazine',1,100,1],['reload','Rifle reload (s)',0.3,5,0.1]]],
- ['Movement',[['speed','Walk speed (m/s)',2,12,0.1],['sprint','Sprint speed (m/s)',3,16,0.1],['crawl','Downed crawl (m/s)',0,6,0.1],['jump','Jump strength',2,14,0.1],['grav','Gravity',5,40,0.5],['wallRun','Wallrun time (s)',0,4,0.1],['wallGrav','Wallrun gravity (x normal)',0,1,0.02],['wallKick','Wall jump push (m/s)',0,15,0.5],['grab','Ledge grab reach above feet (m)',0,3.5,0.1]]],
+ ['Movement',[['speed','Walk speed (m/s)',2,12,0.1],['sprint','Sprint speed (m/s)',3,16,0.1],['crawl','Downed crawl (m/s)',0,6,0.1],['jump','Jump strength',2,14,0.1],['grav','Gravity',5,40,0.5],['wallRun','Wallrun time (s)',0,4,0.1],['wallGrav','Wallrun gravity (x normal)',0,1,0.02],['wallKick','Wall jump push (m/s)',0,15,0.5],['grab','Ledge grab reach above feet (m)',0,3.5,0.1],['dash','Dash speed (m/s)',8,40,0.5],['dashT','Dash length (s)',0.05,0.5,0.01],['dashN','Dash charges',1,5,1],['dashCd','Dash recharge per charge (s)',0,15,0.1]]],
  ['Down and return',[['downHP','Downed HP',1,100,1],['bleed','Bleed-out (s)',1,30,0.5],['revive','Revive (s)',0.5,10,0.1],['respawn','Respawn wait (s)',0,20,0.5],['spawnProt','Spawn shield (s)',0,10,0.5],['killHeal','HP gained for a down',0,100,5],['block','Spawn block radius (m)',0,40,1],['tickets','Respawns per team (next round)',0,20,1]]],
  ['Objective',[['roundTime','Round length (s, next round)',20,300,5],['arm','Arm time (s)',0.5,15,0.5],['defuse','Defuse time (s)',0.5,15,0.5],['fuse','Fuse (s)',5,90,1]]],
  ['Deathmatch',[['dmRespawn','Respawn wait (s)',0,15,0.5],['dmTime','Match length (s, next match)',60,1800,30],['dmKills1','Kills to win 1v1 (next match)',1,100,1],['dmKills2','Kills to win 2v2 (next match)',1,150,1],['dmKills4','Kills to win 4v4 (next match)',1,200,1]]],
@@ -2830,7 +2852,7 @@ function devHit(kind,n,gun){const cd=CFG.fireCd*1000;for(let i=0;i<n;i++)setTime
 function devTest(k,far){const fx=camera.position.x+35,fz=camera.position.z;
   if(GUN[k]){shotSound(k,far?fx:undefined,far?fz:undefined);return;}
   ({boltCatch:()=>boltSound(false,0,0.32),boltSlam:()=>boltSound(true,0.1,0.52),click:()=>dryFire(),steps:()=>devSteps('walk',far),
-    slide:()=>{const h=slideSound();setTimeout(()=>sndFade(h,0.08),650);},cover:()=>{coverBreakSound(false,false,0,1);setTimeout(()=>coverBreakSound(true,true,0,1),600);},
+    slide:()=>{const h=slideSound();setTimeout(()=>sndFade(h,0.08),650);},dash:()=>dashSound(far?fx:undefined,far?fz:undefined),cover:()=>{coverBreakSound(false,false,0,1);setTimeout(()=>coverBreakSound(true,true,0,1),600);},
     boom:()=>boom(camera.position.x+12,camera.position.z),announcer:()=>{[3,2,1,'fight','won','lost','sides','offense','defense','planted','double','triple'].forEach((k,i)=>announce(k,i<4?i:4.6+(i-4)*1.9));},crowd:()=>{crowdCheer('knock',1);setTimeout(()=>crowdCheer('point',1),2500);setTimeout(()=>crowdCheer('win',1),7000);},impact:()=>{for(let i=0;i<5;i++)setTimeout(()=>impactSound(camera.position.x+(far?35:6),camera.position.z+(Math.random()-.5)*2,1),i*140);},hit:()=>devHit('hit',5,far),hitHead:()=>devHit('head',3,far),hitDown:()=>devHit('down',3,far),hitKill:()=>devHit('kill',3,far),ui:()=>sting('win')}[k]||(()=>{}))();}
 function buildWpn(el,mk){
   el.append(mk('div','note','Stats for each weapon, for you and the bots. The rifle’s first five also show on the Rules tab.'));
@@ -3519,6 +3541,7 @@ function tPress(a,el,down){
   if(a==='use'){const s=mySlot(),P=s>=0&&S?S.players[s]:null;if(!down){keys.KeyF=keys.KeyG=false;return;}if(P&&P.st==='down')keys.KeyG=true;else keys.KeyF=true;return;}
   if(!down)return;
   if(a==='jump')me.jumpBuf=0.14;
+  else if(a==='dash')me.dashBuf=0.12;
   else if(a==='reload')startReload();
   else if(a==='ads')adsDown=!adsDown;
   else if(a==='menu'){touchRelease();openPause();}
@@ -3576,10 +3599,15 @@ const lastHit=Array(8).fill(0),prevSt=Array(8).fill('');
 function viewPitch(){return clamp(me.pitch+(me.rcP||0),-1.5,1.5);}
 function viewYaw(){return me.yaw+(me.rcY||0);}
 function approach(vx,vz,tx,tz,step){const dx=tx-vx,dz=tz-vz,L=Math.hypot(dx,dz);if(L<=step||L<1e-6)return[tx,tz];return[vx+dx/L*step,vz+dz/L*step];}
+/* dash charge pips under the HP bar: full ones glow, the next one fills as it recharges */
+let dashHudK='';
+function dashHud(){const n=Math.max(1,CFG.dashN|0),el=$('dashpips');while(el.children.length-1<n)el.append(document.createElement('i'));while(el.children.length-1>n)el.lastChild.remove();
+  const have=Math.min(n,me.dashN==null?n:me.dashN),pr=CFG.dashCd>0?clamp(me.dashR/CFG.dashCd,0,1):1,key=have+':'+(have<n?pr.toFixed(2):'');if(key===dashHudK)return;dashHudK=key;
+  for(let i=0;i<n;i++){const c=el.children[i+1],f=i<have?1:i===have?pr:0;c.style.setProperty('--f',f.toFixed(3));c.style.setProperty('--g',i<have?1:0);}}
 function localTick(dt){
   const s=mySlot();const P=s>=0?S.players[s]:null;
   if(!P){camera.position.set(0,45,34);camera.rotation.set(-0.95,0,0);vm.visible=false;return;}
-  if(P.sp!==me.sp){if(me.sp>=0&&!locked)me.wantLock=true;me.sp=P.sp;me.x=P.spx;me.z=P.spz;me.y=0;me.vy=0;me.yaw=P.spyaw;me.pitch=0;me.w=me.wPref;showWeapon(me.w);me.ammo=myW(me.w).mag;me.reloadT=0;me.pick=-1;me.give=false;me.vx=me.vz=0;me.rcP=me.rcY=me.bloom=0;me.slideT=0;me.wr=0;me.wrLast=null;me.kicked=false;me.mantle=null;me.drawT=0.42;me.kP=me.kV=me.kUp=me.kYaw=me.kRoll=me.boltT=0;}
+  if(P.sp!==me.sp){if(me.sp>=0&&!locked)me.wantLock=true;me.sp=P.sp;me.x=P.spx;me.z=P.spz;me.y=0;me.vy=0;me.yaw=P.spyaw;me.pitch=0;me.w=me.wPref;showWeapon(me.w);me.ammo=myW(me.w).mag;me.reloadT=0;me.pick=-1;me.give=false;me.vx=me.vz=0;me.rcP=me.rcY=me.bloom=0;me.slideT=0;me.wr=0;me.wrLast=null;me.kicked=false;me.mantle=null;me.dashN=Math.max(1,CFG.dashN|0);me.dashR=0;me.dashT=0;me.drawT=0.42;me.kP=me.kV=me.kUp=me.kYaw=me.kRoll=me.boltT=0;}
   if(S.mid!==me.mid){me.mid=S.mid;newMatchLocal();}
   if(S.round!==me.round){me.round=S.round;me.w=me.wPref;showWeapon(me.w);me.ammo=myW(me.w).mag;}
   const alive=P.st==='alive',downed=P.st==='down';
@@ -3598,10 +3626,21 @@ function localTick(dt){
   me.crouch=crouchKey;
   if(me.slideT>0){me.slideT-=dt;if(!crouchKey||speedNow<3.2)me.slideT=0;}
   const sliding=me.slideT>0;
+  // dash: a short burst the way you are pushing (straight ahead if you aren't), on the ground or in the air.
+  // CFG.dashN charges; spent ones refill one at a time, CFG.dashCd seconds each
+  {const dN=Math.max(1,CFG.dashN|0);if(me.dashN==null)me.dashN=dN;
+    if(me.dashN<dN){me.dashR=(me.dashR||0)+dt;if(me.dashR>=CFG.dashCd){me.dashN++;me.dashR=0;}}else{me.dashN=dN;me.dashR=0;}
+    me.dashBuf=(me.dashBuf||0)-dt;if(!alive)me.dashT=0;
+    if(me.dashBuf>0&&alive&&!frozen&&!me.mantle&&me.dashN>0&&!(me.dashT>0)){
+      let dx=wx,dz=wz;const Ld=Math.hypot(dx,dz);if(Ld<0.2){dx=-sy;dz=-cy;}else{dx/=Ld;dz/=Ld;}
+      me.dashN--;me.dashBuf=0;me.dashT=CFG.dashT;me.dashX=dx;me.dashZ=dz;me.slideT=0;me.wr=0;me.wrCd=0.2;me.dashSeq=(me.dashSeq|0)+1;me.dashK=1;
+      if(!me.ground&&me.vy<0)me.vy=0;sndFade(me.slideSnd);me.slideSnd=null;dashSound();}}
   const maxSpd=downed?CFG.crawl:(sprinting?CFG.sprint:me.crouch?3.2:adsWant?4.2:CFG.speed)*myW(me.w).move;
   if(!alive||frozen)me.mantle=null;
-  if(!canMove||me.mantle){me.vx=0;me.vz=0;}
-  else if(sliding&&me.ground){const f=Math.max(0,1-1.5*dt);me.vx*=f;me.vz*=f;}
+  if(!canMove||me.mantle){me.vx=0;me.vz=0;me.dashT=0;}
+  else if(me.dashT>0){me.dashT-=dt;me.vx=me.dashX*CFG.dash;me.vz=me.dashZ*CFG.dash;
+    if(me.dashT<=0){const e=Math.max(maxSpd,CFG.sprint*myW(me.w).move);me.vx=me.dashX*e;me.vz=me.dashZ*e;}}/* come out of it at sprint speed */
+  else if(me.slideT>0&&me.ground){const f=Math.max(0,1-1.5*dt);me.vx*=f;me.vz*=f;}
   else if(me.ground){[me.vx,me.vz]=approach(me.vx,me.vz,wx*maxSpd,wz*maxSpd,(L>0?62:48)*dt);}
   else if(L>0){const sp=Math.max(maxSpd*0.9,speedNow);[me.vx,me.vz]=approach(me.vx,me.vz,wx*sp,wz*sp,15*dt);}
   const px=me.x,pz=me.z,pos={x:me.x,z:me.z};moveCircle(pos,me.vx*dt,me.vz*dt,0.38,me.y);me.x=pos.x;me.z=pos.z;
@@ -3614,7 +3653,7 @@ function localTick(dt){
   if(wall){
     const tx=-wall.nz,tz=wall.nx,along=me.vx*tx+me.vz*tz,push=wx*wall.nx+wz*wall.nz;
     if(!me.wr&&me.wrCd<=0&&wall.b!==me.wrLast&&Math.abs(along)>5&&fz<0&&push<0.4&&me.vy>-7){
-      me.wr=(cy*wall.nx-sy*wall.nz)>0?-1:1;me.wrT=CFG.wallRun;me.wrLast=wall.b;me.vy=clamp(me.vy,1,2.5);me.slideT=0;footstep('wall',1);}
+      me.wr=(cy*wall.nx-sy*wall.nz)>0?-1:1;me.wrT=CFG.wallRun;me.wrLast=wall.b;me.vy=clamp(me.vy,1,2.5);me.slideT=0;me.dashT=0;footstep('wall',1);}
     if(me.wr){me.wrT-=dt;
       if(me.wrT<=0||Math.abs(along)<3.5||fz>=0||push>0.6){me.wr=0;me.wrCd=0.2;}
       else{const sp=Math.sign(along)*Math.max(Math.abs(along),CFG.sprint*myW(me.w).move);me.vx=tx*sp-wall.nx*0.5;me.vz=tz*sp-wall.nz*0.5;me.wrNx=wall.nx;me.wrNz=wall.nz;}}
@@ -3645,7 +3684,7 @@ function localTick(dt){
   speedNow=Math.hypot(me.vx,me.vz);
   if(alive&&!frozen&&!me.mantle&&me.jumpBuf>0&&me.airT<0.1&&me.vy<=0.01){me.vy=CFG.jump;me.ground=false;me.airT=1;me.jumpBuf=0;me.slideT=0;footstep('push',clamp(speedNow/CFG.sprint,0,1));}
   const vyB=me.vy,wasG=me.ground;
-  if(!me.mantle){me.vy-=CFG.grav*(me.wr?CFG.wallGrav:1)*dt;if(me.wr&&me.vy<-1.5)me.vy=-1.5;me.y+=me.vy*dt;if(me.y>ROOF_Y-1.85){me.y=ROOF_Y-1.85;if(me.vy>0)me.vy=0;}const g=groundAt(me.x,me.z,me.y);
+  if(!me.mantle){me.vy-=CFG.grav*(me.wr?CFG.wallGrav:me.dashT>0?0.15:1)*dt;if(me.wr&&me.vy<-1.5)me.vy=-1.5;me.y+=me.vy*dt;if(me.y>ROOF_Y-1.85){me.y=ROOF_Y-1.85;if(me.vy>0)me.vy=0;}const g=groundAt(me.x,me.z,me.y);
   if(me.y<=g){if(!wasG&&vyB<-3){me.land=Math.min(0.2,-vyB*0.02);footstep('land',clamp((-vyB-3)/9,0,1));me.bloom=Math.min(0.03,me.bloom+0.01);}me.y=g;me.vy=0;me.ground=true;me.wr=0;}else me.ground=me.y-g<0.02;}
   me.use=!!keys.KeyF&&alive;
   const leanT=alive&&!frozen&&!sliding&&!sprinting?(keys.KeyE?1:0)-(keys.KeyQ?1:0):0;me.lean+=(leanT-me.lean)*Math.min(1,dt*11);me.give=!!keys.KeyG&&downed;
@@ -3689,7 +3728,8 @@ function localTick(dt){
   me.leanOff=lo;
   camera.position.set(me.x+Math.cos(viewYaw())*lo+(Math.random()-.5)*0.008*sh+BL.cx,me.y+me.eye+bobY-me.land*RM-Math.abs(lo)*0.12+BL.cy,me.z-Math.sin(viewYaw())*lo+(Math.random()-.5)*0.008*sh+BL.cz);
   camera.rotation.set(viewPitch()+(Math.random()-.5)*0.005*sh+BL.rp,viewYaw()+BL.ry,me.roll*RM-me.lean*0.16+BL.rr);
-  const fovT=sliding||me.wr?OPT.fov+10:OPT.fov+8*me.sprintK-24*me.ads*(OPT.fov/78)*myW(me.w).zoom;me.fov+=(fovT-me.fov)*Math.min(1,dt*12);
+  me.dashK=(me.dashK||0)*Math.exp(-7*dt);
+  const fovT=(sliding||me.wr?OPT.fov+10:OPT.fov+8*me.sprintK-24*me.ads*(OPT.fov/78)*myW(me.w).zoom)+9*me.dashK*RM;me.fov+=(fovT-me.fov)*Math.min(1,dt*12);
   if(Math.abs(camera.fov-me.fov)>0.05){camera.fov=me.fov;camera.updateProjectionMatrix();}
   // viewmodel
   vm.visible=alive;
@@ -3781,8 +3821,9 @@ function renderOthers(dt){
   for(let i=0;i<S.players.length;i++){
     const p=S.players[i],a=avatars[i];
     if(i===s){a.g.visible=false;a.blob.visible=false;a.hullM.visible=false;continue;}
-    let x=p.x,y=p.y,z=p.z,yaw=p.yaw,pitch=p.pitch,sh=p.sh;a.crouch=false;let ln=0,wr=p.wr||0,rld=false;
-    if(!p.bot&&net.mode==='online'){const pr=presenceOf(p.peer);if(pr&&Array.isArray(pr.p)){x=+pr.p[0]||0;y=+pr.p[1]||0;z=+pr.p[2]||0;yaw=+pr.yw||0;pitch=+pr.pt||0;sh=pr.sh|0;a.crouch=!!pr.c;ln=clamp(+pr.l||0,-1,1);wr=clamp(+pr.wr||0,-1,1);rld=!!pr.r;}}a.wrK=(a.wrK||0)+(wr-(a.wrK||0))*Math.min(1,dt*10);a.lean=(a.lean||0)+(ln-(a.lean||0))*Math.min(1,dt*14);
+    let x=p.x,y=p.y,z=p.z,yaw=p.yaw,pitch=p.pitch,sh=p.sh;a.crouch=false;let ln=0,wr=p.wr||0,rld=false,ds=p.ds|0;
+    if(!p.bot&&net.mode==='online'){const pr=presenceOf(p.peer);if(pr&&Array.isArray(pr.p)){x=+pr.p[0]||0;y=+pr.p[1]||0;z=+pr.p[2]||0;yaw=+pr.yw||0;pitch=+pr.pt||0;sh=pr.sh|0;a.crouch=!!pr.c;ln=clamp(+pr.l||0,-1,1);wr=clamp(+pr.wr||0,-1,1);rld=!!pr.r;ds=pr.ds|0;}}
+    if(a.dsK!=null&&ds!==a.dsK&&p.st==='alive')dashSound(a.rx,a.rz);a.dsK=ds;a.wrK=(a.wrK||0)+(wr-(a.wrK||0))*Math.min(1,dt*10);a.lean=(a.lean||0)+(ln-(a.lean||0))*Math.min(1,dt*14);
     /* a killed player falls where they stood and the body stays a few seconds, instead of blinking out */
     const dead=p.st==='dead';
     if(dead&&a.deadK<0&&a.init&&(a.st0==='alive'||a.st0==='down')){a.deadK=0;a.cvy=0;a.fromDown=a.st0==='down';a.dieN++;a.dieDir=(a.dieN+i)%3===2?-1:1;a.dieSide=(a.dieN+i)%2?1:-1;}
@@ -3915,7 +3956,7 @@ function hud(dt){
   if(fd.dataset.k!==fk){fd.dataset.k=fk;fd.replaceChildren(...items.map(f=>{const d=document.createElement('div');d.textContent=f.m;return d;}));}
   // vitals
   if(P){
-    const hp=P.st==='alive'?Math.max(0,Math.round(P.hp)):0;$('hpnum').textContent=hp;$('hpfill').style.width=hp+'%';$('hpfill').style.background=hpColor(hp);
+    const hp=P.st==='alive'?Math.max(0,Math.round(P.hp)):0;$('hpnum').textContent=hp;$('hpfill').style.width=hp+'%';dashHud();$('hpfill').style.background=hpColor(hp);
     const zi=zoneOf(me.x);const rh=dm?100:returnHP(role,zi);
     $('zoneline').innerHTML='';if(!dm){const b=document.createElement('b');b.textContent=zoneName(role,zi);const sp=document.createElement('span');sp.textContent=' · come back here at ';const h=document.createElement('b');h.textContent=rh+' HP';h.style.color=hpColor(rh);
     $('zoneline').append(b,sp,h);}if(P.st==='alive'&&P.prot>0&&S.phase==='live'){const sh=document.createElement('b');sh.textContent=' · Spawn shield '+P.prot.toFixed(1)+'s';sh.style.color='var(--accent)';$('zoneline').append(sh);}
