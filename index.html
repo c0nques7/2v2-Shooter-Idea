@@ -158,6 +158,8 @@ body{background:var(--bg);color:var(--fg);overflow:hidden;font-family:var(--disp
 #banner{left:50%;top:26%;transform:translateX(-50%);text-align:center;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 26px}
 #banner h2{margin:0;font-size:34px;letter-spacing:.04em;text-wrap:balance}
 #banner p{margin:4px 0 0;color:var(--muted);font-size:17px}
+#rgread{left:50%;bottom:calc(44px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);font-size:14px;color:var(--fg);background:var(--panel);padding:3px 12px;border-radius:8px;border:1px solid var(--line);white-space:nowrap;max-width:calc(100vw - 24px);overflow:hidden;text-overflow:ellipsis}
+#sbpanel .rglist{display:flex;flex-direction:column;gap:4px}#sbpanel .rgrow{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px}#sbpanel .rgrow .btn{padding:2px 8px}
 #netpill{left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);font-size:13px;color:var(--muted);background:var(--panel);padding:2px 10px;border-radius:10px;border:1px solid var(--line)}
 #pause{z-index:13;background:rgba(5,4,12,.62);flex-direction:column}
 #pause .setcard{width:min(520px,100%)}
@@ -333,6 +335,7 @@ body.touch .chip{min-height:44px}
 <div class="hud" id="cross" hidden><i class="d"></i><i class="v" id="chT"></i><i class="v" id="chB"></i><i class="h" id="chL"></i><i class="h" id="chR"></i></div>
 <div class="hud" id="dmg"></div>
 <div class="hud" id="confirm"></div>
+<div class="hud" id="rgread" hidden></div>
 <div class="hud" id="hitmark"></div>
 <canvas class="hud" id="ring" width="120" height="120" style="width:60px;height:60px" hidden></canvas>
 <div class="hud" id="prompt" hidden></div>
@@ -609,7 +612,7 @@ const botMem={};
 let diffMul=1;
 /* match type, picked on the main menu: 'zone' (2v2 attack/defense) or 'dm' (deathmatch: 1v1, or 2v2 / 4v4 teams). Online, the room name
    carries the mode, so everyone in a room plays the host's S.mode. */
-const MATCH={mode:'zone',size:2};
+const MATCH={mode:'zone',size:2,range:false};
 const DM_KILLS=n=>n===1?CFG.dmKills1:n===4?CFG.dmKills4:CFG.dmKills2;
 const modeName=(m,n)=>m==='dm'?(n===1?'Deathmatch 1v1':`Team deathmatch ${n}v${n}`):'Zone 2v2';
 function mkPlayer(s,prev){return{s,team:s%2,bot:prev?prev.bot:true,peer:prev?prev.peer:null,name:prev?prev.name:BOTN[s],hp:100,st:'alive',x:0,y:0,z:0,yaw:0,pitch:0,dhp:0,downT:0,deadT:0,ak:null,at:-1,ap:0,sp:0,spx:0,spz:0,spyaw:0,sh:0,use:false,give:false,pick:-1,lastZ:-1,w:'rifle',wr:0,prot:0,k:0,d:0,xs:newXS()};}
@@ -618,7 +621,9 @@ function newMatch(){
   const dm=MATCH.mode==='dm',size=dm?MATCH.size:2,N=size*2;
   S={mid:(S&&S.mid||0)+1,mode:dm?'dm':'zone',size,kills:dm?DM_KILLS(size):0,round:1,phase:'buy',t:CFG.buy,timer:CFG.roundTime,score:[0,0],tickets:[CFG.tickets,CFG.tickets],armed:null,last:null,feed:[],clock:S?S.clock:0,diff:diffMul,botSite:['A','A'],sudden:false,
      players:Array.from({length:N},(_,i)=>mkPlayer(i,prev&&prev.length===N?prev[i]:null))};
+  S.range=!!(MATCH.range&&SB.on);
   if(dm)dmStart();else startRound();
+  if(S.range)rgStart();
 }
 function feed(m){S.feed.push({t:+S.clock.toFixed(2),m});if(S.feed.length>6)S.feed.shift();}
 function spawnAt(p,zi,role){
@@ -662,7 +667,7 @@ function dmSpawnSpot(p){
   for(const k of cand.slice(0,24)){let seen=0;for(const e of foes){if(hyp(k.c.x,k.c.z,e.x,e.z)<50&&losPts(e.x,e.y+1.5,e.z,k.c.x,1.4,k.c.z))seen++;}
     const sc=k.sc-seen*30;if(sc>bs){bs=sc;best=k.c;}}
   return best||{x:p.team===0?-46:46,z:0};}
-function dmRespawn(p){const c=dmSpawnSpot(p);dmPlace(p,c.x,c.z,Math.atan2(c.x,c.z*0.7));}/* face back toward the middle */
+function dmRespawn(p){if(S.range){const it=p.bot&&RG.list.find(q=>q.id===p.rgId);if(!p.bot)rgHome(p);else if(it)rgBotPlace(it);else p.deadT=1;return;}const c=dmSpawnSpot(p);dmPlace(p,c.x,c.z,Math.atan2(c.x,c.z*0.7));}/* face back toward the middle */
 function dmStart(){S.cover=COVER.map(b=>b.max);S.regen=COVER.map(()=>0);S.center={own:-1,cap:-1,p:0};S.armed=null;S.tickets=[0,0];S.sudden=false;
   S.timer=CFG.dmTime;S.phase='buy';S.t=Math.max(CFG.buy,CFG.buy1);S.last=null;for(const p of S.players){p.k=0;p.d=0;dmHome(p);}}
 function endDM(){if(S.phase!=='live')return;const w=S.score[0]===S.score[1]?-1:S.score[0]>S.score[1]?0:1;S.phase='over';S.t=CFG.overT;S.last={team:w,why:''};
@@ -673,7 +678,7 @@ function dmKill(t,a){multiKill(a,t);t.st='dead';t.hp=0;t.deadT=CFG.dmRespawn;t.a
 function dmTick(dt){if(!(SB.on&&!SB.timer)){S.timer-=dt;if(S.timer<=0){S.timer=0;endDM();return;}}
   for(const p of S.players){if(p.prot>0)p.prot=Math.max(0,p.prot-dt);p.ak=null;p.ap=0;p.at=-1;
     if(p.st==='down')p.st='dead';
-    if(p.st==='dead'){p.deadT-=dt;if(p.deadT<=0&&!(SB.on&&p.bot&&SB.bots==='off'))dmRespawn(p);}}}
+    if(p.st==='dead'){p.deadT-=dt;if(p.deadT<=0&&!(SB.on&&p.bot&&SB.bots==='off'&&!S.range))dmRespawn(p);}}}
 function endRound(team,why){if(S.phase!=='live')return;S.score[team]++;S.phase='post';S.t=CFG.post;S.last={team,why};feed(`${TEAMN[team]} wins round ${S.round}: ${why}`);}
 /* multi-kills: taking an enemy out of the fight (a down in Zone, a kill in deathmatch) within CFG.multiT seconds of your last one
    chains. The 2nd is a double kill and the 3rd a triple kill; S.multi carries it to every player for the call and the lights. */
@@ -774,12 +779,12 @@ function botThink(b,dt){
   const m=botMem[b.s]||(botMem[b.s]={path:null,pathT:0,pg:null,seeT:0,tgtS:-1,fireCd:0,burst:0,strafeT:0,strafeDir:1,giveT:0,stuckT:0,lx:0,lz:0,wr:0,wrT:0,wrB:null,wrCd:2,vy:0,kvx:0,kvz:0,tx:0,tz:0,nx:0,nz:0});
   b.use=false;
   if(b.st!=='alive'||S.phase!=='live'){m.wr=0;b.wr=0;m.kvx=m.kvz=0;if(b.y>0){m.vy-=CFG.grav*dt;b.y+=m.vy*dt;const g=groundAt(b.x,b.z,b.y);if(b.y<=g){b.y=g;m.vy=0;}}}
-  if(SB.on&&SB.bots==='off'){if(b.st!=='dead'){b.st='dead';b.hp=0;b.deadT=0;b.ak=null;b.ap=0;}return;}
+  if(SB.on&&(S.range?!b.rgId:SB.bots==='off')){if(b.st!=='dead'){b.st='dead';b.hp=0;b.deadT=0;b.ak=null;b.ap=0;}return;}
   if(b.st==='down'){const mate=S.players.find(o=>o.team===b.team&&o!==b);if(!mate||mate.st!=='alive'){m.giveT+=dt;if(m.giveT>2.5)b.give=true;}else{m.giveT=0;b.give=false;}return;}
   if(b.st!=='alive'){b.give=false;return;}
   b.give=false;m.giveT=0;
   if(S.phase!=='live')return;
-  if(SB.on&&SB.bots==='passive')return;
+  if(SB.on&&(S.range?RG.list.some(q=>q.id===b.rgId&&q.pass):SB.bots==='passive'))return;
   const role=roleOf(b.team,S.round);
   let tgt=null,best=1e9;
   for(const e of S.players){if(e.team===b.team||e.st==='dead')continue;const d=dist(b,e);if(d>55||(e.st==='down'&&d>22))continue;
@@ -2441,9 +2446,8 @@ function choosePick(zi){const s=mySlot();if(s<0||!S||S.players[s].st!=='dead')re
 
 
 /* ---------- sandbox (solo test range) ---------- */
-const SB={on:false,timer:false,tickets:true,bots:'on',god:false,ammo:false,names:false,tab:'rules',mode:'zone'};
-try{const m=localStorage.getItem('za-sbmode');if(/^(zone|dm[124])$/.test(m))SB.mode=m;}catch(e){}
-try{const t=localStorage.getItem('za-sbtab');if(['rules','snd','wpn','obj'].includes(t))SB.tab=t;}catch(e){}
+/* the sandbox always opens at the shooting range (see RG); the Game mode select switches to the arena modes for the session */
+const SB={on:false,timer:false,tickets:true,bots:'on',god:false,ammo:false,names:false,tab:'range',mode:'range'};
 const CFG0={...CFG},ZHP0=[...ZHP];
 const SB_KNOBS=[
  ['Gunplay',[['dmg','Rifle body damage',5,100,1],['head','Rifle head damage',5,200,1],['fireCd','Rifle seconds between shots',0.03,0.5,0.01],['mag','Rifle magazine',1,100,1],['reload','Rifle reload (s)',0.3,5,0.1]]],
@@ -2470,13 +2474,12 @@ function buildSBIn(el,top){
   const hd=mk('div','hd');hd.append(mk('b','','Sandbox dev'),mk('span','','T or Esc to close'));el.append(hd);
   devTabs(el,mk);
   const done=()=>{requestAnimationFrame(()=>{el.scrollTop=top;});devHL();};
+  if(SB.tab==='range'){buildRange(el,mk);return done();}
   if(SB.tab==='snd'){buildSnd(el,mk);return done();}if(SB.tab==='wpn'){buildWpn(el,mk);return done();}if(SB.tab==='obj'){buildObj(el,mk);return done();}
   el.append(mk('div','note','Changes apply live, save automatically, and carry over to practice and to online matches you host in this browser. The toggles under Rules (no damage, infinite ammo, bots, timer, name tags) only ever work in the sandbox.'));
   // game mode
   el.append(mk('h3','','Game mode'));
-  {const ml=mk('label','');ml.append(document.createTextNode('Mode'));const ms=document.createElement('select');
-    [['zone','Zone 2v2: attack and defend'],['dm1','Deathmatch 1v1'],['dm2','Team deathmatch 2v2'],['dm4','Team deathmatch 4v4']].forEach(([v,t])=>{const o=document.createElement('option');o.value=v;o.textContent=t;ms.append(o);});
-    ms.value=SB.mode;ms.addEventListener('change',()=>{SB.mode=ms.value;try{localStorage.setItem('za-sbmode',SB.mode);}catch(e){}if(S&&net.mode==='solo'){readMenu();restartMatch();toggleSB(true);buildSB();}});ml.append(ms);el.append(ml);
+  {modeSelect(el,mk);
     el.append(mk('div','note','Changing the mode restarts the sandbox match. In deathmatch the sandbox has no kill limit, and the clock only runs if "Round timer runs" is on.'));}
   // toggles
   el.append(mk('h3','','Rules'));
@@ -2551,7 +2554,7 @@ function setCover(ci,g){const b=COVER[ci];g={...cGeo(b),...g};g.w=Math.max(0.3,g
   DEV.pend.add(ci);if(!DEV.raf)DEV.raf=requestAnimationFrame(devFlush);}
 function devFlush(){DEV.raf=0;for(const ci of DEV.pend){const o=coverVis[ci];scene.remove(o.g);o.g.traverse(n=>{if(n.geometry)n.geometry.dispose();});try{o.mat.dispose();}catch(e){}
     const v=makeCoverVis(COVER[ci]);mergeChildren(v.g);coverVis[ci]=v;}
-  DEV.pend.clear();rebuildGrid();renderer.shadowMap.needsUpdate=true;coverTick();devHL();}
+  DEV.pend.clear();rebuildGrid();rgRestow();renderer.shadowMap.needsUpdate=true;coverTick();devHL();}
 function coverEq(a,b){return ['x','z','w','d','h','hp'].every(k=>Math.abs(a[k]-b[k])<1e-6);}
 function devCollect(){const d={};const put=(sec,k,f,v)=>{((d[sec]=d[sec]||{})[k]=d[sec][k]||{})[f]=r2(v);};
   for(const k of SND_KEYS){const D=tuneDef(k);for(const f in TUNE_N)if(TUNE[k][f]!==D[f])put('sound',k,f,TUNE[k][f]);}
@@ -2598,14 +2601,14 @@ function devPickAt(cx,cy){const r=canvas.getBoundingClientRect(),v=new THREE.Vec
   const ci=pickCover(camera.position.x,camera.position.y,camera.position.z,v.x,v.y,v.z);if(ci>=0){DEV.sel=ci;buildSB();}}
 function devPickAim(){const v=new THREE.Vector3();camera.getWorldDirection(v);const ci=pickCover(camera.position.x,camera.position.y,camera.position.z,v.x,v.y,v.z);if(ci>=0)DEV.sel=ci;return ci;}
 function devHL(){if(!DEV.hl){DEV.hl=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1,1,1)),new THREE.LineBasicMaterial({color:0xffe14d,depthTest:false,transparent:true,toneMapped:false}));DEV.hl.renderOrder=20;DEV.hl.userData.noMerge=true;scene.add(DEV.hl);}
-  const b=COVER[DEV.sel],on=!!b&&SB.on&&!$('sbpanel').hidden&&SB.tab==='obj';DEV.hl.visible=on;if(!on)return;const g=cGeo(b);DEV.hl.position.set(g.x,g.h/2,g.z);DEV.hl.scale.set(g.w+0.08,g.h+0.08,g.d+0.08);}
+  const b=COVER[DEV.sel],on=!!b&&SB.on&&!RG.stowed&&!$('sbpanel').hidden&&SB.tab==='obj';DEV.hl.visible=on;if(!on)return;const g=cGeo(b);DEV.hl.position.set(g.x,g.h/2,g.z);DEV.hl.scale.set(g.w+0.08,g.h+0.08,g.d+0.08);}
 /* UI helpers shared by the tabs */
 function devKnob(el,txt,lo,hi,st,get,set,def,onIn){const mk=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e;};
   const w=mk('label','knob');const sp=mk('span','',txt);const out=document.createElement('output');const r=document.createElement('input');
   r.type='range';r.min=lo;r.max=hi;r.step=st;const show=()=>{const v=get();r.value=v;out.textContent=sbFmt(v,st<0.01?0.01:st);w.classList.toggle('chg',Math.abs(v-def)>1e-9);};show();
   r.addEventListener('input',()=>{set(+r.value);show();if(onIn)onIn();});w.title='Double-click to reset';w.addEventListener('dblclick',e=>{e.preventDefault();set(def);show();if(onIn)onIn();devStatus();});
   w.append(sp,out,r);el.append(w);return show;}
-function devTabs(el,mk){const tb=mk('div','tabs');for(const [k,t] of [['rules','Rules'],['snd','Sound'],['wpn','Weapons'],['obj','Objects']]){const b=mk('button','btn'+(SB.tab===k?' on':''),t);b.type='button';b.setAttribute('aria-pressed',SB.tab===k);b.addEventListener('click',()=>{SB.tab=k;try{localStorage.setItem('za-sbtab',k);}catch(e){}if(k==='obj'&&DEV.sel<0)devPickAim();buildSB();});tb.append(b);}el.append(tb);}
+function devTabs(el,mk){const tb=mk('div','tabs');for(const [k,t] of [['range','Range'],['rules','Rules'],['snd','Sound'],['wpn','Weapons'],['obj','Objects']]){const b=mk('button','btn'+(SB.tab===k?' on':''),t);b.type='button';b.setAttribute('aria-pressed',SB.tab===k);b.addEventListener('click',()=>{SB.tab=k;if(k==='obj'&&DEV.sel<0)devPickAim();buildSB();});tb.append(b);}el.append(tb);}
 function devFooter(el,mk){el.append(mk('h3','','Save and export'));
   const st=mk('div','note');st.id='devstat';el.append(st);
   const ta=document.createElement('textarea');ta.setAttribute('aria-label','All changed settings as JSON');ta.spellcheck=false;
@@ -2660,6 +2663,7 @@ function buildWpn(el,mk){
   const b2=mk('button','btn','Reset weapon');b2.type='button';b2.addEventListener('click',()=>{for(const [f] of W_FIELDS)wSet(k,f,W0[k][f]);buildSB();});bb.append(b1,b2);el.append(bb);
   devFooter(el,mk);}
 function buildObj(el,mk){
+  if(rgOn()){el.append(mk('div','note','Arena cover is put away at the shooting range. Spawn range cover on the Range tab, or switch the Game mode (Range or Rules tab) to edit the arena cover.'));devFooter(el,mk);return;}
   el.append(mk('div','note','Click a piece of cover in the view to select it, or aim at it and press T. Walls and spawn-room screens are fixed.'));
   const b=COVER[DEV.sel];const bb=mk('div','btns');const ab=(t,fn,dis)=>{const x=mk('button','btn',t);x.type='button';x.disabled=!!dis;x.addEventListener('click',fn);bb.append(x);};
   ab('Previous',()=>{DEV.sel=(DEV.sel<=0?COVER.length:DEV.sel)-1;buildSB();});ab('Next',()=>{DEV.sel=(DEV.sel+1)%COVER.length;buildSB();});
@@ -2681,6 +2685,193 @@ function buildObj(el,mk){
   oa('Reset piece',()=>{setCover(DEV.sel,COVER0[DEV.sel]);if(tw>=0&&DEV.mirror)setCover(tw,COVER0[tw]);buildSB();});
   oa('Reset all cover',()=>{COVER.forEach((_,i)=>{if(!coverEq(cGeo(COVER[i]),COVER0[i]))setCover(i,COVER0[i]);});buildSB();});
   el.append(ob);devFooter(el,mk);devHL();}
+
+/* ---------- sandbox shooting range ----------
+   The sandbox opens here, with no countdown: the arena with its midfield cover put away, a firing line at the west end, a mark
+   every 10 m and a starter set of targets. The Range tab (T) spawns more: training dummies (still or strafing), ringed target
+   boards, real bots (fighting back or standing still) and breakable cover. It runs as a 4v4 deathmatch in which only the bots
+   you spawn are ever alive. Range props are local to this browser: never saved, never sent online. The Game mode select puts
+   the arena back (Zone or deathmatch) and the props hide until you come back. */
+const RG={list:[],id:0,stowed:false,init:false,dist:20,move:'still',place:'ahead',dhp:100,respawn:2,acc:null,root:null,read:'',readT:0,shots:0,hits:0};
+const RG_START={x:-32,z:0};
+const RG_MOVES=[['still','Still'],['strafe','Strafe'],['fast','Fast strafe'],['adad','Random A-D']];
+const RG_MV={still:[0,0],strafe:[3.5,2.5],fast:[6.5,4.5],adad:[5,3]};// speed m/s, half range m
+const RG_KN={dummy:'Dummy',target:'Target',bot:'Bot',cover:'Cover'};
+function rgOn(){return !!(SB.on&&S&&S.range);}
+function rgHome(p){dmPlace(p,RG_START.x,RG_START.z,-Math.PI/2);p.prot=0;}
+/* shared meshes, built on first use */
+let RGM=null;
+function rgMats(){if(RGM)return RGM;
+  const bc=document.createElement('canvas');bc.width=bc.height=256;const g=bc.getContext('2d');
+  g.fillStyle='#f1ece0';g.fillRect(0,0,256,256);
+  for(let i=10;i>=1;i--){g.beginPath();g.arc(128,128,i*12.8,0,Math.PI*2);g.fillStyle=i<=2?'#ff3b2f':i<=4?'#14161c':'#f1ece0';g.fill();g.lineWidth=2;g.strokeStyle=i<=4&&i>2?'#f1ece0':'#14161c';g.stroke();}
+  const bt=new THREE.CanvasTexture(bc);bt.colorSpace=THREE.SRGBColorSpace;
+  RGM={skin:new THREE.MeshStandardMaterial({color:0xcdb487,roughness:0.85,metalness:0.02}),
+    dark:new THREE.MeshStandardMaterial({color:0x22252e,roughness:0.6,metalness:0.5}),
+    stripe:new THREE.MeshBasicMaterial({color:lin(NEON.am),toneMapped:false}),
+    face:new THREE.MeshStandardMaterial({map:bt,emissive:0xffffff,emissiveMap:bt,emissiveIntensity:0.25,roughness:0.9}),
+    box:new THREE.BoxGeometry(1,1,1),disc:new THREE.CylinderGeometry(0.45,0.45,0.04,40),base:new THREE.CylinderGeometry(0.34,0.38,0.06,20)};
+  RGM.face.userData.k=1;return RGM;}
+function rgRoot(){if(!RG.root){RG.root=new THREE.Group();RG.root.userData.noMerge=true;scene.add(RG.root);rgMarks();}return RG.root;}
+/* floor marks: the firing line and a numbered line every 10 m */
+function rgMarks(){const root=RG.root;
+  const line=(x,w,col,op)=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(w,38),new THREE.MeshBasicMaterial({color:lin(col),transparent:true,opacity:op,depthWrite:false,toneMapped:false}));m.rotation.x=-Math.PI/2;m.position.set(x,0.015,0);m.userData.noMerge=true;root.add(m);};
+  line(RG_START.x+1.6,0.18,NEON.am,0.9);
+  for(let d=10;d<=60;d+=10){const x=RG_START.x+d;line(x,0.08,0xffffff,0.28);
+    for(const z of [-17.5,17.5]){const c=document.createElement('canvas');c.width=256;c.height=128;const g=c.getContext('2d');g.font='bold 92px "Saira Condensed",sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillStyle='#fff';g.fillText(d+' m',128,66);
+      const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;const m=new THREE.Mesh(new THREE.PlaneGeometry(2.6,1.3),new THREE.MeshBasicMaterial({map:t,transparent:true,opacity:0.55,depthWrite:false,toneMapped:false}));
+      m.rotation.x=-Math.PI/2;m.rotation.z=Math.PI/2;m.position.set(x+0.9,0.02,z);m.userData.noMerge=true;root.add(m);}}}
+function rgBar(it){const c=it.bar.c,g=c.getContext('2d'),f=clamp(it.hp/it.max,0,1);g.clearRect(0,0,128,20);g.fillStyle='rgba(10,14,17,.75)';g.fillRect(0,0,128,20);
+  g.fillStyle=hpColor(f*100);g.fillRect(3,3,122*f,14);it.bar.t.needsUpdate=true;}
+function rgDummyMesh(it){const M=rgMats(),g=new THREE.Group(),fig=new THREE.Group();g.add(fig);
+  const bx=(w,h,d,x,y,z,m)=>{const o=new THREE.Mesh(M.box,m);o.scale.set(w,h,d);o.position.set(x,y,z);o.userData.noMerge=true;fig.add(o);return o;};
+  const base=new THREE.Mesh(M.base,M.dark);base.position.y=0.03;base.userData.noMerge=true;g.add(base);
+  for(const sx of [-1,1]){bx(0.2,0.85,0.22,sx*0.12,0.43,0,M.skin);bx(0.14,0.6,0.16,sx*0.33,1.13,0,M.skin);}
+  bx(0.44,0.2,0.25,0,0.93,0,M.dark);bx(0.52,0.5,0.28,0,1.27,0,M.skin);bx(0.27,0.29,0.27,0,1.62,0,M.skin);bx(0.06,0.06,0.2,0,1.81,0,M.dark);
+  bx(0.53,0.05,0.29,0,1.1,0,M.stripe);bx(0.28,0.04,0.28,0,1.5,0,M.stripe);
+  const c=document.createElement('canvas');c.width=128;c.height=20;const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false,toneMapped:false}));sp.scale.set(0.9,0.14,1);sp.position.y=2.15;sp.renderOrder=30;g.add(sp);
+  it.fig=fig;it.bar={c,t,sp};it.flashM=[];fig.traverse(o=>{if(o.isMesh&&o.material===M.skin){o.material=M.skin.clone();o.material.emissive=lin(0xffffff);o.material.emissiveIntensity=0;it.flashM.push(o.material);}});
+  return g;}
+function rgTargetMesh(it){const M=rgMats(),g=new THREE.Group();
+  const post=new THREE.Mesh(M.box,M.dark);post.scale.set(0.07,0.95,0.07);post.position.y=0.475;g.add(post);
+  const foot=new THREE.Mesh(M.box,M.dark);foot.scale.set(0.7,0.05,0.5);foot.position.y=0.025;g.add(foot);
+  const d=new THREE.Mesh(M.disc,[M.dark,M.face,M.face]);d.rotation.x=Math.PI/2;d.position.y=1.4;g.add(d);
+  g.traverse(o=>{o.userData.noMerge=true;});it.fig=g;return g;}
+function rgCoverMesh(it){const w=it.w,d=it.d,h=it.h,high=h>=1.5,neon=high?NEON.mg:NEON.cy,rp=Math.max(1,Math.round(Math.max(w,d)/2.4));
+  const mat=new THREE.MeshStandardMaterial({map:tex(high?highC:lowC,rp,1),emissive:lin(neon),emissiveMap:tex(high?highE:lowE,rp,1),emissiveIntensity:1.1*TOD.emi,roughness:0.55,metalness:0.35});
+  const g=new THREE.Group(),m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.y=h/2;m.receiveShadow=true;g.add(m);
+  const e=new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry),new THREE.LineBasicMaterial({color:lin(neon),toneMapped:false}));e.position.y=h/2;g.add(e);
+  g.traverse(o=>{o.userData.noMerge=true;});it.mat=mat;it.edge=e;it.neon=neon;return g;}
+/* where a new prop goes: straight ahead at the chosen distance, or where the crosshair points */
+function rgSpot(){const yw=viewYaw(),fx=-Math.sin(yw),fz=-Math.cos(yw);let x=me.x+fx*RG.dist,z=me.z+fz*RG.dist;
+  if(RG.place==='aim'){const vp=viewPitch(),cp=Math.cos(vp),dx=fx*cp,dy=Math.sin(vp),dz=fz*cp,o=camera.position;const t=rayWorld(o.x,o.y,o.z,dx,dy,dz,120);
+    if(t<119){x=o.x+dx*t-fx*0.7;z=o.z+dz*t-fz*0.7;}}
+  x=clamp(x,-48.5,48.5);z=clamp(z,-18.5,18.5);if(!freeAt(x,z)){const c=nearestFree(...cellOf(x,z));x=c[0]-50+0.5;z=c[1]-20+0.5;}
+  return{x,z};}
+function rgFaceYaw(x,z){return Math.atan2(RG_START.x-x,RG_START.z-z);}
+function rgAdd(kind,o){if(!S)return null;o=o||{};const sp=o.x!=null?{x:o.x,z:o.z}:rgSpot();
+  const it={id:++RG.id,kind,x:sp.x,z:sp.z,ox:sp.x,oz:sp.z,move:o.move||RG.move,off:0,v:0,dir:Math.random()<.5?-1:1,tt:0,hp:100,max:100,downT:0,hits:0,firstT:0};
+  const tx=o.x!=null?RG_START.x:me.x,tz=o.x!=null?RG_START.z:me.z;let ux=tx-it.x,uz=tz-it.z;const ul=Math.hypot(ux,uz)||1;ux/=ul;uz/=ul;
+  it.yaw=Math.atan2(ux,uz);it.ax=-uz;it.az=ux;
+  if(kind==='bot'){const mt=sbMe()?sbMe().team:0;const p=S.players.find(q=>q.bot&&q.team!==mt&&!q.rgId);if(!p){feed('All four enemy bot slots are in use');return null;}
+    it.slot=p.s;it.pass=!!o.pass;it.move='still';RG.list.push(it);rgBotPlace(it);rgUI();return it;}
+  if(kind==='cover'){it.move='still';it.h=o.high?2.5:1;const along=Math.abs(ux)>Math.abs(uz);it.w=o.w||(along?1.2:3);it.d=o.d||(along?3:1.2);it.max=it.hp=o.high?300:150;
+    if(Math.hypot(me.x-it.x,me.z-it.z)<Math.max(it.w,it.d)/2+0.8&&o.x==null){feed('Too close to place cover');return null;}
+    it.g=rgCoverMesh(it);it.box={x0:it.x-it.w/2,x1:it.x+it.w/2,z0:it.z-it.d/2,z1:it.z+it.d/2,y0:0,y1:it.h,wall:false,rgc:it};}
+  else if(kind==='dummy'){it.max=it.hp=RG.dhp;it.g=rgDummyMesh(it);rgBar(it);}
+  else it.g=rgTargetMesh(it);
+  it.g.position.set(it.x,0,it.z);it.g.rotation.y=it.yaw;rgRoot().add(it.g);RG.list.push(it);
+  if(it.box&&RG.stowed){BOXES.push(it.box);rebuildGrid();renderer.shadowMap.needsUpdate=true;}rgUI();return it;}
+function rgBotPlace(it){const p=S&&S.players[it.slot];if(!p||!p.bot)return;p.rgId=it.id;dmPlace(p,it.x,it.z,it.yaw);p.prot=0;}
+function rgRemove(it){const i=RG.list.indexOf(it);if(i<0)return;RG.list.splice(i,1);
+  if(it.kind==='bot'){const p=S&&S.players[it.slot];if(p&&p.rgId===it.id){p.rgId=0;p.st='dead';p.hp=0;}}
+  if(it.g){RG.root.remove(it.g);if(it.mat)it.mat.dispose();if(it.flashM)it.flashM.forEach(m=>m.dispose());}
+  if(it.box){const j=BOXES.indexOf(it.box);if(j>=0){BOXES.splice(j,1);rebuildGrid();renderer.shadowMap.needsUpdate=true;}}rgUI();}
+function rgClear(){for(const it of [...RG.list])rgRemove(it);}
+/* the starter range: boards at 10, 25, 40 and 55 m, a still and a strafing dummy, low and high cover by the firing line */
+function rgDefault(){const X=RG_START.x;
+  rgAdd('target',{x:X+10,z:-9});rgAdd('target',{x:X+25,z:-4});rgAdd('target',{x:X+40,z:3});rgAdd('target',{x:X+55,z:9});
+  rgAdd('dummy',{x:X+15,z:5,move:'still'});rgAdd('dummy',{x:X+30,z:12,move:'strafe'});
+  rgAdd('cover',{x:X+4,z:-14,w:3,d:1.2});rgAdd('cover',{x:X+4,z:14,w:3,d:1.2,high:true});}
+/* called from newMatch: the range is live at once and only spawned bots come in */
+function rgStart(){S.phase='live';S.t=0;S.timer=CFG.dmTime;
+  for(const p of S.players){if(!p.bot){rgHome(p);continue;}p.st='dead';p.hp=0;p.deadT=0;p.rgId=0;}
+  for(const it of RG.list){if(it.kind==='bot')rgBotPlace(it);else{it.hp=it.max;it.downT=0;if(it.bar)rgBar(it);}}
+  if(!RG.init){RG.init=true;if(!RG.list.length)setTimeout(()=>{if(rgOn()&&!RG.list.length)rgDefault();},0);}}
+/* arena cover is put away while you are at the range and comes back when you leave it */
+function rgSync(){const want=rgOn();if(RG.root)RG.root.visible=want;$('rgread').hidden=!want||!RG.read;
+  if(want===RG.stowed)return;RG.stowed=want;
+  COVER.forEach((b,i)=>{b.y1=want?0:coverHeight(b,b.stage);const v=coverVis[i];if(v)v.g.visible=!want;});
+  for(const it of RG.list)if(it.box){const j=BOXES.indexOf(it.box);if(want&&j<0&&it.hp>0)BOXES.push(it.box);else if(!want&&j>=0)BOXES.splice(j,1);}
+  if(DEV.hl)devHL();rebuildGrid();renderer.shadowMap.needsUpdate=true;}
+/* after the Objects tab or a settings load rebuilds arena cover, keep it put away */
+function rgRestow(){if(!RG.stowed)return;COVER.forEach((b,i)=>{b.y1=0;const v=coverVis[i];if(v)v.g.visible=false;});rebuildGrid();}
+function rgTick(dt){rgSync();if(!RG.stowed)return;
+  for(const it of RG.list){if(it.kind==='bot')continue;
+    if(it.downT>0){it.downT-=dt;const k=it.kind==='dummy'?clamp((RG.respawn-it.downT)/0.25,0,1):1;
+      if(it.fig&&it.kind==='dummy')it.fig.rotation.x=-1.5*(it.downT<0.3?it.downT/0.3:k);
+      if(it.kind==='cover'&&it.downT<=BUILD_T&&!it.g.visible){it.g.visible=true;it.g.scale.y=0.02;}
+      if(it.kind==='cover'&&it.g.visible)it.g.scale.y=Math.max(0.02,1-it.downT/BUILD_T);
+      if(it.downT<=0){it.downT=0;it.hp=it.max;if(it.bar)rgBar(it);if(it.fig)it.fig.rotation.x=0;if(it.kind==='cover')rgCoverBack(it);}}
+    if(it.flashM&&it.flash>0){it.flash-=dt*5;for(const m of it.flashM)m.emissiveIntensity=Math.max(0,it.flash)*0.9;}
+    const mv=RG_MV[it.move];if(!mv||!mv[0]||it.kind==='cover')continue;
+    // strafing: accelerate toward the current direction, turn at the ends (random A-D also turns on a short timer)
+    it.tt-=dt;if(it.move==='adad'&&it.tt<=0){it.tt=0.25+Math.random()*0.7;if(Math.random()<0.6)it.dir=-it.dir;}
+    if(it.off*it.dir>=mv[1])it.dir=-it.dir;
+    it.v+=clamp(it.dir*mv[0]-it.v,-28*dt,28*dt);const no=it.off+it.v*dt,nx=it.ox+it.ax*no,nz=it.oz+it.az*no;
+    if(Math.abs(nx)>48.5||Math.abs(nz)>18.5||!freeAt(nx,nz)){it.dir=-it.dir;it.v=0;continue;}
+    it.off=no;it.x=nx;it.z=nz;it.g.position.set(nx,0,nz);}
+  const now=performance.now();for(const it of RG.list)if(it.kind==='dummy'&&it.hp>0&&it.hp<it.max&&now-it.lastT>4000){it.hp=it.max;rgBar(it);}}
+function rgCoverBack(it){it.g.scale.y=1;if(BOXES.indexOf(it.box)<0)BOXES.push(it.box);rebuildGrid();renderer.shadowMap.needsUpdate=true;
+  it.edge.material.color.copy(lin(it.neon));it.mat.emissiveIntensity=1.1*TOD.emi;
+  const b=it.box,r=0.4;if(me.y<b.y1-0.05){const l=me.x-(b.x0-r),rr=b.x1+r-me.x,fr=me.z-(b.z0-r),bk=b.z1+r-me.z,mn=Math.min(l,rr,fr,bk);
+    if(mn>0){if(mn===l)me.x=b.x0-r;else if(mn===rr)me.x=b.x1+r;else if(mn===fr)me.z=b.z0-r;else me.z=b.z1+r;me.mantle=null;}}
+  const sp=spat(it.x,it.z),vol=clamp(1-sp.d/40,0,1);if(vol>0.02){snd({f:660,f1:1320,dur:0.16,vol:0.07*vol,wave:'triangle',bus:'fx',pan:sp.pan,tk:'cover'});blip(180,0.2,0.07*vol,true,'fx',sp.pan,'cover');}
+  for(let i=0;i<6;i++)spawnSparks(it.x+(Math.random()-.5)*it.w,it.h+0.1,it.z+(Math.random()-.5)*it.d,it.neon,3,0,-1,0);}
+/* bullets: dummies use the player hitbox (head above 1.45 m), boards are a 0.45 m disc with ten rings (the bull counts as a headshot) */
+function rgRay(ox,oy,oz,dx,dy,dz,best){let hit=null;
+  for(const it of RG.list){if(it.downT>0)continue;
+    if(it.kind==='dummy'){const t=rayBox(ox,oy,oz,dx,dy,dz,playerBox(it.x,0,it.z,false,false),best);if(t>=0&&t<best){best=t;hit={it,t,head:oy+dy*t>1.45};}}
+    else if(it.kind==='target'){const nx=Math.sin(it.yaw),nz=Math.cos(it.yaw),den=dx*nx+dz*nz;if(Math.abs(den)<1e-4)continue;
+      const t=((it.x-ox)*nx+(it.z-oz)*nz)/den;if(t<=0||t>=best)continue;const px=ox+dx*t-it.x,py=oy+dy*t-1.4,pz=oz+dz*t-it.z,r=Math.hypot(px,py,pz);
+      if(r<=0.45){best=t;const ring=Math.max(1,10-Math.floor(r/0.045));hit={it,t,head:ring>=9,ring};}}}
+  return hit;}
+function rgHitAt(h,hx,hy,hz,dist,w,dx,dy,dz){const it=h.it,dmg=wDmg(me.w,h.head,dist,w),a=RG.acc;
+  const e=a.get(it)||{dmg:0,head:false,x:hx,y:hy,z:hz,ring:0,dist};a.set(it,e);e.dmg+=dmg;e.head=e.head||h.head;if(h.ring)e.ring=Math.max(e.ring,h.ring);
+  if(it.kind==='dummy'){spawnSparks(hx,hy,hz,0xffbf94,h.head?9:5,dx,dy,dz);if(!e.snd){e.snd=1;fleshSound(hx,hz,1);}}
+  else{spawnSparks(hx,hy,hz,0xfff2d0,5,dx,dy,dz);if(it.move==='still')mark(hx,hy,hz,dx,dy,dz,0x14161c);if(!e.snd){e.snd=1;impactSound(hx,hz,1);}}}
+function rgCoverHit(it,dmg,hx,hy,hz){if(it.hp<=0)return;it.hp=Math.max(0,it.hp-dmg);const f=it.hp/it.max;it.edge.material.color.copy(lin(0xff3030).lerp(lin(it.neon),f));
+  if(it.hp>0)return;it.downT=RG.respawn+4;const j=BOXES.indexOf(it.box);if(j>=0)BOXES.splice(j,1);rebuildGrid();renderer.shadowMap.needsUpdate=true;it.g.visible=false;
+  const big=it.h>=1.5;for(let i=0;i<(big?14:7);i++)spawnDebris(it.x+(Math.random()-.5)*it.w,Math.random()*it.h,it.z+(Math.random()-.5)*it.d,big,1.2);
+  for(let i=0;i<3;i++)spawnDust(it.x+(Math.random()-.5)*it.w,0.5,it.z+(Math.random()-.5)*it.d,Math.max(1.4,Math.min(it.w,it.d)*1.1));
+  const sp=spat(it.x,it.z);coverBreakSound(big,true,sp.pan,clamp(1-sp.d/45,0.15,1));}
+/* after a shot: damage numbers, hit marker and cue, and the readout (damage, range, rings, hits and time to drop a dummy) */
+function rgDeliver(){const a=RG.acc;RG.acc=null;if(!a||!a.size)return false;let head=false;const now=performance.now();
+  for(const [it,e] of a){head=head||e.head;dmgNum(e.x,e.y,e.z,e.dmg,e.head);RG.hits++;
+    let msg=`${e.dmg}${e.head?(it.kind==='target'?' bull':' head'):''} at ${e.dist.toFixed(1)} m`;
+    if(it.kind==='target')msg=`Ring ${e.ring} · `+msg;
+    if(it.kind==='dummy'){if(it.hp>=it.max||now-it.lastT>4000){it.hits=0;it.firstT=now;}it.lastT=now;it.hits++;it.hp-=e.dmg;it.flash=1;
+      if(it.hp<=0){it.hp=0;it.downT=RG.respawn;const tt=(now-it.firstT)/1000;msg+=` · down in ${it.hits} hit${it.hits>1?'s':''}, ${tt.toFixed(2)} s`;
+        $('confirm').classList.remove('multi');$('confirm').textContent='Dummy down';confirmT=1.3;setTimeout(()=>hitCue('kill'),0);}
+      rgBar(it);}
+    RG.read=msg;}
+  hitT=head?0.24:0.16;$('hitmark').classList.toggle('head',head);hitCue(head?'head':'hit');rgReadout();return true;}
+function rgReadout(){const el=$('rgread');const acc=RG.shots?Math.round(100*Math.min(RG.hits,RG.shots)/RG.shots):0;el.textContent=RG.read+(RG.shots?`  ·  ${acc}% of ${RG.shots} shots hit`:'');el.hidden=!rgOn()||!RG.read;}
+function dmgNum(x,y,z,dmg,head){_v.set(x,y+0.25,z).project(camera);
+  if(_v.z<1){const el=document.createElement('span');el.textContent=dmg;if(head)el.className='head';el.style.left=((_v.x*0.5+0.5)*innerWidth+(Math.random()-.5)*26)+'px';el.style.top=((-_v.y*0.5+0.5)*innerHeight)+'px';$('dmg').appendChild(el);setTimeout(()=>el.remove(),620);}}
+/* the Range tab */
+function rgUI(){if(SB.on&&SB.tab==='range'&&!$('sbpanel').hidden)buildSB();}
+function modeSelect(el,mk){const ml=mk('label','');ml.append(document.createTextNode('Mode'));const ms=document.createElement('select');
+  [['range','Shooting range'],['zone','Zone 2v2: attack and defend'],['dm1','Deathmatch 1v1'],['dm2','Team deathmatch 2v2'],['dm4','Team deathmatch 4v4']].forEach(([v,t])=>{const o=document.createElement('option');o.value=v;o.textContent=t;ms.append(o);});
+  ms.value=SB.mode;ms.addEventListener('change',()=>{SB.mode=ms.value;if(SB.mode==='range'&&SB.tab==='obj')SB.tab='range';if(S&&net.mode==='solo'){readMenu();restartMatch();toggleSB(true);buildSB();}});ml.append(ms);el.append(ml);}
+function buildRange(el,mk){
+  if(SB.mode!=='range'){el.append(mk('h3','','Game mode'));modeSelect(el,mk);el.append(mk('div','note','The spawn tools work at the shooting range. Pick it above to go back there.'));devFooter(el,mk);return;}
+  el.append(mk('div','note','Props spawn where you point them; walk or look somewhere else and spawn again. Arena cover is put away while you are here. Nothing on the range is saved.'));
+  const pl=mk('label','');pl.append(document.createTextNode('Place'));const ps=document.createElement('select');
+  [['ahead','Straight ahead, at the distance below'],['aim','Where the crosshair points']].forEach(([v,t])=>{const o=document.createElement('option');o.value=v;o.textContent=t;ps.append(o);});
+  ps.value=RG.place;ps.addEventListener('change',()=>{RG.place=ps.value;});pl.append(ps);el.append(pl);
+  devKnob(el,'Distance (m)',3,90,1,()=>RG.dist,v=>{RG.dist=v;},20);
+  const ml=mk('label','');ml.append(document.createTextNode('Movement (dummies and boards)'));const mv=document.createElement('select');
+  RG_MOVES.forEach(([v,t])=>{const o=document.createElement('option');o.value=v;o.textContent=t;mv.append(o);});mv.value=RG.move;mv.addEventListener('change',()=>{RG.move=mv.value;});ml.append(mv);el.append(ml);
+  el.append(mk('h3','','Spawn'));
+  const sb=mk('div','btns');const ab=(t,f,box)=>{const b=mk('button','btn',t);b.type='button';b.addEventListener('click',f);(box||sb).append(b);return b;};
+  ab('Dummy',()=>rgAdd('dummy'));ab('Target board',()=>rgAdd('target'));ab('Bot that fights',()=>rgAdd('bot',{pass:false}));ab('Bot standing still',()=>rgAdd('bot',{pass:true}));
+  ab('Low cover',()=>rgAdd('cover',{high:false}));ab('High cover',()=>rgAdd('cover',{high:true}));el.append(sb);
+  el.append(mk('div','note','Dummies and target boards face you. Bots use the four enemy slots and come back where you placed them after a kill; "You take no damage" on the Rules tab keeps the fighting ones from dropping you.'));
+  el.append(mk('h3','','Dummies and cover'));
+  devKnob(el,'Dummy HP (next spawn)',1,500,1,()=>RG.dhp,v=>{RG.dhp=v;},100);
+  devKnob(el,'Dummy back up after (s)',0.5,10,0.5,()=>RG.respawn,v=>{RG.respawn=v;},2);
+  el.append(mk('h3','',`On the range (${RG.list.length})`));
+  if(RG.list.length){const ul=mk('div','rglist');for(const it of RG.list){const row=mk('div','rgrow');const d=Math.hypot(it.x-me.x,it.z-me.z);
+      const desc=it.kind==='bot'?(it.pass?'Bot, standing still':'Bot, fights back'):it.kind==='cover'?(it.h>=1.5?'High cover':'Low cover'):`${RG_KN[it.kind]}, ${RG_MOVES.find(m=>m[0]===it.move)[1].toLowerCase()}`;
+      row.append(mk('span','',`${desc} · ${d.toFixed(0)} m`));const x=mk('button','btn','Remove');x.type='button';x.addEventListener('click',()=>rgRemove(it));row.append(x);ul.append(row);}el.append(ul);}
+  else el.append(mk('div','note','Empty.'));
+  const cb=mk('div','btns');ab('Clear the range',()=>rgClear(),cb);ab('Starter range',()=>{rgClear();rgDefault();},cb);ab('Back to the firing line',()=>{const P=sbMe();if(!P||P.st!=='alive')return;me.x=RG_START.x;me.z=RG_START.z;me.y=0;me.vy=me.vx=me.vz=0;P.x=me.x;P.z=me.z;me.yaw=-Math.PI/2;me.pitch=0;},cb);
+  ab('Reset hit stats',()=>{RG.shots=RG.hits=0;RG.read='';rgReadout();},cb);el.append(cb);
+  el.append(mk('h3','','Game mode'));modeSelect(el,mk);
+  el.append(mk('div','note','Pick Zone or a deathmatch to test in the full arena with its cover and bots. Your range props wait here until you come back.'));
+  devFooter(el,mk);}
 
 /* ---------- progression: experience, levels, weapon parts and builds ----------
    Matches pay XP (see XPV and xpAward). Player level opens sights, muzzles, stocks, glow colours and build slots; the combat XP
@@ -2900,15 +3091,15 @@ const MODECAP={zone:'Attack and defend sites A and B',
 function modeCap(){const v=$('modesel').value,c=MODECAP[v]||MODECAP.zone;$('modecap').textContent=typeof c==='function'?c():c;}
 try{const mv=localStorage.getItem('za-mode');if(mv&&MODECAP[mv])$('modesel').value=mv;}catch(e){}
 modeCap();$('modesel').addEventListener('change',()=>{modeCap();try{localStorage.setItem('za-mode',$('modesel').value);}catch(e){}});
-function readMenu(){const mv=SB.on?SB.mode:$('modesel').value;if(!/^dm[124]$/.test(mv)){MATCH.mode='zone';MATCH.size=2;}else{MATCH.mode='dm';MATCH.size=+mv.slice(2);}
+function readMenu(){const mv=SB.on?SB.mode:$('modesel').value;MATCH.range=SB.on&&mv==='range';if(MATCH.range){MATCH.mode='dm';MATCH.size=4;}else if(!/^dm[124]$/.test(mv)){MATCH.mode='zone';MATCH.size=2;}else{MATCH.mode='dm';MATCH.size=+mv.slice(2);}
   if(W[$('wsel').value]){me.wPref=$('wsel').value;me.w=me.wPref;showWeapon(me.w);me.ammo=myW(me.w).mag;try{localStorage.setItem('za-w',me.wPref);}catch(e){}}me.name=($('nick').value||'Player').replace(/[^\w .'-]/g,'').slice(0,16)||'Player';me.teamPref=+$('teampref').value;diffMul=+$('diff').value;try{localStorage.setItem('za-name',me.name);}catch(e){}}
 function enterGame(){$('menu').hidden=true;for(const id of ['topbar','mini','vitals','ammo','cross','netpill'])$(id).hidden=false;requestLock();blip(660,0.05,0.03,false,'ui');}
 function startSolo(){readMenu();net.mode='solo';net.myPeer='local';net.host=true;net.hostPeer='local';S=null;newMatch();S.diff=diffMul;
   const p=S.players[me.teamPref===1?1:0];p.bot=false;p.peer='local';p.name=me.name;
-  if(S.mode==='dm')dmHome(p);else{const role=roleOf(p.team,S.round);spawnAt(p,homeZ(role),role);p.hp=100;}enterGame();}
+  if(S.range)rgHome(p);else if(S.mode==='dm')dmHome(p);else{const role=roleOf(p.team,S.round);spawnAt(p,homeZ(role),role);p.hp=100;}enterGame();}
 tuneApply();
 $('practice').addEventListener('click',()=>{tuneApply();SB.on=false;startSolo();});
-$('sandboxbtn').addEventListener('click',()=>{SB.on=true;sbLoad();devLoad();buildSB();startSolo();});
+$('sandboxbtn').addEventListener('click',()=>{SB.on=true;SB.mode='range';SB.tab='range';sbLoad();devLoad();buildSB();startSolo();});
 $('joinbtn').addEventListener('click',async()=>{tuneApply();SB.on=false;readMenu();const code=($('code').value||'arena-1').toLowerCase().replace(/[^a-z0-9_.-]/g,'').slice(0,40)||'arena-1';$('code').value=code;$('joinbtn').disabled=true;
   if(await joinOnline(code))enterGame();else $('joinbtn').disabled=false;});
 /* classic menu navigation: hover or arrow keys move the highlight, Enter picks, Esc closes the Play / Play online panel */
@@ -3039,7 +3230,7 @@ function newMatchLocal(){WH.auto=false;if(WH.open)closeWheel(false);me.round=0;M
 function closePause(){if($('pause').hidden)return;$('pause').hidden=true;toggleSettings(false);autoLock();blip(660,0.05,0.03,false,'ui');}
 function leaveMatch(){xpFlush();bigCountOff();closeWheel(false);WH.auto=false;$('pause').hidden=true;toggleSettings(false);toggleSB(false);
   if(net.room){try{net.room.leave().catch(()=>{});}catch(e){}}
-  net.mode='none';net.room=null;net.host=false;net.hostPeer=null;net.myPeer=null;S=null;tuneApply();SB.on=false;me.sp=-1;me.round=0;me.mid=0;coverTick();
+  net.mode='none';net.room=null;net.host=false;net.hostPeer=null;net.myPeer=null;rgClear();RG.init=false;RG.shots=RG.hits=0;RG.read='';S=null;rgSync();tuneApply();SB.on=false;me.sp=-1;me.round=0;me.mid=0;coverTick();
   for(const id of ['topbar','mini','vitals','ammo','cross','netpill','banner','prompt','ring','lockhint','down','dead','fps'])$(id).hidden=true;
   $('feed').replaceChildren();$('feed').dataset.k='';$('confirm').style.opacity=0;$('flash').style.opacity=0;$('hitmark').style.opacity=0;
   for(const a of avatars)a.g.visible=false;
@@ -3260,13 +3451,14 @@ function localTick(dt){
   me.lastHp=P.st==='alive'?P.hp:0;
 }
 const _v=new THREE.Vector3();
-function fire(s){const w=myW(me.w),n=w.pel||1,acc={};
+function fire(s){const w=myW(me.w),n=w.pel||1,acc={},rg=rgOn();if(rg){RG.acc=new Map();RG.shots++;}
   for(let i=0;i<n;i++)fireRay(s,w,n>1?me.spread*0.5+w.cone*(1-0.25*me.ads):me.spread,acc);
   shotSound(me.w,undefined,undefined,w.supp);if(w.bolt&&me.ammo>0)boltCycle();
   let any=false,anyHead=false;
-  for(const k in acc){const h=acc[k],hit=+k;sendHit(hit,h.dmg,h.head);lastHit[hit]=performance.now();any=true;anyHead=anyHead||h.head;
-    _v.set(h.x,h.y+0.25,h.z).project(camera);
-    if(_v.z<1){const el=document.createElement('span');el.textContent=h.dmg;if(h.head)el.className='head';el.style.left=((_v.x*0.5+0.5)*innerWidth+(Math.random()-.5)*26)+'px';el.style.top=((-_v.y*0.5+0.5)*innerHeight)+'px';$('dmg').appendChild(el);setTimeout(()=>el.remove(),620);}}
+  for(const k in acc){const h=acc[k],hit=+k;sendHit(hit,h.dmg,h.head);lastHit[hit]=performance.now();any=true;anyHead=anyHead||h.head;dmgNum(h.x,h.y,h.z,h.dmg,h.head);
+    if(rg){RG.hits++;RG.read=`Bot · ${h.dmg}${h.head?' head':''} at ${Math.hypot(h.x-camera.position.x,h.z-camera.position.z).toFixed(1)} m`;rgReadout();}}
+  if(rg&&rgDeliver())any=false;
+  else if(rg)rgReadout();
   if(any){hitT=anyHead?0.24:0.16;$('hitmark').classList.toggle('head',anyHead);hitCue(anyHead?'head':'hit');}
 }
 function fireRay(s,w,spread,acc){
@@ -3282,6 +3474,7 @@ function fireRay(s,w,spread,acc){
     if(Math.abs(ln)>0.05){const half=av.crouch?0.65:0.9,sx=Math.cos(av.ryaw)*ln*0.42,sz=-Math.sin(av.ryaw)*ln*0.42;const up={x0:box.x0+sx,x1:box.x1+sx,z0:box.z0+sz,z1:box.z1+sz,y0:box.y0+half,y1:box.y1};box.y1=box.y0+half;const tu=rayBox(ox,oy,oz,dx,dy,dz,up,best);if(tu>=0&&tu<best){best=tu;hit=i;head=oy+dy*tu>av.ry+(av.crouch?1.0:1.45);}}
     const t=rayBox(ox,oy,oz,dx,dy,dz,box,best);
     if(t>=0&&t<best){best=t;hit=i;head=p.st!=='down'&&oy+dy*t>av.ry+(av.crouch?1.0:1.45);}}
+  let rh=null;if(RG.acc){rh=rgRay(ox,oy,oz,dx,dy,dz,best);if(rh){best=rh.t;hit=-1;}}
   const hx=ox+dx*best,hy=oy+dy*best,hz=oz+dz*best;
   vtip.getWorldPosition(_v);
   tracer(_v.x,_v.y,_v.z,hx,hy,hz,0xaef6ff);
@@ -3289,7 +3482,8 @@ function fireRay(s,w,spread,acc){
     const dmg=wDmg(me.w,head,best,w),h=acc[hit]||(acc[hit]={dmg:0,head:false,x:hx,y:hy,z:hz});h.dmg+=dmg;h.head=h.head||head;
     spawnSparks(hx,hy,hz,S.players[hit].team===0?0x9cc0ff:0xffbf94,head?9:5,dx,dy,dz);
     if(!h.snd){h.snd=1;fleshSound(hx,hz,1);}
-  }else if(best<119){mark(hx,hy,hz,dx,dy,dz,hb&&hb.ci!=null?(hb.h0>=1.5?NEON.mg:NEON.cy):hb===ROOF_HIT||hy>WALL_H?0xcfeeff:0xffa040);impactSound(hx,hz,1);if(hb&&hb.ci!=null){sendCover(hb.ci);if(Math.random()<0.4)spawnDebris(hx-dx*0.05,hy,hz-dz*0.05,hb.h0>=1.5,0.6);spawnSparks(hx,hy,hz,hb.h0>=1.5?NEON.mg:NEON.cy,6,dx,dy,dz);}else spawnSparks(hx,hy,hz,0xbfe9ff,4,dx,dy,dz);}
+  }else if(rh)rgHitAt(rh,hx,hy,hz,best,w,dx,dy,dz);
+  else if(best<119){if(hb&&hb.rgc)rgCoverHit(hb.rgc,wDmg(me.w,false,best,w));mark(hx,hy,hz,dx,dy,dz,hb&&hb.ci!=null?(hb.h0>=1.5?NEON.mg:NEON.cy):hb===ROOF_HIT||hy>WALL_H?0xcfeeff:0xffa040);impactSound(hx,hz,1);if(hb&&hb.ci!=null){sendCover(hb.ci);if(Math.random()<0.4)spawnDebris(hx-dx*0.05,hy,hz-dz*0.05,hb.h0>=1.5,0.6);spawnSparks(hx,hy,hz,hb.h0>=1.5?NEON.mg:NEON.cy,6,dx,dy,dz);}else spawnSparks(hx,hy,hz,0xbfe9ff,4,dx,dy,dz);}
 }
 const chEl=['chT','chB','chL','chR'].map($);
 function feelHud(dt){
@@ -3400,17 +3594,19 @@ function hud(dt){
   $('sc0').textContent=S.score[0];$('sc1').textContent=S.score[1];
   $('clock').textContent=S.phase==='buy'?'0:0'+Math.ceil(S.t):S.armed?fmt(S.armed.t):SB.on&&!SB.timer?'∞':fmt(S.timer);
   $('clock').style.color=S.armed?'var(--bad)':'';bigCount();
-  $('roundinfo').textContent=dm?`${modeName('dm',S.size)} · first to ${S.kills} kills`:`Round ${S.round} · first to ${CFG.winScore}`+(S.sudden?' · sudden death, no respawns':'');
-  const rb=$('role');if(dm&&P){rb.hidden=false;rb.className='dm';rb.textContent=S.size===1?'Deathmatch':'Team '+TEAMN[myTeam];}else if(role){rb.hidden=false;rb.className=role;rb.textContent=(role==='atk'?'Attack':'Defend')+' · '+TEAMN[myTeam];}else rb.hidden=true;
+  $('roundinfo').textContent=S.range?'Shooting range':dm?`${modeName('dm',S.size)} · first to ${S.kills} kills`:`Round ${S.round} · first to ${CFG.winScore}`+(S.sudden?' · sudden death, no respawns':'');
+  const rb=$('role');if(S.range)rb.hidden=true;else if(dm&&P){rb.hidden=false;rb.className='dm';rb.textContent=S.size===1?'Deathmatch':'Team '+TEAMN[myTeam];}else if(role){rb.hidden=false;rb.className=role;rb.textContent=(role==='atk'?'Attack':'Defend')+' · '+TEAMN[myTeam];}else rb.hidden=true;
   let obj='';
   if(dm)obj=S.phase==='buy'?'Get ready. Match starts in '+Math.ceil(S.t):S.phase==='live'?(S.size===1?`Kill your opponent. First to ${S.kills} wins`:`Score kills for your team. First to ${S.kills} wins`):'';
   else if(S.phase==='buy')obj='Get ready. Round starts in '+Math.ceil(S.t);
   else if(S.armed)obj=role==='atk'?`Charge armed at ${S.armed.site}. Keep defenders off it.`:`Charge armed at ${S.armed.site}. Defuse it!`;
   else if(role==='atk')obj='Push in and arm the charge at A or B';else if(role==='def')obj='Hold sites A and B until time runs out';
+  if(S.range)obj='Press T to spawn dummies, targets, bots and cover';
   $('objective').textContent=obj;
   const C=S.center||{own:-1,cap:-1,p:0};
   const cTxt=C.cap>=0&&C.p>0?`${C.cap===myTeam?'you are':TEAMN[C.cap]+' is'} taking the center ${Math.round(C.p*100)}%`:C.own<0?'center neutral':C.own===myTeam?`you hold the center (+${CENTER_HP} HP spawn)`:`${TEAMN[C.own]} holds the center`;
-  if(P&&dm)$('tickets').textContent=`You  ${P.k|0} kills · ${P.d|0} deaths`;
+  if(P&&S.range)$('tickets').textContent=`Bot kills ${P.k|0} · deaths ${P.d|0}`;
+  else if(P&&dm)$('tickets').textContent=`You  ${P.k|0} kills · ${P.d|0} deaths`;
   else if(P)$('tickets').textContent=`Respawns left  you ${S.tickets[myTeam]} · them ${S.tickets[1-myTeam]} · ${cTxt}`;else $('tickets').textContent='';
   // feed
   const fd=$('feed');const items=S.feed.filter(f=>S.clock-f.t<7).slice(-5);const fk=items.map(f=>f.t+f.m).join('|');
@@ -3478,7 +3674,7 @@ function hud(dt){
   $('lockmode').textContent=dragMode?'mouse capture is blocked here, so drag with the mouse button held (or use arrow keys) to look':'click or press any key to take back the mouse · Esc opens the menu';
   // net pill
   let np='';
-  if(net.mode==='solo')np=SB.on?`Sandbox · bots ${SB.bots==='on'?'fighting':SB.bots} · T opens the dev overlay`:`Practice · ${modeName(S.mode,S.size)} · you and ${S.players.length-1} bot${S.players.length>2?'s':''}`;
+  if(net.mode==='solo')np=SB.on&&S.range?'Shooting range · T opens the spawn tools':SB.on?`Sandbox · bots ${SB.bots==='on'?'fighting':SB.bots} · T opens the dev overlay`:`Practice · ${modeName(S.mode,S.size)} · you and ${S.players.length-1} bot${S.players.length>2?'s':''}`;
   else{const humans=S.players.filter(p=>!p.bot).length;np=`Online · match ${net.code} · ${humans} player${humans===1?'':'s'}, ${S.players.length-humans} bot${S.players.length-humans===1?'':'s'}`+(net.host?' · you are hosting':'')+(s<0?' · spectating (match full)':'');}
   $('netpill').textContent=np;
   drawMini(P,myTeam,role);
@@ -3520,7 +3716,7 @@ function frame(now){
   if(paused){}
   else if(S||net.mode!=='none'){netTick(dt);}
   if(paused){}
-  else if(S){coverTick(dt);debrisTick(dt);localTick(dt);renderOthers(dt);siteFx();hud(dt);audioTick(dt);}
+  else if(S){coverTick(dt);rgTick(dt);debrisTick(dt);localTick(dt);renderOthers(dt);siteFx();hud(dt);audioTick(dt);}
   else flyover(dt);
   fxTick(dt,now);touchTick();
   renderScene();
@@ -3544,6 +3740,6 @@ mergeChildren(scene);
 refreshZoneLook('atk');
 // Compile every material's shader up front (in parallel where the browser supports it) so nothing compiles on the first shot or spawn.
 renderer.compileAsync(scene,camera).catch(()=>{}).finally(()=>requestAnimationFrame(frame));
-window.__za={fire:()=>{const s=mySlot();if(s>=0)fire(s);},damage:(t,d,a,h)=>damage(t,d,a,h),prog:{PROG,PARTS,myW,modW,progSave,progLoad,rebuildVW,lvlOf,XPR},LX,MU,MM,VB,dev:{DEV,TUNE,GUN,W,COVER0,TWIN,STEP_MODE,devCollect,devApply},damageCover,COVER,coverVis,WH,openWheel:m=>openWheel(m),closeWheel:c=>closeWheel(c),wheelMove:(x,y)=>wheelMove(x,y),gfx:{renderer,scene,camera,applyGfx,DR,render:()=>renderScene(),FREF,BEAMS,get gtao(){return gtaoPass;}},openPause:()=>openPause(),closePause:()=>closePause(),leaveMatch:()=>leaveMatch(),get S(){return S;},me,net,botMem,CFG,SB,OPT,AU,get actx(){return actx;},mySlot:()=>mySlot(),sfx:{hitCue,fleshSound,HITX,footstep,slideSound,shotSound,stepSound,get stepBufs(){return stepBufs;},get slideBuf(){return slideBuf;},get gunBufs(){return gunBufs;}}};
+window.__za={fire:()=>{const s=mySlot();if(s>=0)fire(s);},damage:(t,d,a,h)=>damage(t,d,a,h),prog:{PROG,PARTS,myW,modW,progSave,progLoad,rebuildVW,lvlOf,XPR},LX,MU,MM,VB,dev:{DEV,TUNE,GUN,W,COVER0,TWIN,STEP_MODE,devCollect,devApply},damageCover,COVER,coverVis,WH,openWheel:m=>openWheel(m),closeWheel:c=>closeWheel(c),wheelMove:(x,y)=>wheelMove(x,y),gfx:{renderer,scene,camera,applyGfx,DR,render:()=>renderScene(),FREF,BEAMS,get gtao(){return gtaoPass;}},openPause:()=>openPause(),closePause:()=>closePause(),leaveMatch:()=>leaveMatch(),get S(){return S;},me,net,rg:{RG,rgAdd,rgRemove,rgClear,BOXES},botMem,CFG,SB,OPT,AU,get actx(){return actx;},mySlot:()=>mySlot(),sfx:{hitCue,fleshSound,HITX,footstep,slideSound,shotSound,stepSound,get stepBufs(){return stepBufs;},get slideBuf(){return slideBuf;},get gunBufs(){return gunBufs;}}};
 })();
 </script>
