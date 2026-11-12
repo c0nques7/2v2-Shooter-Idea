@@ -624,11 +624,11 @@ function endDM(){if(S.phase!=='live')return;const w=S.score[0]===S.score[1]?-1:S
   feed(w<0?`Draw, ${S.score[0]}–${S.score[1]}`:`${S.size===1?S.players.find(p=>p.team===w).name:TEAMN[w]} wins ${S.score[w]}–${S.score[1-w]}`);}
 function dmKill(t,a){multiKill(a,t);t.st='dead';t.hp=0;t.deadT=CFG.dmRespawn;t.ak=null;t.ap=0;t.d=(t.d|0)+1;a.k=(a.k|0)+1;S.score[a.team]++;
   let heal='';if(a.st==='alive'&&CFG.killHeal>0){a.hp=Math.min(100,a.hp+CFG.killHeal);heal=` (+${CFG.killHeal} HP)`;}feed(`${a.name} killed ${t.name}${heal}`);
-  if(S.score[a.team]>=S.kills)endDM();}
-function dmTick(dt){S.timer-=dt;if(S.timer<=0){S.timer=0;endDM();return;}
+  if(S.score[a.team]>=S.kills&&!SB.on)endDM();}/* the sandbox has no kill limit */
+function dmTick(dt){if(!(SB.on&&!SB.timer)){S.timer-=dt;if(S.timer<=0){S.timer=0;endDM();return;}}
   for(const p of S.players){if(p.prot>0)p.prot=Math.max(0,p.prot-dt);p.ak=null;p.ap=0;p.at=-1;
     if(p.st==='down')p.st='dead';
-    if(p.st==='dead'){p.deadT-=dt;if(p.deadT<=0)dmRespawn(p);}}}
+    if(p.st==='dead'){p.deadT-=dt;if(p.deadT<=0&&!(SB.on&&p.bot&&SB.bots==='off'))dmRespawn(p);}}}
 function endRound(team,why){if(S.phase!=='live')return;S.score[team]++;S.phase='post';S.t=CFG.post;S.last={team,why};feed(`${TEAMN[team]} wins round ${S.round}: ${why}`);}
 /* multi-kills: taking an enemy out of the fight (a down in Zone, a kill in deathmatch) within CFG.multiT seconds of your last one
    chains. The 2nd is a double kill and the 3rd a triple kill; S.multi carries it to every player for the call and the lights. */
@@ -852,13 +852,13 @@ function syncRoster(){
 }
 function packState(){
   const r=v=>typeof v==='number'?Math.round(v*100)/100:v;
-  const o={...S,t:r(S.t),timer:r(S.timer),clock:r(S.clock),armed:S.armed?{site:S.armed.site,t:r(S.armed.t)}:null,regen:(S.regen||[]).map(r),
+  const o={...S,tn:tunePack(),t:r(S.t),timer:r(S.timer),clock:r(S.clock),armed:S.armed?{site:S.armed.site,t:r(S.armed.t)}:null,regen:(S.regen||[]).map(r),
     players:S.players.map(p=>({s:p.s,team:p.team,bot:p.bot,peer:p.peer,name:p.name,hp:r(p.hp),st:p.st,x:r(p.x),y:r(p.y),z:r(p.z),yaw:r(p.yaw),pitch:r(p.pitch),dhp:r(p.dhp),downT:r(p.downT),deadT:r(p.deadT),ak:p.ak,at:p.at,ap:r(p.ap),lastZ:p.lastZ,w:p.w,sp:p.sp,spx:p.spx,spz:p.spz,spyaw:r(p.spyaw),sh:p.sh,wr:p.wr|0,prot:r(p.prot||0),k:p.k|0,d:p.d|0,xs:p.bot?null:p.xs,sx:p.sx?1:0}))};
   return o;
 }
 function onRemoteState(msg){
   if(net.host||msg.peer!==net.hostPeer||!msg.data||!Array.isArray(msg.data.players))return;
-  S=msg.data;net.lastState=performance.now();
+  S=msg.data;net.lastState=performance.now();if(S.tn){tuneFromHost(S.tn);}
 }
 function onRemoteHit(msg){
   if(!net.host||!S)return;const d=msg.data||{};
@@ -2371,7 +2371,8 @@ function choosePick(zi){const s=mySlot();if(s<0||!S||S.players[s].st!=='dead')re
 
 
 /* ---------- sandbox (solo test range) ---------- */
-const SB={on:false,timer:false,tickets:true,bots:'on',god:false,ammo:false,names:false,tab:'rules'};
+const SB={on:false,timer:false,tickets:true,bots:'on',god:false,ammo:false,names:false,tab:'rules',mode:'zone'};
+try{const m=localStorage.getItem('za-sbmode');if(/^(zone|dm[124])$/.test(m))SB.mode=m;}catch(e){}
 try{const t=localStorage.getItem('za-sbtab');if(['rules','snd','wpn','obj'].includes(t))SB.tab=t;}catch(e){}
 const CFG0={...CFG},ZHP0=[...ZHP];
 const SB_KNOBS=[
@@ -2379,6 +2380,7 @@ const SB_KNOBS=[
  ['Movement',[['speed','Walk speed (m/s)',2,12,0.1],['sprint','Sprint speed (m/s)',3,16,0.1],['crawl','Downed crawl (m/s)',0,6,0.1],['jump','Jump strength',2,14,0.1],['grav','Gravity',5,40,0.5],['wallRun','Wallrun time (s)',0,4,0.1],['wallGrav','Wallrun gravity (x normal)',0,1,0.02],['wallKick','Wall jump push (m/s)',0,15,0.5],['grab','Ledge grab reach above feet (m)',0,3.5,0.1]]],
  ['Down and return',[['downHP','Downed HP',1,100,1],['bleed','Bleed-out (s)',1,30,0.5],['revive','Revive (s)',0.5,10,0.1],['respawn','Respawn wait (s)',0,20,0.5],['spawnProt','Spawn shield (s)',0,10,0.5],['killHeal','HP gained for a down',0,100,5],['block','Spawn block radius (m)',0,40,1],['tickets','Respawns per team (next round)',0,20,1]]],
  ['Objective',[['roundTime','Round length (s, next round)',20,300,5],['arm','Arm time (s)',0.5,15,0.5],['defuse','Defuse time (s)',0.5,15,0.5],['fuse','Fuse (s)',5,90,1]]],
+ ['Deathmatch',[['dmRespawn','Respawn wait (s)',0,15,0.5],['dmTime','Match length (s, next match)',60,1800,30],['dmKills1','Kills to win 1v1 (next match)',1,100,1],['dmKills2','Kills to win 2v2 (next match)',1,150,1],['dmKills4','Kills to win 4v4 (next match)',1,200,1]]],
  ['Cover',[['regenMin','Rebuild delay, shortest (s)',2,30,0.5],['regenMax','Rebuild delay, longest (s)',2,30,0.5]]]];
 function sbSave(){try{const d={};for(const k in CFG0)if(CFG[k]!==CFG0[k])d[k]=CFG[k];localStorage.setItem('za-sb',JSON.stringify({cfg:d,zhp:[...ZHP],sb:{timer:SB.timer,tickets:SB.tickets,bots:SB.bots,god:SB.god,ammo:SB.ammo,names:SB.names}}));}catch(e){}}
 function sbLoad(){try{const d=JSON.parse(localStorage.getItem('za-sb')||'null');if(!d)return;
@@ -2399,7 +2401,13 @@ function buildSBIn(el,top){
   devTabs(el,mk);
   const done=()=>{requestAnimationFrame(()=>{el.scrollTop=top;});devHL();};
   if(SB.tab==='snd'){buildSnd(el,mk);return done();}if(SB.tab==='wpn'){buildWpn(el,mk);return done();}if(SB.tab==='obj'){buildObj(el,mk);return done();}
-  el.append(mk('div','note','Rules changes apply live and are kept in this browser for your next sandbox session. Practice and online matches always use the normal rules.'));
+  el.append(mk('div','note','Changes apply live, save automatically, and carry over to practice and to online matches you host in this browser. The toggles under Rules (no damage, infinite ammo, bots, timer, name tags) only ever work in the sandbox.'));
+  // game mode
+  el.append(mk('h3','','Game mode'));
+  {const ml=mk('label','');ml.append(document.createTextNode('Mode'));const ms=document.createElement('select');
+    [['zone','Zone 2v2: attack and defend'],['dm1','Deathmatch 1v1'],['dm2','Team deathmatch 2v2'],['dm4','Team deathmatch 4v4']].forEach(([v,t])=>{const o=document.createElement('option');o.value=v;o.textContent=t;ms.append(o);});
+    ms.value=SB.mode;ms.addEventListener('change',()=>{SB.mode=ms.value;try{localStorage.setItem('za-sbmode',SB.mode);}catch(e){}if(S&&net.mode==='solo'){readMenu();restartMatch();toggleSB(true);buildSB();}});ml.append(ms);el.append(ml);
+    el.append(mk('div','note','Changing the mode restarts the sandbox match. In deathmatch the sandbox has no kill limit, and the clock only runs if "Round timer runs" is on.'));}
   // toggles
   el.append(mk('h3','','Rules'));
   const tog=(k,txt)=>{const l=mk('label','tog');const c=document.createElement('input');c.type='checkbox';c.checked=SB[k];c.addEventListener('change',()=>{SB[k]=c.checked;if(k==='timer'&&S)S.timer=CFG.roundTime;sbSave();});l.append(c,document.createTextNode(txt));return l;};
@@ -2413,11 +2421,11 @@ function buildSBIn(el,top){
   // actions
   el.append(mk('h3','','Actions'));
   const btns=mk('div','btns');const ab=(t,f)=>{const b=mk('button','btn',t);b.type='button';b.addEventListener('click',f);btns.append(b);};
-  ab('Restart round',()=>{if(S){startRound();}});
-  ab('Swap sides',()=>{if(S){S.round++;startRound();}});
+  ab('Restart round',()=>{if(!S)return;if(S.mode==='dm'){restartMatch();toggleSB(true);}else startRound();});
+  ab('Swap sides',()=>{if(S&&S.mode!=='dm'){S.round++;startRound();}});
   ab('Skip freeze',()=>{if(S&&S.phase==='buy')S.t=0;});
   ab('Down me',()=>{const P=sbMe();if(P&&P.st==='alive'&&S.phase==='live'){P.hp=0;P.st='down';P.dhp=CFG.downHP;P.downT=CFG.bleed;P.ak=null;P.ap=0;feed(`${P.name} downed (sandbox)`);}});
-  ab('Arm charge',()=>{if(S&&S.phase==='live'&&!S.armed){const P=sbMe();const site=P&&dist(P,SITES.B)<dist(P,SITES.A)?'B':'A';S.armed={site,t:CFG.fuse};feed(`Charge armed at ${site} (sandbox)`);}});
+  ab('Arm charge',()=>{if(S&&S.mode!=='dm'&&S.phase==='live'&&!S.armed){const P=sbMe();const site=P&&dist(P,SITES.B)<dist(P,SITES.A)?'B':'A';S.armed={site,t:CFG.fuse};feed(`Charge armed at ${site} (sandbox)`);}});
   ab('Full HP',()=>{const P=sbMe();if(P&&P.st==='alive')P.hp=100;});
   el.append(btns);
   el.append(mk('h3','','Teleport'));
@@ -2497,8 +2505,22 @@ function devSave(){sbSave();const s=JSON.stringify(devCollect());try{localStorag
 function devLoad(){let d={};try{d=JSON.parse(localStorage.getItem('za-dev')||'{}')||{};}catch(e){}devApply(d);DEV.saved=JSON.stringify(devCollect());}
 /* leaving the sandbox: practice and online always use the normal rules */
 function sbDefaults(){Object.assign(CFG,CFG0);ZHP0.forEach((v,i)=>ZHP[i]=v);devApply({});DEV.sel=-1;devHL();}
+/* everything tuned in the sandbox is saved as you change it and is this browser's rules for every mode: practice, and the
+   online matches this browser hosts. The sandbox-only toggles (no damage, infinite ammo, bots, timer) never leave the sandbox. */
+function tuneApply(){Object.assign(CFG,CFG0);ZHP0.forEach((v,i)=>ZHP[i]=v);sbLoad();devLoad();DEV.sel=-1;devHL();NET_TN.s='';}
+setInterval(()=>{if(!SB.on||!S)return;const s=JSON.stringify(devCollect());if(s!==DEV.saved)devSave();},800);
+/* online, the host's rules, weapon stats and cover layout ride along with the state so every player simulates the same game;
+   sounds stay each player's own. Leaving the match puts your own settings back. */
+const NET_TN={s:'',out:'',outT:0};
+function tunePack(){const now=performance.now();if(now-NET_TN.outT>1000||!NET_TN.out){NET_TN.outT=now;const d=devCollect(),c={};for(const k in CFG0)if(CFG[k]!==CFG0[k])c[k]=CFG[k];
+    NET_TN.out=JSON.stringify({c,z:[...ZHP],w:d.weapons||{},v:d.cover||{}});}return NET_TN.out;}
+function tuneFromHost(str){if(typeof str!=='string'||str===NET_TN.s||str.length>60000)return;NET_TN.s=str;let t;try{t=JSON.parse(str);}catch(e){return;}if(!t||typeof t!=='object')return;
+  Object.assign(CFG,CFG0);for(const k in t.c||{})if(k in CFG0&&num(t.c[k]))CFG[k]=t.c[k];
+  if(Array.isArray(t.z)&&t.z.length===5)t.z.forEach((v,i)=>{if(isFinite(+v))ZHP[i]=clamp(+v,1,100);});
+  for(const k of WKEYS){const o=(t.w||{})[k]||{};for(const [f] of W_FIELDS){if(k==='rifle'&&RIFLE_CFG[f])continue;W[k][f]=num(o[f])?o[f]:W0[k][f];}}
+  COVER.forEach((b,i)=>{const o=(t.v||{})[i];const g=o&&['x','z','w','d','h','hp'].every(f=>num(o[f]))?o:COVER0[i];if(!coverEq(cGeo(b),g))setCover(i,g);});}
 function devExport(){const d={};const c={};for(const k in CFG0)if(CFG[k]!==CFG0[k])c[k]=CFG[k];if(Object.keys(c).length)d.cfg=c;if(ZHP.some((v,i)=>v!==ZHP0[i]))d.returnHP=[...ZHP];return Object.assign(d,devCollect());}
-function devStatus(){const el=document.getElementById('devstat');if(!el)return;const ch=JSON.stringify(devCollect())!==DEV.saved;el.textContent=ch?'Unsaved changes':'Saved in this browser';el.classList.toggle('chg',ch);}
+function devStatus(){const el=document.getElementById('devstat');if(!el)return;const ch=JSON.stringify(devCollect())!==DEV.saved;el.textContent=ch?'Saving…':'Saved automatically. These settings apply to every mode in this browser.';el.classList.toggle('chg',ch);}
 /* selection: click a piece of cover in the view (Objects tab), or aim at it and press T */
 function pickCover(ox,oy,oz,dx,dy,dz){let best=200,hit=-1;for(const b of COVER){const t=rayBox(ox,oy,oz,dx,dy,dz,{...b,y1:Math.max(b.y1,0.3)},best);if(t>=0&&t<best){best=t;hit=b.ci;}}
   for(const b of BOXES){if(!b.wall||b.y1<=0.01)continue;const t=rayBox(ox,oy,oz,dx,dy,dz,b,best);if(t>=0&&t<best)return -1;}return hit;}
@@ -2520,13 +2542,13 @@ function devFooter(el,mk){el.append(mk('h3','','Save and export'));
   const refresh=()=>{const d=devExport();ta.value=Object.keys(d).length?JSON.stringify(d,null,1):'{}';};refresh();
   el.addEventListener('input',()=>{refresh();devStatus();});el.addEventListener('change',()=>{refresh();devStatus();});
   const eb=mk('div','btns');const ab=(t,f,c)=>{const b=mk('button','btn'+(c?' '+c:''),t);b.type='button';b.addEventListener('click',()=>f(b));eb.append(b);};
-  ab('Save',b=>{devSave();b.textContent='Saved';setTimeout(()=>b.textContent='Save',1200);},'primary');
-  ab('Revert to saved',()=>{Object.assign(CFG,CFG0);ZHP0.forEach((v,i)=>ZHP[i]=v);sbLoad();devLoad();buildSB();});
+  ab('Reset everything to the built-in defaults',b=>{if(b.dataset.arm!=='1'){b.dataset.arm='1';b.textContent='Click again to reset everything';setTimeout(()=>{b.dataset.arm='';b.textContent='Reset everything to the built-in defaults';},2500);return;}
+    try{localStorage.removeItem('za-sb');localStorage.removeItem('za-dev');}catch(e){}Object.assign(SB,{timer:false,tickets:true,bots:'on',god:false,ammo:false,names:false});sbDefaults();DEV.saved=JSON.stringify(devCollect());buildSB();});
   ab('Copy JSON',async b=>{refresh();try{await navigator.clipboard.writeText(ta.value);b.textContent='Copied';}catch(e){ta.select();b.textContent='Press Ctrl+C';}setTimeout(()=>b.textContent='Copy JSON',1500);});
   ab('Load pasted',b=>{try{const d=JSON.parse(ta.value);devApply(d);if(d.cfg&&typeof d.cfg==='object'){Object.assign(CFG,CFG0);for(const k in d.cfg)if(k in CFG0&&num(d.cfg[k]))CFG[k]=d.cfg[k];}
       if(Array.isArray(d.returnHP)&&d.returnHP.length===5)d.returnHP.forEach((v,i)=>{if(isFinite(+v))ZHP[i]=clamp(+v,1,100);});buildSB();}catch(e){b.textContent='Not valid JSON';setTimeout(()=>b.textContent='Load pasted',1500);}});
   el.append(ta,eb);
-  el.append(mk('div','note','Changes apply live in the sandbox only. Save keeps them in this browser for your next sandbox session. Paste the JSON in the project chat and I can bake it into the defaults.'));
+  el.append(mk('div','note','Everything here saves as you change it and applies to practice and to online matches you host, in this browser. Players who join your match get your rules, weapon stats and cover; sounds stay their own. To make settings the default for everyone, paste the JSON in the project chat.'));
   devStatus();}
 function buildSnd(el,mk){
   el.append(mk('div','note','Each sound has its own volume, pitch, tone, low cut and echo. Test plays it where you stand; double-click a slider to reset it. Mix levels per category are in Settings (O).'));
@@ -2808,15 +2830,16 @@ const MODECAP={zone:'Rounds of attack and defense: respawn zones, revives, charg
 function modeCap(){const v=$('modesel').value,c=MODECAP[v]||MODECAP.zone;$('modecap').textContent=typeof c==='function'?c():c;}
 try{const mv=localStorage.getItem('za-mode');if(mv&&MODECAP[mv])$('modesel').value=mv;}catch(e){}
 modeCap();$('modesel').addEventListener('change',()=>{modeCap();try{localStorage.setItem('za-mode',$('modesel').value);}catch(e){}});
-function readMenu(){const mv=$('modesel').value;if(SB.on||!/^dm[124]$/.test(mv)){MATCH.mode='zone';MATCH.size=2;}else{MATCH.mode='dm';MATCH.size=+mv.slice(2);}
+function readMenu(){const mv=SB.on?SB.mode:$('modesel').value;if(!/^dm[124]$/.test(mv)){MATCH.mode='zone';MATCH.size=2;}else{MATCH.mode='dm';MATCH.size=+mv.slice(2);}
   if(W[$('wsel').value]){me.wPref=$('wsel').value;me.w=me.wPref;showWeapon(me.w);me.ammo=myW(me.w).mag;try{localStorage.setItem('za-w',me.wPref);}catch(e){}}me.name=($('nick').value||'Player').replace(/[^\w .'-]/g,'').slice(0,16)||'Player';me.teamPref=+$('teampref').value;diffMul=+$('diff').value;try{localStorage.setItem('za-name',me.name);}catch(e){}}
 function enterGame(){$('menu').hidden=true;for(const id of ['topbar','mini','vitals','ammo','cross','netpill'])$(id).hidden=false;requestLock();blip(660,0.05,0.03,false,'ui');}
 function startSolo(){readMenu();net.mode='solo';net.myPeer='local';net.host=true;net.hostPeer='local';S=null;newMatch();S.diff=diffMul;
   const p=S.players[me.teamPref===1?1:0];p.bot=false;p.peer='local';p.name=me.name;
   if(S.mode==='dm')dmHome(p);else{const role=roleOf(p.team,S.round);spawnAt(p,homeZ(role),role);p.hp=100;}enterGame();}
-$('practice').addEventListener('click',()=>{sbDefaults();SB.on=false;startSolo();});
+tuneApply();
+$('practice').addEventListener('click',()=>{tuneApply();SB.on=false;startSolo();});
 $('sandboxbtn').addEventListener('click',()=>{SB.on=true;sbLoad();devLoad();buildSB();startSolo();});
-$('joinbtn').addEventListener('click',async()=>{sbDefaults();SB.on=false;readMenu();const code=($('code').value||'arena-1').toLowerCase().replace(/[^a-z0-9_.-]/g,'').slice(0,40)||'arena-1';$('code').value=code;$('joinbtn').disabled=true;
+$('joinbtn').addEventListener('click',async()=>{tuneApply();SB.on=false;readMenu();const code=($('code').value||'arena-1').toLowerCase().replace(/[^a-z0-9_.-]/g,'').slice(0,40)||'arena-1';$('code').value=code;$('joinbtn').disabled=true;
   if(await joinOnline(code))enterGame();else $('joinbtn').disabled=false;});
 
 /* ---------- settings menu ---------- */
@@ -2912,7 +2935,7 @@ function newMatchLocal(){WH.auto=false;if(WH.open)closeWheel(false);me.round=0;M
 function closePause(){if($('pause').hidden)return;$('pause').hidden=true;toggleSettings(false);autoLock();blip(660,0.05,0.03,false,'ui');}
 function leaveMatch(){xpFlush();bigCountOff();closeWheel(false);WH.auto=false;$('pause').hidden=true;toggleSettings(false);toggleSB(false);
   if(net.room){try{net.room.leave().catch(()=>{});}catch(e){}}
-  net.mode='none';net.room=null;net.host=false;net.hostPeer=null;net.myPeer=null;S=null;if(SB.on)sbDefaults();SB.on=false;me.sp=-1;me.round=0;me.mid=0;coverTick();
+  net.mode='none';net.room=null;net.host=false;net.hostPeer=null;net.myPeer=null;S=null;tuneApply();SB.on=false;me.sp=-1;me.round=0;me.mid=0;coverTick();
   for(const id of ['topbar','mini','vitals','ammo','cross','netpill','banner','prompt','ring','lockhint','down','dead','fps'])$(id).hidden=true;
   $('feed').replaceChildren();$('feed').dataset.k='';$('confirm').style.opacity=0;$('flash').style.opacity=0;$('hitmark').style.opacity=0;
   for(const a of avatars)a.g.visible=false;
