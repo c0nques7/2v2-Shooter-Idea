@@ -1,13 +1,13 @@
 # Zone Arena
 
-A browser prototype of a 2v2 attack and defense arena shooter. The twist is the respawn rule: the arena is split into five zones, and the closer to the enemy side you come back in, the less health you return with.
+A browser prototype of a 2v2 attack and defense arena shooter, with deathmatch modes (1v1, 2v2 and 4v4) on the same map. The twist is the respawn rule: the arena is split into five zones, and the closer to the enemy side you come back in, the less health you return with.
 
 The whole game is one file, `index.html`, built on Three.js r186 (ES modules loaded from a CDN through an import map, no build step).
 
 ## Play it
 
 - **Locally:** open `index.html` in a desktop browser, or serve the folder (`npx serve .` or `python3 -m http.server`) and open the page. Practice and Sandbox work anywhere.
-- **Online:** online matches use the claude.ai Artifact `room` capability, so they only work when the page is opened as the published Artifact on claude.ai. Players join the same match code; bots fill empty slots. The host's tab must stay in the foreground.
+- **Online:** online matches use the claude.ai Artifact `room` capability, so they only work when the page is opened as the published Artifact on claude.ai. Players who join the same match code and mode play together; bots fill empty slots. The host's tab must stay in the foreground.
 
 A keyboard and mouse are required.
 
@@ -32,6 +32,19 @@ A keyboard and mouse are required.
 | O | Settings (graphics, sound, controls) |
 | T or ` | Sandbox dev overlay (Sandbox only) |
 | Esc | In-game menu (Resume, Settings, Leave match); practice and sandbox pause while it is open |
+
+## Modes
+
+Pick the mode on the main menu. It applies to Practice and to online matches (each mode has its own room per match code, so `arena-1` in Zone 2v2 and `arena-1` in Team deathmatch 4v4 are different matches).
+
+- **Zone 2v2:** the attack and defense mode described under Rules.
+- **Deathmatch 1v1, Team deathmatch 2v2 and 4v4:** every kill scores a point for the killer's team. First to the kill limit wins, or the higher score when the 10 minute clock runs out (a tie is a draw). No downs, revives, tickets, sites or center control: at 0 HP you die, and 3 s later you respawn at the open spot farthest from (and out of sight of) living enemies, with the spawn shield. Each team starts in its own base. Kills heal 25 HP, and the respawn screen lets you pick your next weapon (keys 1 to 3). Bots hunt the nearest enemy.
+
+| Deathmatch setting | Value |
+| --- | --- |
+| Kill limit 1v1 / 2v2 / 4v4 | 15 / 30 / 50 (`CFG.dmKills1`, `dmKills2`, `dmKills4`) |
+| Time limit | 10 min (`CFG.dmTime`) |
+| Respawn delay | 3 s (`CFG.dmRespawn`) |
 
 ## Rules
 

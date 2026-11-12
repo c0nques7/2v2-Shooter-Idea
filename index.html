@@ -74,7 +74,7 @@ body{background:var(--bg);color:var(--fg);overflow:hidden;font-family:var(--disp
 #clock{font-size:22px;min-width:64px;text-align:center}
 #roundinfo{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 #role{font-size:14px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:2px 10px;border-radius:4px}
-#role.atk{background:rgba(255,43,214,.2);color:#ff9bea} #role.def{background:rgba(39,230,255,.16);color:#a6f6ff}
+#role.atk{background:rgba(255,43,214,.2);color:#ff9bea} #role.dm{background:rgba(255,194,61,.16);color:#ffd27a} #role.def{background:rgba(39,230,255,.16);color:#a6f6ff}
 #objective{font-size:15px;color:var(--fg);text-shadow:0 1px 2px #000}
 #tickets{font-size:13px;color:var(--muted)}
 #mini{top:calc(10px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px));border:1px solid var(--line);border-radius:6px;background:var(--panel)}
@@ -222,7 +222,7 @@ input,select{font:inherit;font-size:16px;color:var(--fg);background:#0b0f12;bord
   <div id="picker" role="group" aria-label="Respawn zone"></div>
   <div class="sub">Weapon for your next life</div>
   <div id="wpick" role="group" aria-label="Weapon"></div>
-  <div class="sub keys">Press <kbd>1</kbd>–<kbd>5</kbd> or click a zone. Closer to the enemy means less HP.</div>
+  <div class="sub keys" id="deadK">Press <kbd>1</kbd>–<kbd>5</kbd> or click a zone. Closer to the enemy means less HP.</div>
 </div>
 
 <div id="wheel" hidden role="dialog" aria-label="Weapon wheel"><h2 id="wheelT">Pick your weapon</h2><div id="wheelHost"></div><div class="keys" id="wheelK"></div></div>
@@ -247,7 +247,7 @@ input,select{font:inherit;font-size:16px;color:var(--fg);background:#0b0f12;bord
 <div class="overlay" id="menu">
   <div class="card">
     <div>
-      <h1>Zone Arena<span>2v2 attack / defense · prototype</span></h1>
+      <h1>Zone Arena<span>2v2 attack / defense · deathmatch · prototype</span></h1>
       <p class="lede">Attackers push across five zones to arm a charge at site A or B. When you go down, a teammate can revive you, or you respawn in a zone you pick. Every return costs you depending on where you come back. Cover breaks under fire: it cracks, drops to half height, then collapses into rubble, and rebuilds itself 5 to 10 seconds later.</p>
       <div class="zonestrip" aria-label="Return HP by zone for attackers">
         <div style="background:rgba(92,194,127,.16)"><small>Home base</small><b>100</b></div>
@@ -265,6 +265,8 @@ input,select{font:inherit;font-size:16px;color:var(--fg);background:#0b0f12;bord
         <label for="teampref">Team<select id="teampref"><option value="-1">Auto</option><option value="0">Blue</option><option value="1">Orange</option></select></label>
       </div>
       <label for="wsel">Weapon<select id="wsel"><option value="rifle">Rifle: all-rounder</option><option value="smg">SMG: fast, strong up close, weak at range</option><option value="br">Battle rifle: hard-hitting, heavy recoil</option></select></label>
+      <label for="modesel">Mode<select id="modesel"><option value="zone">Zone 2v2: attack and defend</option><option value="dm1">Deathmatch 1v1</option><option value="dm2">Team deathmatch 2v2</option><option value="dm4">Team deathmatch 4v4</option></select></label>
+      <div class="cap" id="modecap" style="margin-top:-4px"></div>
       <label for="diff">Bot skill<select id="diff"><option value="0.6">Easy</option><option value="1" selected>Normal</option><option value="1.4">Hard</option></select></label>
       <button class="btn" id="setbtn" type="button">Settings: graphics, sound, controls</button>
       <button class="btn primary" id="practice">Practice with bots</button>
@@ -307,8 +309,8 @@ const dist=(a,b)=>hyp(a.x,a.z,b.x,b.z);
 const ZHP=[100,80,60,45,30];
 const ZX=[-46,-20,0,20,46];
 const TEAMN=['Blue','Orange'];
-const BOTN=['Bot Ash','Bot Rook','Bot Vex','Bot Juno'];
-const CFG={roundTime:75,buy:3,post:4.5,overT:10,fuse:25,arm:5,defuse:7,revive:2.5,bleed:8,respawn:4,tickets:4,downHP:30,winScore:4,killHeal:25,block:15,dmg:25,head:50,fireCd:0.12,mag:24,reload:1.8,buy1:8,speed:6,sprint:9.5,crawl:1.8,jump:6.5,grav:18,wallRun:1.3,wallGrav:0.22,wallKick:7,grab:2.3,regenMin:5,regenMax:10,spawnProt:3};
+const BOTN=['Bot Ash','Bot Rook','Bot Vex','Bot Juno','Bot Kade','Bot Nyx','Bot Orin','Bot Sable'];
+const CFG={roundTime:75,buy:3,post:4.5,overT:10,fuse:25,arm:5,defuse:7,revive:2.5,bleed:8,respawn:4,tickets:4,downHP:30,winScore:4,killHeal:25,block:15,dmg:25,head:50,fireCd:0.12,mag:24,reload:1.8,buy1:8,speed:6,sprint:9.5,crawl:1.8,jump:6.5,grav:18,wallRun:1.3,wallGrav:0.22,wallKick:7,grab:2.3,regenMin:5,regenMax:10,spawnProt:3,dmTime:600,dmRespawn:3,dmKills1:15,dmKills2:30,dmKills4:50};
 const SITES={A:{x:22,z:-9},B:{x:22,z:9}};
 /* weapons: the rifle reads CFG so the sandbox sliders tune it. near/far = full damage up to near m, down to fall x at far m */
 const W={
@@ -428,12 +430,18 @@ function findPath(sx,sz,tx,tz){
 let S=null;
 const botMem={};
 let diffMul=1;
-function mkPlayer(s,prev){return{s,team:s%2,bot:prev?prev.bot:true,peer:prev?prev.peer:null,name:prev?prev.name:BOTN[s],hp:100,st:'alive',x:0,y:0,z:0,yaw:0,pitch:0,dhp:0,downT:0,deadT:0,ak:null,at:-1,ap:0,sp:0,spx:0,spz:0,spyaw:0,sh:0,use:false,give:false,pick:-1,lastZ:-1,w:'rifle',wr:0,prot:0};}
+/* match type, picked on the main menu: 'zone' (2v2 attack/defense) or 'dm' (deathmatch: 1v1, or 2v2 / 4v4 teams). Online, the room name
+   carries the mode, so everyone in a room plays the host's S.mode. */
+const MATCH={mode:'zone',size:2};
+const DM_KILLS=n=>n===1?CFG.dmKills1:n===4?CFG.dmKills4:CFG.dmKills2;
+const modeName=(m,n)=>m==='dm'?(n===1?'Deathmatch 1v1':`Team deathmatch ${n}v${n}`):'Zone 2v2';
+function mkPlayer(s,prev){return{s,team:s%2,bot:prev?prev.bot:true,peer:prev?prev.peer:null,name:prev?prev.name:BOTN[s],hp:100,st:'alive',x:0,y:0,z:0,yaw:0,pitch:0,dhp:0,downT:0,deadT:0,ak:null,at:-1,ap:0,sp:0,spx:0,spz:0,spyaw:0,sh:0,use:false,give:false,pick:-1,lastZ:-1,w:'rifle',wr:0,prot:0,k:0,d:0};}
 function newMatch(){
   const prev=S?S.players:null;
-  S={mid:(S&&S.mid||0)+1,round:1,phase:'buy',t:CFG.buy,timer:CFG.roundTime,score:[0,0],tickets:[CFG.tickets,CFG.tickets],armed:null,last:null,feed:[],clock:S?S.clock:0,diff:diffMul,botSite:['A','A'],sudden:false,
-     players:[0,1,2,3].map(i=>mkPlayer(i,prev&&prev[i]))};
-  startRound();
+  const dm=MATCH.mode==='dm',size=dm?MATCH.size:2,N=size*2;
+  S={mid:(S&&S.mid||0)+1,mode:dm?'dm':'zone',size,kills:dm?DM_KILLS(size):0,round:1,phase:'buy',t:CFG.buy,timer:CFG.roundTime,score:[0,0],tickets:[CFG.tickets,CFG.tickets],armed:null,last:null,feed:[],clock:S?S.clock:0,diff:diffMul,botSite:['A','A'],sudden:false,
+     players:Array.from({length:N},(_,i)=>mkPlayer(i,prev&&prev.length===N?prev[i]:null))};
+  if(dm)dmStart();else startRound();
 }
 function feed(m){S.feed.push({t:+S.clock.toFixed(2),m});if(S.feed.length>6)S.feed.shift();}
 function spawnAt(p,zi,role){
@@ -457,6 +465,35 @@ function startRound(){
   S.botSite=[Math.random()<.5?'A':'B',Math.random()<.5?'A':'B'];
   for(const p of S.players){const role=roleOf(p.team,S.round);spawnAt(p,homeZ(role),role);p.hp=100;}
 }
+/* ---------- deathmatch: every kill scores for the killer's team; the dead come back after CFG.dmRespawn s at the open spot
+   farthest from (and out of sight of) living enemies. No downs, revives, tickets, sites or center. ---------- */
+const DM_PTS=[];
+for(let x=-46;x<=46;x+=4)for(let z=-16;z<=16;z+=4){let ok=true;for(let dx=-1;dx<=1&&ok;dx++)for(let dz=-1;dz<=1&&ok;dz++)if(!freeAt(x+dx,z+dz))ok=false;if(ok)DM_PTS.push({x,z});}
+function dmPlace(p,x,z,yaw){p.x=x;p.z=z;p.y=0;p.st='alive';p.hp=100;p.dhp=0;if(p.bot)p.w=WKEYS[(Math.random()*3)|0];p.ak=null;p.ap=0;p.at=-1;p.pick=-1;p.give=false;p.lastZ=zoneOf(x);
+  p.spyaw=yaw;p.yaw=yaw;p.pitch=0;p.spx=x;p.spz=z;p.sp++;p.prot=CFG.spawnProt;p.wr=0;const m=botMem[p.s];if(m){m.path=null;m.wr=0;m.vy=0;m.kvx=m.kvz=0;}}
+/* match start: each team in its own base's spawn alcoves (two to an alcove in 4v4), mirrored through the center like the arena */
+const DM_HOME=[[46,-14],[46,14],[47.5,-17.5],[47.5,17.5]];
+function dmHome(p){const sx=p.team===0?-1:1,h=DM_HOME[(p.s>>1)%4],x=sx*h[0],z=sx*h[1];
+  dmPlace(p,x,z,Math.atan2(-(Math.sign(x)*48.5-x),-(Math.sign(z)*9-z)));}
+function dmSpawnSpot(p){
+  const foes=S.players.filter(e=>e.team!==p.team&&e.st==='alive');let best=null,bs=-1e9;
+  for(const c of DM_PTS){let dmin=60,seen=0;
+    for(const e of foes){const d=hyp(c.x,c.z,e.x,e.z);if(d<dmin)dmin=d;if(d<50&&losPts(e.x,e.y+1.5,e.z,c.x,1.4,c.z))seen++;}
+    const crowd=S.players.some(o=>o!==p&&o.st==='alive'&&hyp(c.x,c.z,o.x,o.z)<2.5);
+    const sc=dmin-seen*30-(crowd?50:0)+Math.random()*8;if(sc>bs){bs=sc;best=c;}}
+  return best||{x:p.team===0?-46:46,z:0};}
+function dmRespawn(p){const c=dmSpawnSpot(p);dmPlace(p,c.x,c.z,Math.atan2(c.x,c.z*0.7));}/* face back toward the middle */
+function dmStart(){S.cover=COVER.map(b=>b.max);S.regen=COVER.map(()=>0);S.center={own:-1,cap:-1,p:0};S.armed=null;S.tickets=[0,0];S.sudden=false;
+  S.timer=CFG.dmTime;S.phase='buy';S.t=Math.max(CFG.buy,CFG.buy1);S.last=null;for(const p of S.players){p.k=0;p.d=0;dmHome(p);}}
+function endDM(){if(S.phase!=='live')return;const w=S.score[0]===S.score[1]?-1:S.score[0]>S.score[1]?0:1;S.phase='over';S.t=CFG.overT;S.last={team:w,why:''};
+  feed(w<0?`Draw, ${S.score[0]}–${S.score[1]}`:`${S.size===1?S.players.find(p=>p.team===w).name:TEAMN[w]} wins ${S.score[w]}–${S.score[1-w]}`);}
+function dmKill(t,a){t.st='dead';t.hp=0;t.deadT=CFG.dmRespawn;t.ak=null;t.ap=0;t.d=(t.d|0)+1;a.k=(a.k|0)+1;S.score[a.team]++;
+  let heal='';if(a.st==='alive'&&CFG.killHeal>0){a.hp=Math.min(100,a.hp+CFG.killHeal);heal=` (+${CFG.killHeal} HP)`;}feed(`${a.name} killed ${t.name}${heal}`);
+  if(S.score[a.team]>=S.kills)endDM();}
+function dmTick(dt){S.timer-=dt;if(S.timer<=0){S.timer=0;endDM();return;}
+  for(const p of S.players){if(p.prot>0)p.prot=Math.max(0,p.prot-dt);p.ak=null;p.ap=0;p.at=-1;
+    if(p.st==='down')p.st='dead';
+    if(p.st==='dead'){p.deadT-=dt;if(p.deadT<=0)dmRespawn(p);}}}
 function endRound(team,why){if(S.phase!=='live')return;S.score[team]++;S.phase='post';S.t=CFG.post;S.last={team,why};feed(`${TEAMN[team]} wins round ${S.round}: ${why}`);}
 function down(p,a){p.hp=0;p.st='down';p.dhp=CFG.downHP;p.downT=CFG.bleed;p.ak=null;p.ap=0;let heal='';if(a.st==='alive'&&CFG.killHeal>0){a.hp=Math.min(100,a.hp+CFG.killHeal);heal=` (+${CFG.killHeal} HP)`;}feed(`${a.name} downed ${p.name}${heal}`);}
 function die(p,a,why){p.st='dead';p.hp=0;p.deadT=CFG.respawn;p.ak=null;p.ap=0;p.pick=-1;feed(a?`${a.name} finished ${p.name}`:`${p.name} ${why}`);}
@@ -465,7 +502,7 @@ function damage(t,dmg,a){
   if(SB.on&&SB.god&&!t.bot)return;
   if(a.prot>0)a.prot=0; // the spawn shield ends the moment you hurt someone
   if(t.prot>0&&t.st==='alive')return;
-  if(t.st==='alive'){t.hp-=dmg;t.ak=null;t.ap=0;if(t.hp<=0)down(t,a);}
+  if(t.st==='alive'){t.hp-=dmg;t.ak=null;t.ap=0;if(t.hp<=0){if(S.mode==='dm')dmKill(t,a);else down(t,a);}}
   else if(t.st==='down'){t.dhp-=dmg;if(t.dhp<=0)die(t,a);}
 }
 function zoneBlocked(zi,team){
@@ -479,7 +516,7 @@ function botPick(p,role){const c=role==='atk'?(Math.random()<.5?[1,2,0]:[2,1,0])
 function hostTick(dt){
   S.clock+=dt;if(!S.cover)S.cover=COVER.map(b=>b.max);
   if(S.phase==='buy'){S.t-=dt;if(S.t<=0){S.phase='live';S.t=0;}}
-  else if(S.phase==='live'){liveTick(dt);if(S.phase==='live')regenTick(dt);}
+  else if(S.phase==='live'){if(S.mode==='dm')dmTick(dt);else liveTick(dt);if(S.phase==='live')regenTick(dt);}
   else if(S.phase==='post'){S.t-=dt;if(S.t<=0){if(!SB.on&&(S.score[0]>=CFG.winScore||S.score[1]>=CFG.winScore)){S.phase='over';S.t=CFG.overT;feed(`${TEAMN[S.score[0]>S.score[1]?0:1]} wins the match`);}else{S.round++;startRound();}}}
   else if(S.phase==='over'){S.t-=dt;if(S.t<=0)newMatch();}
   for(const p of S.players)if(p.bot)botThink(p,dt);
@@ -558,7 +595,8 @@ function botThink(b,dt){
   if(tgt){m.seeT=m.tgtS===tgt.s?m.seeT+dt:0;m.tgtS=tgt.s;}else{m.seeT=0;m.tgtS=-1;}
   const mate=S.players.find(o=>o.team===b.team&&o!==b);
   let goal=null;const armed=S.armed;
-  if(mate&&mate.st==='down'&&(!tgt||dist(b,mate)<4)){goal=mate;if(dist(b,mate)<1.6)b.use=true;}
+  if(S.mode==='dm'){let nd=1e9;for(const e of S.players){if(e.team===b.team||e.st!=='alive')continue;const d=dist(b,e);if(d<nd){nd=d;goal={x:e.x,z:e.z};}}if(!goal)goal={x:0,z:0};}/* hunt the nearest enemy */
+  else if(mate&&mate.st==='down'&&(!tgt||dist(b,mate)<4)){goal=mate;if(dist(b,mate)<1.6)b.use=true;}
   else if(b.s<2&&!armed&&S.center&&S.center.own!==b.team&&(S.timer>25||(SB.on&&!SB.timer))){goal={x:0,z:b.team===0?-12:12};}
   else if(role==='atk'){
     if(!armed){const s=SITES[S.botSite[b.team]];goal=s;if(dist(b,s)<2.2&&!tgt)b.use=true;}
@@ -577,7 +615,7 @@ function botThink(b,dt){
   if(tgt&&!b.use){
     m.strafeT-=dt;if(m.strafeT<=0){m.strafeDir=Math.random()<.5?-1:1;m.strafeT=0.5+Math.random()*0.9;}
     const ang=Math.atan2(tgt.z-b.z,tgt.x-b.x);const px=-Math.sin(ang),pz=Math.cos(ang);
-    const adv=(role==='atk'&&!armed)||goal===mate?0.55:0;
+    const adv=S.mode==='dm'?0.4:(role==='atk'&&!armed)||goal===mate?0.55:0;
     mvx=mvx*adv+px*m.strafeDir*0.8;mvz=mvz*adv+pz*m.strafeDir*0.8;
   }
   // wallrun: running along a tall wall with room ahead, a bot sometimes jumps onto it (more often in a fight) and may kick off at the end
@@ -624,7 +662,7 @@ let roomNS=null;
 const notes=$('netstatus');
 (async()=>{
   try{roomNS=window.claude&&window.claude.use?await window.claude.use('room'):null;}catch(e){roomNS=null;}
-  if(roomNS){$('joinbtn').disabled=false;notes.textContent='Online play is ready. Everyone who joins the same match code plays together; bots fill empty slots.';}
+  if(roomNS){$('joinbtn').disabled=false;notes.textContent='Online play is ready. Everyone who joins the same match code and mode plays together; bots fill empty slots.';}
   else notes.textContent='Online play works when this page is opened on claude.ai by people it is shared with. Practice works anywhere.';
 })();
 
@@ -654,10 +692,11 @@ function syncRoster(){
   for(const pr of list){
     if(S.players.some(p=>p.peer===pr.peer))continue;
     const tm=pr.presence&&Number.isInteger(pr.presence.tm)?pr.presence.tm:-1;
-    const order=tm===0?[0,2,1,3]:tm===1?[1,3,0,2]:[0,1,2,3];
+    const all=S.players.map((_,i)=>i),ev=all.filter(i=>i%2===0),od=all.filter(i=>i%2===1);
+    const order=tm===0?[...ev,...od]:tm===1?[...od,...ev]:all;
     const free=order.find(i=>S.players[i].bot);if(free===undefined)continue;
     const p=S.players[free];p.bot=false;p.peer=pr.peer;delete botMem[p.s];
-    const role=roleOf(p.team,S.round);spawnAt(p,homeZ(role),role);p.hp=100;
+    if(S.mode==='dm'){if(S.phase==='buy')dmHome(p);else dmRespawn(p);}else{const role=roleOf(p.team,S.round);spawnAt(p,homeZ(role),role);p.hp=100;}
   }
   for(const p of S.players){if(p.bot)continue;const inp=presenceOf(p.peer);if(!inp)continue;
     if(Array.isArray(inp.p)&&p.st!=='dead'){p.x=clamp(+inp.p[0]||0,-50,50);p.y=clamp(+inp.p[1]||0,0,ROOF_Y);p.z=clamp(+inp.p[2]||0,-20,20);}
@@ -667,7 +706,7 @@ function syncRoster(){
 function packState(){
   const r=v=>typeof v==='number'?Math.round(v*100)/100:v;
   const o={...S,t:r(S.t),timer:r(S.timer),clock:r(S.clock),armed:S.armed?{site:S.armed.site,t:r(S.armed.t)}:null,regen:(S.regen||[]).map(r),
-    players:S.players.map(p=>({s:p.s,team:p.team,bot:p.bot,peer:p.peer,name:p.name,hp:r(p.hp),st:p.st,x:r(p.x),y:r(p.y),z:r(p.z),yaw:r(p.yaw),pitch:r(p.pitch),dhp:r(p.dhp),downT:r(p.downT),deadT:r(p.deadT),ak:p.ak,at:p.at,ap:r(p.ap),lastZ:p.lastZ,w:p.w,sp:p.sp,spx:p.spx,spz:p.spz,spyaw:r(p.spyaw),sh:p.sh,wr:p.wr|0,prot:r(p.prot||0)}))};
+    players:S.players.map(p=>({s:p.s,team:p.team,bot:p.bot,peer:p.peer,name:p.name,hp:r(p.hp),st:p.st,x:r(p.x),y:r(p.y),z:r(p.z),yaw:r(p.yaw),pitch:r(p.pitch),dhp:r(p.dhp),downT:r(p.downT),deadT:r(p.deadT),ak:p.ak,at:p.at,ap:r(p.ap),lastZ:p.lastZ,w:p.w,sp:p.sp,spx:p.spx,spz:p.spz,spyaw:r(p.spyaw),sh:p.sh,wr:p.wr|0,prot:r(p.prot||0),k:p.k|0,d:p.d|0}))};
   return o;
 }
 function onRemoteState(msg){
@@ -688,7 +727,7 @@ async function joinOnline(code){
   net.mode='online';net.code=code;
   notes.textContent='Joining…';
   try{
-    net.room=await roomNS.join('za-'+code);
+    net.room=await roomNS.join('za-'+code+(MATCH.mode==='dm'?'-dm'+MATCH.size:''));
     net.room.on('state',onRemoteState,e=>console.warn('room',e.code));
     net.room.on('hit',onRemoteHit);
     net.room.onPeers(()=>{});
@@ -1485,7 +1524,7 @@ function buildSoldier(team){
   const blob=new THREE.Mesh(new THREE.PlaneGeometry(1.3,1.3),new THREE.MeshBasicMaterial({map:poolTex,color:0x000000,transparent:true,opacity:0.55,depthWrite:false}));blob.rotation.x=-Math.PI/2;scene.add(blob);
   return{root,model,hips,spine,head,legs,rifle,armor,flash,blob};
 }
-const avatars=[0,1,2,3].map(i=>{
+const avatars=[0,1,2,3,4,5,6,7].map(i=>{
   const sd=buildSoldier(i%2);const g=sd.root;
   const c=document.createElement('canvas');c.width=256;c.height=64;const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;const label=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false,toneMapped:false}));label.scale.set(2.4,0.6,1);label.position.y=2.3;g.add(label);
   scene.add(g);
@@ -1814,7 +1853,7 @@ function audioTick(dt){
   if(P&&S.phase==='post'&&CFG.post>=4&&(SB.on||(S.score[0]<CFG.winScore&&S.score[1]<CFG.winScore))){const el=CFG.post-S.t;
     if(el>=1.5&&!AS.said.sides){AS.said.sides=1;announce('sides');}
     if(el>=3.2&&!AS.said.role){AS.said.role=1;announce(roleOf(myTeam,S.round+1)==='atk'?'offense':'defense');}}
-  if(P&&S.phase==='buy'&&S.round===1&&!AS.said.role&&S.t>4.3&&S.t<CFG.buy1-0.6){if(announce(roleOf(myTeam,1)==='atk'?'offense':'defense'))AS.said.role=1;}
+  if(P&&S.mode!=='dm'&&S.phase==='buy'&&S.round===1&&!AS.said.role&&S.t>4.3&&S.t<CFG.buy1-0.6){if(announce(roleOf(myTeam,1)==='atk'?'offense':'defense'))AS.said.role=1;}
   const armed=!!S.armed&&S.phase==='live';
   if(armed&&!AS.armed){sting('armed');announce('planted',0.3);AS.beepT=0.7;AS.site=S.armed.site;}
   AS.armed=armed;
@@ -1926,7 +1965,7 @@ function closeWheel(commit){if(!WH.open)return;const k=WH.hov,mode=WH.mode;WH.op
   if(commit&&mode==='start'&&net.mode==='solo'&&S&&S.phase==='buy'&&S.round===1)S.t=Math.min(S.t,3.25);/* leave room for the full 3-2-1-Fight call */
   if(!locked)autoLock();}
 function wheelTitle(){if(!S)return;const s=mySlot();const P=s>=0?S.players[s]:null;const role=P?roleOf(P.team,S.round):null;
-  $('wheelT').textContent=WH.mode==='start'?`${role==='atk'?'You attack':'You defend'} · starts in ${Math.ceil(S.t)}`:'Switch weapon';}
+  $('wheelT').textContent=WH.mode==='start'?`${S.mode==='dm'?modeName('dm',S.size):role==='atk'?'You attack':'You defend'} · starts in ${Math.ceil(S.t)}`:'Switch weapon';}
 function wheelMove(dx,dy){WH.vx+=dx;WH.vy+=dy;const L=Math.hypot(WH.vx,WH.vy);if(L>110){WH.vx*=110/L;WH.vy*=110/L;}
   wheelUI.dot.setAttribute('cx',WH.vx.toFixed(1));wheelUI.dot.setAttribute('cy',WH.vy.toFixed(1));
   if(L>28)wheelHover(wheelAt(Math.atan2(WH.vy,WH.vx)*180/Math.PI));}
@@ -1935,7 +1974,7 @@ function wheelTick(P){
   else{WH.auto=false;if(WH.open&&WH.mode==='start')closeWheel(false);}
   if(WH.open&&WH.mode==='hold'&&!canHoldWheel())closeWheel(false);
   if(WH.open)wheelTitle();}
-function choosePick(zi){const s=mySlot();if(s<0||!S||S.players[s].st!=='dead')return;const role=roleOf(S.players[s].team,S.round);if(!canSpawn(role,zi))return;me.pick=zi;}
+function choosePick(zi){const s=mySlot();if(s<0||!S||S.players[s].st!=='dead')return;if(S.mode==='dm'){if(zi<3)setWeapon(WKEYS[zi]);lastPickerKey='';return;}const role=roleOf(S.players[s].team,S.round);if(!canSpawn(role,zi))return;me.pick=zi;}
 
 
 /* ---------- sandbox (solo test range) ---------- */
@@ -2155,10 +2194,19 @@ function buildObj(el,mk){
 /* ---------- menu ---------- */
 try{const n=localStorage.getItem('za-name');if(n)$('nick').value=n;const wv=localStorage.getItem('za-w');if(W[wv])$('wsel').value=wv;}catch(e){}
 if(matchMedia('(pointer:coarse)').matches)$('touchnote').hidden=false;
-function readMenu(){if(W[$('wsel').value]){me.wPref=$('wsel').value;me.w=me.wPref;showWeapon(me.w);me.ammo=W[me.w].mag;try{localStorage.setItem('za-w',me.wPref);}catch(e){}}me.name=($('nick').value||'Player').replace(/[^\w .'-]/g,'').slice(0,16)||'Player';me.teamPref=+$('teampref').value;diffMul=+$('diff').value;try{localStorage.setItem('za-name',me.name);}catch(e){}}
+const MODECAP={zone:'Rounds of attack and defense: respawn zones, revives, charge sites A and B.',
+  dm1:()=>`One on one. First to ${CFG.dmKills1} kills, or the most kills in ${CFG.dmTime/60} minutes. Respawn ${CFG.dmRespawn} s after you die, away from your opponent.`,
+  dm2:()=>`Two teams of two. First team to ${CFG.dmKills2} kills, or the most in ${CFG.dmTime/60} minutes. Respawn ${CFG.dmRespawn} s after you die. Bots fill empty slots.`,
+  dm4:()=>`Two teams of four. First team to ${CFG.dmKills4} kills, or the most in ${CFG.dmTime/60} minutes. Respawn ${CFG.dmRespawn} s after you die. Bots fill empty slots.`};
+function modeCap(){const v=$('modesel').value,c=MODECAP[v]||MODECAP.zone;$('modecap').textContent=typeof c==='function'?c():c;}
+try{const mv=localStorage.getItem('za-mode');if(mv&&MODECAP[mv])$('modesel').value=mv;}catch(e){}
+modeCap();$('modesel').addEventListener('change',()=>{modeCap();try{localStorage.setItem('za-mode',$('modesel').value);}catch(e){}});
+function readMenu(){const mv=$('modesel').value;if(SB.on||!/^dm[124]$/.test(mv)){MATCH.mode='zone';MATCH.size=2;}else{MATCH.mode='dm';MATCH.size=+mv.slice(2);}
+  if(W[$('wsel').value]){me.wPref=$('wsel').value;me.w=me.wPref;showWeapon(me.w);me.ammo=W[me.w].mag;try{localStorage.setItem('za-w',me.wPref);}catch(e){}}me.name=($('nick').value||'Player').replace(/[^\w .'-]/g,'').slice(0,16)||'Player';me.teamPref=+$('teampref').value;diffMul=+$('diff').value;try{localStorage.setItem('za-name',me.name);}catch(e){}}
 function enterGame(){$('menu').hidden=true;for(const id of ['topbar','mini','vitals','ammo','cross','netpill'])$(id).hidden=false;requestLock();blip(660,0.05,0.03,false,'ui');}
 function startSolo(){readMenu();net.mode='solo';net.myPeer='local';net.host=true;net.hostPeer='local';S=null;newMatch();S.diff=diffMul;
-  const order=me.teamPref===1?[1,3,0,2]:[0,2,1,3];const p=S.players[order[0]];p.bot=false;p.peer='local';p.name=me.name;const role=roleOf(p.team,S.round);spawnAt(p,homeZ(role),role);p.hp=100;enterGame();}
+  const p=S.players[me.teamPref===1?1:0];p.bot=false;p.peer='local';p.name=me.name;
+  if(S.mode==='dm')dmHome(p);else{const role=roleOf(p.team,S.round);spawnAt(p,homeZ(role),role);p.hp=100;}enterGame();}
 $('practice').addEventListener('click',()=>{sbDefaults();SB.on=false;startSolo();});
 $('sandboxbtn').addEventListener('click',()=>{SB.on=true;sbLoad();devLoad();buildSB();startSolo();});
 $('joinbtn').addEventListener('click',async()=>{sbDefaults();SB.on=false;readMenu();const code=($('code').value||'arena-1').toLowerCase().replace(/[^a-z0-9_.-]/g,'').slice(0,40)||'arena-1';$('code').value=code;$('joinbtn').disabled=true;
@@ -2264,7 +2312,7 @@ let hitT=0,flashT=0,confirmT=0;
 const RM=matchMedia('(prefers-reduced-motion: reduce)').matches?0:1;
 Object.assign(me,{vx:0,vz:0,eye:1.6,crouch:false,slideT:0,slideCd:0,airT:0,jumpBuf:0,bob:0,bobAmp:0,land:0,roll:0,fov:78,rcP:0,rcY:0,bloom:0,burst:0,sinceShot:9,sprintLock:0,shake:0,ads:0,sprintK:0,kick:0,lean:0,swayX:0,swayY:0,spread:0.003,wr:0,wrT:0,wrCd:0,wrLast:null,wrNx:0,wrNz:0,kicked:false,mantle:null});
 const RECOIL_X=[0,0.2,-0.3,0.5,0.7,0.3,-0.4,-0.8,-0.6,0.1,0.6,0.9,0.4,-0.3,-0.7,-0.2];
-const lastHit=[0,0,0,0],prevSt=['','','',''];
+const lastHit=Array(8).fill(0),prevSt=Array(8).fill('');
 function viewPitch(){return clamp(me.pitch+(me.rcP||0),-1.5,1.5);}
 function viewYaw(){return me.yaw+(me.rcY||0);}
 function approach(vx,vz,tx,tz,step){const dx=tx-vx,dz=tz-vz,L=Math.hypot(dx,dz);if(L<=step||L<1e-6)return[tx,tz];return[vx+dx/L*step,vz+dz/L*step];}
@@ -2401,7 +2449,7 @@ function fire(s){
   const ox=camera.position.x,oy=camera.position.y,oz=camera.position.z;
   let best=rayWorld(ox,oy,oz,dx,dy,dz,120),hit=-1,head=false;const hb=rayHitBox;
   const myTeam=S.players[s].team;
-  for(let i=0;i<4;i++){if(i===s)continue;const p=S.players[i];if(p.team===myTeam||p.st==='dead')continue;const av=avatars[i];
+  for(let i=0;i<S.players.length;i++){if(i===s)continue;const p=S.players[i];if(p.team===myTeam||p.st==='dead')continue;const av=avatars[i];
     const box=playerBox(av.rx,av.ry,av.rz,p.st==='down',av.crouch);const ln=p.st==='down'?0:(av.lean||0);
     if(Math.abs(ln)>0.05){const half=av.crouch?0.65:0.9,sx=Math.cos(av.ryaw)*ln*0.42,sz=-Math.sin(av.ryaw)*ln*0.42;const up={x0:box.x0+sx,x1:box.x1+sx,z0:box.z0+sz,z1:box.z1+sz,y0:box.y0+half,y1:box.y1};box.y1=box.y0+half;const tu=rayBox(ox,oy,oz,dx,dy,dz,up,best);if(tu>=0&&tu<best){best=tu;hit=i;head=oy+dy*tu>av.ry+(av.crouch?1.0:1.45);}}
     const t=rayBox(ox,oy,oz,dx,dy,dz,box,best);
@@ -2428,9 +2476,10 @@ function feelHud(dt){
   $('cross').style.opacity=!alive?0:me.sprintK>0.5||me.reloadT>0?0.3:1;for(const e of chEl)e.style.opacity=1-me.ads;
   confirmT-=dt;$('confirm').style.opacity=confirmT>0?1:0;
   const now=performance.now();
-  for(let i=0;i<4;i++){const p=S.players[i],st=p.st;
+  for(let i=0;i<S.players.length;i++){const p=S.players[i],st=p.st;
     if(P&&i!==s&&now-lastHit[i]<1500&&prevSt[i]!==st){
       if(prevSt[i]==='alive'&&st==='down'){$('confirm').textContent='Downed '+p.name;confirmT=1.3;tone(520,900,0.16,0.06,'ui');}
+      else if(prevSt[i]==='alive'&&st==='dead'){$('confirm').textContent='Killed '+p.name;confirmT=1.3;tone(700,1100,0.16,0.06,'ui');tone(1050,1650,0.2,0.03,'ui');}
       else if(prevSt[i]==='down'&&st==='dead'){$('confirm').textContent='Finished '+p.name;confirmT=1.3;tone(700,1100,0.16,0.06,'ui');tone(1050,1650,0.2,0.03,'ui');}
     }
     prevSt[i]=st;}
@@ -2440,7 +2489,8 @@ function feelHud(dt){
 function renderOthers(dt){
   const s=mySlot();
   const k=1-Math.exp(-dt*14),kk=Math.min(1,dt*10);
-  for(let i=0;i<4;i++){
+  for(let i=S.players.length;i<avatars.length;i++){const a=avatars[i];a.g.visible=false;a.blob.visible=false;a.hullM.visible=false;}
+  for(let i=0;i<S.players.length;i++){
     const p=S.players[i],a=avatars[i];
     if(i===s){a.g.visible=false;a.blob.visible=false;a.hullM.visible=false;continue;}
     let x=p.x,y=p.y,z=p.z,yaw=p.yaw,pitch=p.pitch,sh=p.sh;a.crouch=false;let ln=0,wr=p.wr||0;
@@ -2502,30 +2552,32 @@ function hud(dt){
   for(const t of tracers){if(t.t<=0)continue;t.t-=dt;t.l.material.opacity=Math.max(0,t.t/0.09);if(t.t<=0)t.l.visible=false;}
   hudT-=dt;if(hudT>0)return;hudT=1/15;
   const s=mySlot(),P=s>=0?S.players[s]:null;
-  const myTeam=P?P.team:0,role=P?roleOf(P.team,S.round):null;
+  const dm=S.mode==='dm',myTeam=P?P.team:0,role=P&&!dm?roleOf(P.team,S.round):null;
   refreshZoneLook(role);
   $('sc0').textContent=S.score[0];$('sc1').textContent=S.score[1];
   $('clock').textContent=S.phase==='buy'?'0:0'+Math.ceil(S.t):S.armed?fmt(S.armed.t):SB.on&&!SB.timer?'∞':fmt(S.timer);
   $('clock').style.color=S.armed?'var(--bad)':'';
-  $('roundinfo').textContent=`Round ${S.round} · first to ${CFG.winScore}`+(S.sudden?' · sudden death, no respawns':'');
-  const rb=$('role');if(role){rb.hidden=false;rb.className=role;rb.textContent=(role==='atk'?'Attack':'Defend')+' · '+TEAMN[myTeam];}else rb.hidden=true;
+  $('roundinfo').textContent=dm?`${modeName('dm',S.size)} · first to ${S.kills} kills`:`Round ${S.round} · first to ${CFG.winScore}`+(S.sudden?' · sudden death, no respawns':'');
+  const rb=$('role');if(dm&&P){rb.hidden=false;rb.className='dm';rb.textContent=S.size===1?'Deathmatch':'Team '+TEAMN[myTeam];}else if(role){rb.hidden=false;rb.className=role;rb.textContent=(role==='atk'?'Attack':'Defend')+' · '+TEAMN[myTeam];}else rb.hidden=true;
   let obj='';
-  if(S.phase==='buy')obj='Get ready. Round starts in '+Math.ceil(S.t);
+  if(dm)obj=S.phase==='buy'?'Get ready. Match starts in '+Math.ceil(S.t):S.phase==='live'?(S.size===1?`Kill your opponent. First to ${S.kills} wins`:`Score kills for your team. First to ${S.kills} wins`):'';
+  else if(S.phase==='buy')obj='Get ready. Round starts in '+Math.ceil(S.t);
   else if(S.armed)obj=role==='atk'?`Charge armed at ${S.armed.site}. Keep defenders off it.`:`Charge armed at ${S.armed.site}. Defuse it!`;
   else if(role==='atk')obj='Push in and arm the charge at A or B';else if(role==='def')obj='Hold sites A and B until time runs out';
   $('objective').textContent=obj;
   const C=S.center||{own:-1,cap:-1,p:0};
   const cTxt=C.cap>=0&&C.p>0?`${C.cap===myTeam?'you are':TEAMN[C.cap]+' is'} taking the center ${Math.round(C.p*100)}%`:C.own<0?'center neutral':C.own===myTeam?`you hold the center (+${CENTER_HP} HP spawn)`:`${TEAMN[C.own]} holds the center`;
-  if(P)$('tickets').textContent=`Respawns left  you ${S.tickets[myTeam]} · them ${S.tickets[1-myTeam]} · ${cTxt}`;else $('tickets').textContent='';
+  if(P&&dm)$('tickets').textContent=`You  ${P.k|0} kills · ${P.d|0} deaths`;
+  else if(P)$('tickets').textContent=`Respawns left  you ${S.tickets[myTeam]} · them ${S.tickets[1-myTeam]} · ${cTxt}`;else $('tickets').textContent='';
   // feed
   const fd=$('feed');const items=S.feed.filter(f=>S.clock-f.t<7).slice(-5);const fk=items.map(f=>f.t+f.m).join('|');
   if(fd.dataset.k!==fk){fd.dataset.k=fk;fd.replaceChildren(...items.map(f=>{const d=document.createElement('div');d.textContent=f.m;return d;}));}
   // vitals
   if(P){
     const hp=P.st==='alive'?Math.max(0,Math.round(P.hp)):0;$('hpnum').textContent=hp;$('hpfill').style.width=hp+'%';$('hpfill').style.background=hpColor(hp);
-    const zi=zoneOf(me.x);const rh=returnHP(role,zi);
-    $('zoneline').innerHTML='';const b=document.createElement('b');b.textContent=zoneName(role,zi);const sp=document.createElement('span');sp.textContent=' · come back here at ';const h=document.createElement('b');h.textContent=rh+' HP';h.style.color=hpColor(rh);
-    $('zoneline').append(b,sp,h);if(P.st==='alive'&&P.prot>0&&S.phase==='live'){const sh=document.createElement('b');sh.textContent=' · Spawn shield '+P.prot.toFixed(1)+'s';sh.style.color='var(--accent)';$('zoneline').append(sh);}
+    const zi=zoneOf(me.x);const rh=dm?100:returnHP(role,zi);
+    $('zoneline').innerHTML='';if(!dm){const b=document.createElement('b');b.textContent=zoneName(role,zi);const sp=document.createElement('span');sp.textContent=' · come back here at ';const h=document.createElement('b');h.textContent=rh+' HP';h.style.color=hpColor(rh);
+    $('zoneline').append(b,sp,h);}if(P.st==='alive'&&P.prot>0&&S.phase==='live'){const sh=document.createElement('b');sh.textContent=' · Spawn shield '+P.prot.toFixed(1)+'s';sh.style.color='var(--accent)';$('zoneline').append(sh);}
     $('ammonum').textContent=me.reloadT>0?'··':me.ammo;$('ammosub').textContent=me.reloadT>0?'Reloading':wOf(me.w).name+' · R to reload';
   }
   // prompt + ring
@@ -2542,7 +2594,11 @@ function hud(dt){
   else rc.hidden=true;
   // banner
   const bn=$('banner');wheelTick(P);
-  if(S.phase==='post'&&S.last){bn.hidden=false;$('bannerT').textContent=(S.last.team===myTeam&&P?'Round won':P?'Round lost':TEAMN[S.last.team]+' wins the round');$('bannerS').textContent=`${TEAMN[S.last.team]}: ${S.last.why} · ${S.score[0]}–${S.score[1]} · sides swap next round`;}
+  if(dm&&S.phase==='over'){bn.hidden=false;const w=S.last?S.last.team:-1,top=S.players.reduce((a,b)=>(b.k|0)>(a.k|0)?b:a,S.players[0]);
+    $('bannerT').textContent=w<0?'Draw':S.size===1&&P?(w===myTeam?'You win':'You lose'):P?(w===myTeam?'Your team wins':`${TEAMN[w]} wins`):`${TEAMN[w]} wins`;
+    $('bannerS').textContent=`${S.score[0]}–${S.score[1]}`+(S.size>1?` · most kills: ${top.name} (${top.k|0})`:'')+` · new match in ${Math.ceil(S.t)}`;}
+  else if(dm&&S.phase==='buy'){bn.hidden=false;$('bannerT').textContent=modeName('dm',S.size);$('bannerS').textContent=`First to ${S.kills} kills, or the most kills in ${fmt(S.timer)} · Weapon: ${wOf(me.w).name} · 1 Rifle, 2 SMG, 3 Battle rifle`;}
+  else if(S.phase==='post'&&S.last){bn.hidden=false;$('bannerT').textContent=(S.last.team===myTeam&&P?'Round won':P?'Round lost':TEAMN[S.last.team]+' wins the round');$('bannerS').textContent=`${TEAMN[S.last.team]}: ${S.last.why} · ${S.score[0]}–${S.score[1]} · sides swap next round`;}
   else if(S.phase==='over'){bn.hidden=false;const w=S.score[0]>S.score[1]?0:1;$('bannerT').textContent=`${TEAMN[w]} wins the match`;$('bannerS').textContent=`${S.score[0]}–${S.score[1]} · new match in ${Math.ceil(S.t)}`;}
   else if(S.phase==='buy'){bn.hidden=false;$('bannerT').textContent=role?(role==='atk'?'You attack this round':'You defend this round'):'Round '+S.round;$('bannerS').textContent=(role==='atk'?'Start in your home base on the west end':'Sites A and B are in your half. Hold them.')+` · Weapon: ${wOf(me.w).name} · 1 Rifle, 2 SMG, 3 Battle rifle`;}
   else bn.hidden=true;
@@ -2554,6 +2610,11 @@ function hud(dt){
   if(me.wantLock&&!dead){me.wantLock=false;autoLock();}
   if(dead){
     if(locked)document.exitPointerLock();
+    $('picker').hidden=dm;
+    if(dm){$('deadT').textContent='Respawning';$('deadS').textContent=`Back in ${Math.max(0,Math.ceil(P.deadT))}s, away from the enemy · ${P.k|0} kills, ${P.d|0} deaths`;
+      const key='dm'+me.wPref;if(key!==lastPickerKey){lastPickerKey=key;$('deadK').innerHTML='Press <kbd>1</kbd>–<kbd>3</kbd> or click to pick a weapon.';deadWheel.refresh();deadWheel.set(me.wPref,null);}}
+    else{
+    if(lastPickerKey.startsWith('dm')){lastPickerKey='';$('deadK').innerHTML='Press <kbd>1</kbd>–<kbd>5</kbd> or click a zone. Closer to the enemy means less HP.';}
     const noT=S.tickets[myTeam]<=0;
     $('deadT').textContent=noT?'Out of respawns':'Choose where to come back';
     $('deadS').textContent=noT?'Your team has no respawns left this round. Watch your teammate finish it.':`Respawn in ${Math.max(0,Math.ceil(P.deadT))}s · ${S.tickets[myTeam]} team respawns left · no pick sends you back to ${zoneName(role,pickOK(P,P.lastZ,role)?P.lastZ:homeZ(role))}`;
@@ -2568,13 +2629,13 @@ function hud(dt){
         const k=document.createElement('span');k.className='k';k.textContent='key '+(z.zi+1);
         b.append(zn,h,st,k);b.addEventListener('click',()=>{choosePick(z.zi);lastPickerKey='';});return b;}));
       deadWheel.refresh();deadWheel.set(me.wPref,null);}
-  }
+  }}
   $('lockhint').hidden=locked||!$('menu').hidden||!!dead||!P||!$('settings').hidden||!$('pause').hidden;
   $('lockmode').textContent=dragMode?'mouse capture is blocked here, so drag with the mouse button held (or use arrow keys) to look':'click or press any key to take back the mouse · Esc opens the menu';
   // net pill
   let np='';
-  if(net.mode==='solo')np=SB.on?`Sandbox · bots ${SB.bots==='on'?'fighting':SB.bots} · T opens the dev overlay`:'Practice · you and 3 bots';
-  else{const humans=S.players.filter(p=>!p.bot).length;np=`Online · match ${net.code} · ${humans} player${humans===1?'':'s'}, ${4-humans} bot${4-humans===1?'':'s'}`+(net.host?' · you are hosting':'')+(s<0?' · spectating (match full)':'');}
+  if(net.mode==='solo')np=SB.on?`Sandbox · bots ${SB.bots==='on'?'fighting':SB.bots} · T opens the dev overlay`:`Practice · ${modeName(S.mode,S.size)} · you and ${S.players.length-1} bot${S.players.length>2?'s':''}`;
+  else{const humans=S.players.filter(p=>!p.bot).length;np=`Online · match ${net.code} · ${humans} player${humans===1?'':'s'}, ${S.players.length-humans} bot${S.players.length-humans===1?'':'s'}`+(net.host?' · you are hosting':'')+(s<0?' · spectating (match full)':'');}
   $('netpill').textContent=np;
   drawMini(P,myTeam,role);
 }
@@ -2585,10 +2646,10 @@ function drawMini(P,myTeam,role){
   g.globalAlpha=1;g.fillStyle='#9aa4ab';
   g.strokeStyle='#9aa4ab';g.lineWidth=1.5;for(const b of BOXES){if(b.wall&&!b.solid)continue;if(b.y1<=0.01){if(b.rb)g.strokeRect(b.x0*sc,b.z0*sc,(b.x1-b.x0)*sc,(b.z1-b.z0)*sc);continue;}g.globalAlpha=b.solid?0.85:b.stage===1?0.5:1;g.fillRect(b.x0*sc,b.z0*sc,(b.x1-b.x0)*sc,(b.z1-b.z0)*sc);}
   g.globalAlpha=1;
-  for(const k of ['A','B']){const s=SITES[k];const armed=S.armed&&S.armed.site===k;g.strokeStyle=armed&&(S.clock*2|0)%2?'#e3584d':'#ffd27a';g.lineWidth=3;g.beginPath();g.arc(s.x*sc,s.z*sc,3*sc,0,Math.PI*2);g.stroke();g.fillStyle='#ffd27a';g.font='bold 20px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(k,s.x*sc,s.z*sc);}
+  if(S.mode!=='dm')for(const k of ['A','B']){const s=SITES[k];const armed=S.armed&&S.armed.site===k;g.strokeStyle=armed&&(S.clock*2|0)%2?'#e3584d':'#ffd27a';g.lineWidth=3;g.beginPath();g.arc(s.x*sc,s.z*sc,3*sc,0,Math.PI*2);g.stroke();g.fillStyle='#ffd27a';g.font='bold 20px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(k,s.x*sc,s.z*sc);}
   const s=mySlot();
-  for(let i=0;i<4;i++){const p=S.players[i];if(p.st==='dead'||i===s)continue;const a=avatars[i];
-    if(P&&p.team!==myTeam){const mate=S.players.find(o=>o.team===myTeam&&o!==P);const seen=losPts(me.x,me.y+1.6,me.z,a.rx,a.ry+1,a.rz)||(mate&&mate.st==='alive'&&losPts(avatars[mate.s].rx,avatars[mate.s].ry+1.5,avatars[mate.s].rz,a.rx,a.ry+1,a.rz));if(!seen)continue;}
+  for(let i=0;i<S.players.length;i++){const p=S.players[i];if(p.st==='dead'||i===s)continue;const a=avatars[i];
+    if(P&&p.team!==myTeam){const seen=losPts(me.x,me.y+1.6,me.z,a.rx,a.ry+1,a.rz)||S.players.some(o=>o.team===myTeam&&o!==P&&o.st==='alive'&&losPts(avatars[o.s].rx,avatars[o.s].ry+1.5,avatars[o.s].rz,a.rx,a.ry+1,a.rz));if(!seen)continue;}
     g.fillStyle=p.team===0?'#5b93f5':'#f0894c';g.beginPath();g.arc(a.rx*sc,a.rz*sc,p.st==='down'?4:6,0,Math.PI*2);g.fill();if(p.st==='down'){g.strokeStyle='#fff';g.lineWidth=2;g.stroke();}}
   if(P&&P.st!=='dead'){g.save();g.translate(me.x*sc,me.z*sc);g.rotate(-me.yaw);g.fillStyle='#fff';g.beginPath();g.moveTo(0,-9);g.lineTo(6,6);g.lineTo(-6,6);g.closePath();g.fill();g.restore();}
 }
