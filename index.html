@@ -332,18 +332,21 @@ const hpColor=h=>h>=80?'#35ffa0':h>=45?'#ffc23d':'#ff3d6e';
 /* ---------- arena ---------- */
 const BOXES=[];
 function addBox(x,z,w,d,h,wall){BOXES.push({x0:x-w/2,x1:x+w/2,z0:z-d/2,z1:z+d/2,y0:0,y1:h,wall:!!wall});}
-/* Layout. Each home base is a spawn room behind a solid screen at x=±42 with a 12 m doorway (|z|<6). Both spawn points sit behind
-   the screen, far enough from the doorway that no line from outside reaches them. Outside the doorway two solid baffles at x=±36
-   (2.5<|z|<11) split the way out into three exits (north lane, center, south lane), so two enemies can't watch every exit, and each
-   exit has a crate just outside it. A short wing wall inside each doorway edge keeps anyone peeking through the doorway from seeing the
-   spawn points. Solids (3.2 m, indestructible, not climbable) only sit in the bases; the midfield is breakable
+/* Layout. Each spawn point sits in its own alcove (a front wall and one wing, open to the back and along the arena wall), so nothing
+   outside the base can see it. The base front is a solid wall at x=±40 with five doors (center, |z|≈9, and one along each arena wall).
+   A second, staggered row at x=±34.5 puts a piece in front of every door, which blocks the long base-to-base lines and gives each
+   door a left and a right way out. Solids (3.2 m, indestructible, not climbable) only sit in the bases; the midfield is breakable
    cover in three lanes with lane breakers between the respawn points. Mirrored through the center ((x,z) -> (-x,-z)), except a few
    south-lane pieces kept low or nudged off the menu flyover's low pass. */
 function addSolid(x,z,w,d,h){addBox(x,z,w,d,h,1);BOXES[BOXES.length-1].solid=true;}
 const SOLID_H=3.2;
-for(const sx of [-1,1]){addSolid(sx*42,13,1.2,14,SOLID_H);addSolid(sx*42,-13,1.2,14,SOLID_H);addSolid(sx*36,6.75,1.2,8.5,SOLID_H);addSolid(sx*36,-6.75,1.2,8.5,SOLID_H);addSolid(sx*44.1,6.6,3,1.2,SOLID_H);addSolid(sx*44.1,-6.6,3,1.2,SOLID_H);}
+for(const sx of [-1,1])for(const sz of [-1,1]){
+  addSolid(sx*43.2,sz*13.75,1.2,6.5,SOLID_H);addSolid(sx*45.4,sz*10.5,3.2,1.2,SOLID_H); // spawn alcove: front wall and inner wing
+  addSolid(sx*40,sz*4.5,1.2,5.5,SOLID_H);addSolid(sx*40,sz*13.6,1.2,5.8,SOLID_H);        // base front, doors at |z|<1.75, 7.25-10.7, 16.5-20
+  addSolid(sx*34.5,sz*9,1.2,5.5,SOLID_H);addSolid(sx*34.5,sz*17.6,1.2,4.8,SOLID_H);      // staggered outer row
+  if(sz>0)addSolid(sx*34.5,0,1.2,5.5,SOLID_H);}
 [[25.5,-10.5,2,2,2.5],[25.5,10.5,2,2,2.5],[22,-4.6,4,1.2,2.5],[22,4.6,4,1.2,2.5],[18.5,-8,1.5,2.5,1],[18.5,8,1.5,2.5,1],
- [10,14,2,3,2.5],[12,-1.5,1.2,4,2.5],[16,6.5,2.5,1.5,1],[31.5,15,1.5,5,2.5],[31.5,-15,1.5,5,2.5],[31.5,0,1.5,5,2.5],[6,-9.5,3,1.2,2.5],[28,-2,2,2,1]
+ [10,14,2,3,2.5],[12,-1.5,1.2,4,2.5],[16,6.5,2.5,1.5,1],[30,13,2,2,2.5],[30,-13,2,2,2.5],[30,4.5,2,2,1],[30,-4.5,2,2,1],[6,-9.5,3,1.2,2.5],[28,-2,2,2,1]
 ].forEach(b=>{addBox(b[0],b[1],b[2],b[3],b[4]);addBox(-b[0],-b[1],b[2],b[3],b[4]);});
 addBox(0,0,2,2,2.5);addBox(-3.5,6.5,4,1.2,1);addBox(3.5,-6.5,4,1.2,1);
 const WALL_H=8;
@@ -435,7 +438,7 @@ function newMatch(){
 function feed(m){S.feed.push({t:+S.clock.toFixed(2),m});if(S.feed.length>6)S.feed.shift();}
 function spawnAt(p,zi,role){
   p.lastZ=zi;p.x=ZX[zi];p.z=p.s<2?-14:14;p.y=0;p.st='alive';p.hp=retHP(p.team,role,zi);if(p.bot)p.w=WKEYS[(Math.random()*3)|0];p.ak=null;p.ap=0;p.at=-1;p.pick=-1;p.give=false;
-  p.spyaw=zi===homeZ(role)?Math.atan2(-(ZX[zi]+(zi?-6:6)-p.x),-(0-p.z)):role==='atk'?-Math.PI/2:Math.PI/2;// home spawns face the spawn-room exit
+  p.spyaw=zi===homeZ(role)?Math.atan2(-(ZX[zi]+(zi?2.5:-2.5)-p.x),-((p.z<0?-9:9)-p.z)):role==='atk'?-Math.PI/2:Math.PI/2;// home spawns face the way out of their alcove
   p.yaw=p.spyaw;p.pitch=0;p.spx=p.x;p.spz=p.z;p.sp++;
   p.prot=CFG.spawnProt;p.wr=0;const m=botMem[p.s];if(m){m.path=null;m.wr=0;m.vy=0;m.kvx=m.kvz=0;}
 }
