@@ -677,7 +677,7 @@ function dmKill(t,a){multiKill(a,t);t.st='dead';t.hp=0;t.deadT=CFG.dmRespawn;t.a
   let heal='';if(a.st==='alive'&&CFG.killHeal>0){a.hp=Math.min(100,a.hp+CFG.killHeal);heal=` (+${CFG.killHeal} HP)`;}feed(`${a.name} killed ${t.name}${heal}`);
   if(S.score[a.team]>=S.kills&&!SB.on)endDM();}/* the sandbox has no kill limit */
 function dmTick(dt){if(!(SB.on&&!SB.timer)){S.timer-=dt;if(S.timer<=0){S.timer=0;endDM();return;}}
-  for(const p of S.players){if(p.prot>0)p.prot=Math.max(0,p.prot-dt);p.ak=null;p.ap=0;p.at=-1;
+  for(const p of S.players){if(p.prot>0)p.prot=Math.max(0,p.prot-dt);if(!(S.range&&!p.bot)){p.ak=null;p.ap=0;p.at=-1;}
     if(p.st==='down')p.st='dead';
     if(p.st==='dead'){p.deadT-=dt;if(p.deadT<=0&&!(SB.on&&p.bot&&SB.bots==='off'&&!S.range))dmRespawn(p);}}}
 function endRound(team,why){if(S.phase!=='live')return;S.score[team]++;S.phase='post';S.t=CFG.post;S.last={team,why};feed(`${TEAMN[team]} wins round ${S.round}: ${why}`);}
@@ -714,7 +714,7 @@ function botPick(p,role){const c=role==='atk'?(Math.random()<.5?[1,2,0]:[2,1,0])
 function hostTick(dt){
   S.clock+=dt;if(!S.cover)S.cover=COVER.map(b=>b.max);
   if(S.phase==='buy'){S.t-=dt;if(S.t<=0){S.phase='live';S.t=0;}}
-  else if(S.phase==='live'){if(S.mode==='dm')dmTick(dt);else liveTick(dt);if(S.phase==='live')regenTick(dt);}
+  else if(S.phase==='live'){if(S.mode==='dm'){dmTick(dt);if(S.range)rgSiteTick(dt);}else liveTick(dt);if(S.phase==='live')regenTick(dt);}
   else if(S.phase==='post'){S.t-=dt;if(S.t<=0){if(!SB.on&&(S.score[0]>=CFG.winScore||S.score[1]>=CFG.winScore)){S.phase='over';S.t=CFG.overT;feed(`${TEAMN[S.score[0]>S.score[1]?0:1]} wins the match`);}else{S.round++;startRound();}}}
   else if(S.phase==='over'){S.t-=dt;if(S.t<=0)newMatch();}
   for(const p of S.players)if(p.bot)botThink(p,dt);
@@ -769,7 +769,7 @@ function actions(p,dt,role){
     p.ak=null;p.ap=0;p.at=-1;
     if(k==='rev'){xsAdd(p,'rv');const d=S.players[tg];d.st='alive';d.hp=retHP(d.team,roleOf(d.team,S.round),zoneOf(d.x));feed(`${p.name} revived ${d.name} at ${d.hp} HP`);}
     else if(k==='arm'){xsAdd(p,'pl');S.armed={site:tg,t:CFG.fuse};feed(`${p.name} armed the charge at ${tg}`);}
-    else{xsAdd(p,'df');feed(`${p.name} defused the charge`);endRound(p.team,'charge defused');}
+    else{xsAdd(p,'df');feed(`${p.name} defused the charge`);if(S.range)S.armed=null;else endRound(p.team,'charge defused');}
   }
 }
 
@@ -2762,7 +2762,7 @@ function rgRemove(it){const i=RG.list.indexOf(it);if(i<0)return;RG.list.splice(i
 function rgClear(){for(const it of [...RG.list])rgRemove(it);}
 /* the starter range: boards at 10, 25, 40 and 55 m, a still and a strafing dummy, low and high cover by the firing line */
 function rgDefault(){const X=RG_START.x;
-  rgAdd('target',{x:X+10,z:-9});rgAdd('target',{x:X+25,z:-4});rgAdd('target',{x:X+40,z:3});rgAdd('target',{x:X+55,z:9});
+  rgAdd('target',{x:X+10,z:-9});rgAdd('target',{x:X+25,z:-4});rgAdd('target',{x:X+40,z:3});rgAdd('target',{x:X+55,z:15});
   rgAdd('dummy',{x:X+15,z:5,move:'still'});rgAdd('dummy',{x:X+30,z:12,move:'strafe'});
   rgAdd('cover',{x:X+4,z:-14,w:3,d:1.2});rgAdd('cover',{x:X+4,z:14,w:3,d:1.2,high:true});}
 /* called from newMatch: the range is live at once and only spawned bots come in */
@@ -2831,6 +2831,22 @@ function rgDeliver(){const a=RG.acc;RG.acc=null;if(!a||!a.size)return false;let 
 function rgReadout(){const el=$('rgread');const acc=RG.shots?Math.round(100*Math.min(RG.hits,RG.shots)/RG.shots):0;el.textContent=RG.read+(RG.shots?`  ·  ${acc}% of ${RG.shots} shots hit`:'');el.hidden=!rgOn()||!RG.read;}
 function dmgNum(x,y,z,dmg,head){_v.set(x,y+0.25,z).project(camera);
   if(_v.z<1){const el=document.createElement('span');el.textContent=dmg;if(head)el.className='head';el.style.left=((_v.x*0.5+0.5)*innerWidth+(Math.random()-.5)*26)+'px';el.style.top=((-_v.y*0.5+0.5)*innerHeight)+'px';$('dmg').appendChild(el);setTimeout(()=>el.remove(),620);}}
+/* bomb sites at the range: the arena's real sites A and B (54 m downrange). Hold F at a site to arm, hold F again to defuse, or let
+   the fuse run out for the full detonation (flash, fireball, blast sound). Nothing ends: the site is ready again right after. */
+const rgRole=()=>S&&S.armed?'def':'atk';
+function rgSiteTick(dt){for(const p of S.players){if(p.bot||p.st!=='alive')continue;
+    // after arming or defusing, F has to be let go before the next one starts
+    if(p.rgRel){if(p.use){p.ak=null;p.ap=0;p.at=-1;continue;}p.rgRel=false;}const was=!!S.armed;actions(p,dt,rgRole());if(!!S.armed!==was)p.rgRel=true;}
+  if(S.armed){S.armed.t-=dt;if(S.armed.t<=0){const k=S.armed.site;S.armed=null;feed(`Charge detonated at ${k}`);blastGo(k);}}}
+function rgArm(k){if(!rgOn()||S.armed)return;S.armed={site:k,t:CFG.fuse};feed(`Charge armed at ${k} (sandbox)`);}
+function rgGoSite(k){const P=sbMe();if(!P||P.st!=='alive')return;const st=SITES[k];me.x=st.x-2;me.z=st.z;me.y=0;me.vy=me.vx=me.vz=0;P.x=me.x;P.z=me.z;me.yaw=-Math.PI/2;me.pitch=-0.25;}
+function rgSiteUI(el,mk){el.append(mk('h3','','Bomb sites'));
+  el.append(mk('div','note','Sites A and B are the arena’s own, 54 m downrange. Hold F at a site to arm the charge and hold F again to defuse, or let the fuse run out to see and hear the detonation. The site is ready again right after.'));
+  const b=mk('div','btns');const ab=(t,f)=>{const x=mk('button','btn',t);x.type='button';x.addEventListener('click',()=>{f();buildSB();});b.append(x);};
+  ab('Go to site A',()=>rgGoSite('A'));ab('Go to site B',()=>rgGoSite('B'));
+  if(S&&S.armed){ab('Detonate now',()=>{if(S.armed)S.armed.t=0.01;});ab('Defuse now',()=>{S.armed=null;feed('Charge defused (sandbox)');});}
+  else{ab('Arm at A now',()=>rgArm('A'));ab('Arm at B now',()=>rgArm('B'));}el.append(b);
+  for(const [k,t,lo,hi,st] of [['fuse','Fuse (s)',5,90,1],['arm','Arm time (s)',0.5,15,0.5],['defuse','Defuse time (s)',0.5,15,0.5]])devKnob(el,t,lo,hi,st,()=>CFG[k],v=>{CFG[k]=v;sbSave();},CFG0[k]);}
 /* the Range tab */
 function rgUI(){if(SB.on&&SB.tab==='range'&&!$('sbpanel').hidden)buildSB();}
 function modeSelect(el,mk){const ml=mk('label','');ml.append(document.createTextNode('Mode'));const ms=document.createElement('select');
@@ -2853,6 +2869,7 @@ function buildRange(el,mk){
   el.append(mk('h3','','Dummies and cover'));
   devKnob(el,'Dummy HP (next spawn)',1,500,1,()=>RG.dhp,v=>{RG.dhp=v;},100);
   devKnob(el,'Dummy back up after (s)',0.5,10,0.5,()=>RG.respawn,v=>{RG.respawn=v;},2);
+  rgSiteUI(el,mk);
   el.append(mk('h3','',`On the range (${RG.list.length})`));
   if(RG.list.length){const ul=mk('div','rglist');for(const it of RG.list){const row=mk('div','rgrow');const d=Math.hypot(it.x-me.x,it.z-me.z);
       const desc=it.kind==='bot'?(it.pass?'Bot, standing still':'Bot, fights back'):it.kind==='cover'?(it.h>=1.5?'High cover':'Low cover'):`${RG_KN[it.kind]}, ${RG_MOVES.find(m=>m[0]===it.move)[1].toLowerCase()}`;
@@ -3636,7 +3653,7 @@ function hud(dt){
   hudT-=dt;if(hudT>0)return;hudT=1/15;
   const s=mySlot(),P=s>=0?S.players[s]:null;
   const dm=S.mode==='dm',myTeam=P?P.team:0,role=P&&!dm?roleOf(P.team,S.round):null;
-  refreshZoneLook(role);
+  refreshZoneLook(role);const prole=S.range&&P?rgRole():role;
   $('sc0').textContent=S.score[0];$('sc1').textContent=S.score[1];
   $('clock').textContent=S.phase==='buy'?'0:0'+Math.ceil(S.t):S.armed?fmt(S.armed.t):SB.on&&!SB.timer?'∞':fmt(S.timer);
   $('clock').style.color=S.armed?'var(--bad)':'';bigCount();
@@ -3647,7 +3664,7 @@ function hud(dt){
   else if(S.phase==='buy')obj='Get ready. Round starts in '+Math.ceil(S.t);
   else if(S.armed)obj=role==='atk'?`Charge armed at ${S.armed.site}. Keep defenders off it.`:`Charge armed at ${S.armed.site}. Defuse it!`;
   else if(role==='atk')obj='Push in and arm the charge at A or B';else if(role==='def')obj='Hold sites A and B until time runs out';
-  if(S.range)obj='Press T to spawn dummies, targets, bots and cover';
+  if(S.range)obj=S.armed?`Charge armed at ${S.armed.site}. Hold F at the site to defuse, or let it blow`:'Press T to spawn dummies, targets, bots and cover · bomb sites A and B are 54 m out';
   $('objective').textContent=obj;
   const C=S.center||{own:-1,cap:-1,p:0};
   const cTxt=C.cap>=0&&C.p>0?`${C.cap===myTeam?'you are':TEAMN[C.cap]+' is'} taking the center ${Math.round(C.p*100)}%`:C.own<0?'center neutral':C.own===myTeam?`you hold the center (+${CENTER_HP} HP spawn)`:`${TEAMN[C.own]} holds the center`;
@@ -3670,8 +3687,8 @@ function hud(dt){
   if(P&&P.st==='alive'&&S.phase==='live'){
     const mate=S.players.find(o=>o.team===myTeam&&o!==P&&o.st==='down'&&hyp(o.x,o.z,me.x,me.z)<2.2);
     if(mate)prompt=`Hold <kbd>F</kbd> to revive ${esc(mate.name)} (gets up at ${returnHP(roleOf(mate.team,S.round),zoneOf(mate.x))} HP)`;
-    else if(role==='atk'&&!S.armed){for(const k of ['A','B'])if(hyp(me.x,me.z,SITES[k].x,SITES[k].z)<3)prompt=`Hold <kbd>F</kbd> to arm the charge at ${k}`;}
-    else if(role==='def'&&S.armed&&hyp(me.x,me.z,SITES[S.armed.site].x,SITES[S.armed.site].z)<3)prompt='Hold <kbd>F</kbd> to defuse';
+    else if(prole==='atk'&&!S.armed){for(const k of ['A','B'])if(hyp(me.x,me.z,SITES[k].x,SITES[k].z)<3)prompt=`Hold <kbd>F</kbd> to arm the charge at ${k}`;}
+    else if(prole==='def'&&S.armed&&hyp(me.x,me.z,SITES[S.armed.site].x,SITES[S.armed.site].z)<3)prompt='Hold <kbd>F</kbd> to defuse';
   }
   if(prompt&&TOUCH.on)prompt=prompt.replace('<kbd>F</kbd>','<kbd>Use</kbd>');
   const pe=$('prompt');if(prompt){pe.hidden=false;if(pe.dataset.k!==prompt){pe.dataset.k=prompt;pe.innerHTML=prompt;}}else pe.hidden=true;
@@ -3732,7 +3749,7 @@ function drawMini(P,myTeam,role){
   g.globalAlpha=1;g.fillStyle='#9aa4ab';
   g.strokeStyle='#9aa4ab';g.lineWidth=1.5;for(const b of BOXES){if(b.wall&&!b.solid)continue;if(b.y1<=0.01){if(b.rb)g.strokeRect(b.x0*sc,b.z0*sc,(b.x1-b.x0)*sc,(b.z1-b.z0)*sc);continue;}g.globalAlpha=b.solid?0.85:b.stage===1?0.5:1;g.fillRect(b.x0*sc,b.z0*sc,(b.x1-b.x0)*sc,(b.z1-b.z0)*sc);}
   g.globalAlpha=1;
-  if(S.mode!=='dm')for(const k of ['A','B']){const s=SITES[k];const armed=S.armed&&S.armed.site===k;g.strokeStyle=armed&&(S.clock*2|0)%2?'#e3584d':'#ffd27a';g.lineWidth=3;g.beginPath();g.arc(s.x*sc,s.z*sc,3*sc,0,Math.PI*2);g.stroke();g.fillStyle='#ffd27a';g.font='bold 20px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(k,s.x*sc,s.z*sc);}
+  if(S.mode!=='dm'||S.range)for(const k of ['A','B']){const s=SITES[k];const armed=S.armed&&S.armed.site===k;g.strokeStyle=armed&&(S.clock*2|0)%2?'#e3584d':'#ffd27a';g.lineWidth=3;g.beginPath();g.arc(s.x*sc,s.z*sc,3*sc,0,Math.PI*2);g.stroke();g.fillStyle='#ffd27a';g.font='bold 20px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(k,s.x*sc,s.z*sc);}
   const s=mySlot();
   for(let i=0;i<S.players.length;i++){const p=S.players[i];if(p.st==='dead'||i===s)continue;const a=avatars[i];
     if(P&&p.team!==myTeam){const seen=losPts(me.x,me.y+1.6,me.z,a.rx,a.ry+1,a.rz)||S.players.some(o=>o.team===myTeam&&o!==P&&o.st==='alive'&&losPts(avatars[o.s].rx,avatars[o.s].ry+1.5,avatars[o.s].rz,a.rx,a.ry+1,a.rz));if(!seen)continue;}
@@ -3775,13 +3792,13 @@ function blastWatch(){if(!S||S.mode==='dm')return;
   if(S.phase==='post'&&S.armed&&!(S.armed.t>0)&&S.last&&/deton/.test(String(S.last.why||''))){const k=S.mid+':'+S.round;if(BL.key!==k){BL.key=k;if(S.t>CFG.post-1.5)blastGo(S.armed.site);}}}
 function blastTick(dt){blastWatch();
   // the scorch mark stays for the post-round and fades as the next round's players spawn
-  const sc=BL.scorch;if(sc.visible){const o=S&&S.phase==='post'?Math.min(0.92,BL.age*5):sc.material.opacity-dt*1.5;sc.material.opacity=o;if(o<=0)sc.visible=false;}
+  const sc=BL.scorch;if(sc.visible){const o=S&&(S.phase==='post'||S.range&&BL.age<10)?Math.min(0.92,BL.age*5):sc.material.opacity-dt*1.5;sc.material.opacity=o;if(o<=0)sc.visible=false;}
   if(!BL.on){BL.cx=BL.cy=BL.cz=BL.rp=BL.ry=BL.rr=0;return;}
-  const a=BL.age+=dt,X=BL.x,Z=BL.z,away=!S||S.phase!=='post';let live=false;
+  const a=BL.age+=dt,X=BL.x,Z=BL.z,away=!S||S.phase!=='post'&&!S.range;let live=false;
   // white-hot core flash, then the floor shockwave
   const fl=BL.flash;if(a<0.5){live=true;const k=a<0.05?a/0.05:Math.exp(-(a-0.05)*8);fl.visible=true;fl.position.set(X,1.3,Z);fl.scale.setScalar(4+15*Math.min(1,a/0.07));fl.material.opacity=k;BL.fl=k;}else{fl.visible=false;BL.fl=0;}
   const rg=BL.ring;if(a<0.75){const k=a/0.75,e=1-Math.pow(1-k,3);rg.visible=true;rg.scale.set(2+30*e,2+30*e,1);rg.material.opacity=0.95*Math.pow(1-k,1.4);}else rg.visible=false;
-  if(a>0.03&&!sc.visible&&S&&S.phase==='post'){sc.visible=true;sc.material.opacity=0;}
+  if(a>0.03&&!sc.visible&&S&&(S.phase==='post'||S.range)){sc.visible=true;sc.material.opacity=0;}
   for(const f of BL.fire){if(f.t<=0)continue;live=true;if(f.d>0){f.d-=dt;continue;}f.t-=dt;if(f.t<=0){f.s.visible=false;continue;}
     const k=1-f.t/f.life,dm=Math.exp(-3.2*dt);f.vx*=dm;f.vz*=dm;f.vy=f.vy*Math.exp(-1.6*dt)+0.6*dt;f.x+=f.vx*dt;f.y+=f.vy*dt;f.z+=f.vz*dt;
     f.s.visible=true;f.s.position.set(f.x,f.y,f.z);f.s.scale.setScalar(f.sz*(0.55+1.25*Math.sqrt(k)));f.s.material.opacity=Math.pow(1-k,1.1);const kc=Math.sqrt(k);f.s.material.color.setRGB(1,0.9-0.62*kc,0.65-0.62*kc);f.s.material.rotation+=dt*0.6;}
