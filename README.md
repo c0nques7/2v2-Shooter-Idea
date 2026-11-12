@@ -99,7 +99,7 @@ Sandbox is a solo test range. Press **T** (or **`**) to open the dev overlay. Ev
 | Crowd murmur and cheers | Supplied by Joe from Pixabay: "Crowd cheering" (198411) for the looped murmur and the match-win swell; "Crowd cheer" (406646) and "Crowd cheer and applause" (406644) for cheers on knocks (cut short), round points and wins. | VoiceBosch; Dragon Studio (Pixabay) | [Pixabay Content License](https://pixabay.com/service/license-summary/) |
 | Main menu music (menu only; matches have no music) | "Neon futuristic music" (Pixabay 614622), supplied by Joe, re-encoded to 128 kbps. | ikoliks_aj (Pixabay) | [Pixabay Content License](https://pixabay.com/service/license-summary/) |
 | Match music (fades in from 0:33 after the first "Fight", then loops from 0:37) | "Evasion (dark cyberpunk action)" (Pixabay 123274), supplied by Joe; 0:33 to the end, re-encoded to 112 kbps. | Evgeny Bardyuzha (Pixabay) | [Pixabay Content License](https://pixabay.com/service/license-summary/) |
-| Announcer: 3, 2, 1, Fight | Joe's own voice recordings, processed to sound like a stadium PA (band-limited horn tone, slap-back echoes, long reverb tail). | Joe | Original recording |
+| Announcer: 3, 2, 1, Fight, Round won, Round lost, Switching sides, Offense, Defense | Joe's own voice recordings, processed with a light vocoder layer and a stadium PA effect (speaker tone, slap-back echoes, long reverb tail). | Joe | Original recording |
 - For headless testing the page exposes `window.__za` (state, player, `CFG`, sandbox settings).
 
 ## Performance notes
