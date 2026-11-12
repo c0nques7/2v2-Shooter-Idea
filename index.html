@@ -1698,10 +1698,14 @@ function snd(o){if(!audioInit())return;o=tuned({...o,tk:o.tk||SNDTK||(o.bus==='u
    - they have their own envelope (2 ms attack, short hold, fast release) with real level, and the weapons bus ducks a few dB
      under them for a moment (AU.duck).
    hit = a hard bright tick, headshot = a higher two-part "ti-tink" that rings longer, down = a falling zap over a crack
-   and thump, kill = the down followed by a rising two-tone confirm. */
+   and thump, kill = the down followed by a rising two-tone confirm. Joe asked for crunch, so the tones are squares and saws,
+   each cue carries a crackle of 3 ms noise grains, and the whole cue is hard-clipped. */
 function hitCue(kind){if(!audioInit())return;try{
   const T=TUNE.hit,t0=actx.currentTime+(kind==='hit'||kind==='head'?0.045:0.02),r=(0.97+Math.random()*0.06)*T.pitch;
-  let out=actx.createGain();out.gain.value=T.vol;const inp=out;
+  /* crunch: everything is driven into a hard clipper, so the square tones and noise grains break up together */
+  if(!AU.crunch){const n=1024,c=new Float32Array(n);for(let i=0;i<n;i++){const x=i/(n-1)*2-1;c[i]=Math.max(-0.62,Math.min(0.62,x*1.9))+0.1*Math.sign(x)*Math.pow(Math.abs(x),0.3);}AU.crunch=c;}
+  const inp=actx.createGain();inp.gain.value=2.2;const sh=actx.createWaveShaper();sh.curve=AU.crunch;sh.oversample='2x';inp.connect(sh);
+  let out=actx.createGain();out.gain.value=0.62*T.vol;sh.connect(out);
   if(T.lp<18000){const f=actx.createBiquadFilter();f.type='lowpass';f.frequency.value=T.lp;out.connect(f);out=f;}
   if(T.hp>0){const f=actx.createBiquadFilter();f.type='highpass';f.frequency.value=T.hp;out.connect(f);out=f;}
   out.connect(AU.bus.ui);const w=actx.createGain();w.gain.value=0.06+T.wet;out.connect(w);w.connect(AU.rev);
@@ -1711,12 +1715,13 @@ function hitCue(kind){if(!audioInit())return;try{
   const nz=(type,fc,q,pk,hold,tau,at)=>{const t=t0+(at||0),n=actx.createBufferSource(),f=actx.createBiquadFilter(),g=actx.createGain();n.buffer=AU.noise;n.loop=true;
     f.type=type;f.frequency.value=fc*r;f.Q.value=q;const end=env(g,pk,hold,tau,t);n.connect(f);f.connect(g);g.connect(inp);n.start(t,Math.random()*1.5);n.stop(end);};
   const duck=(to,len)=>{const p=AU.duck&&AU.duck.gain;if(!p)return;p.cancelScheduledValues(t0);p.setTargetAtTime(to,t0-0.005,0.004);p.setTargetAtTime(1,t0+len,0.03);};
-  if(kind==='hit'){tone(3000,2650,0.24,0.012,0.013);tone(4500,0,0.11,0.006,0.010);nz('bandpass',3200,6,0.5,0.004,0.008);duck(0.65,0.05);}
-  else if(kind==='head'){tone(4200,0,0.26,0.02,0.034);tone(6300,0,0.13,0.01,0.028);tone(2100,0,0.12,0.008,0.012);nz('highpass',6000,0.7,0.3,0.003,0.006);
-    tone(5000,0,0.16,0.005,0.02,0.055);duck(0.55,0.11);}
+  const grains=(n,gap,fc,pk,at)=>{for(let i=0;i<n;i++)nz('bandpass',fc*(0.8+Math.random()*0.5),1.2,pk*(1-i/(n+1)),0.002,0.0035,(at||0)+i*gap*(0.8+Math.random()*0.4));};
+  if(kind==='hit'){tone(3000,2500,0.2,0.012,0.013,0,'square');tone(4500,0,0.07,0.006,0.010,0,'square');nz('bandpass',2600,2,0.5,0.005,0.01);grains(3,0.009,3200,0.45,0.004);duck(0.65,0.05);}
+  else if(kind==='head'){tone(4200,0,0.2,0.02,0.034,0,'square');tone(6300,0,0.1,0.01,0.028);tone(2100,0,0.1,0.008,0.012,0,'square');nz('highpass',5000,0.7,0.35,0.004,0.008);
+    grains(4,0.008,4200,0.4,0.004);tone(5000,0,0.14,0.005,0.02,0.055,'square');grains(2,0.008,5200,0.3,0.058);duck(0.55,0.11);}
   else{const kill=kind==='kill';
-    tone(2800,650,0.3,0.05,0.05,0,'triangle');nz('bandpass',2500,1.5,0.6,0.02,0.03);tone(140,45,0.4,0.05,0.07);duck(0.45,0.22);
-    if(kill){tone(2600,0,0.2,0.03,0.045,0.17);tone(3900,0,0.15,0.03,0.055,0.235);tone(5200,0,0.08,0.02,0.05,0.235);}}
+    tone(2800,650,0.26,0.05,0.05,0,'sawtooth');nz('bandpass',2200,1.2,0.6,0.025,0.035);grains(7,0.011,2600,0.5,0.01);tone(140,45,0.4,0.05,0.07);duck(0.45,0.22);
+    if(kill){tone(2600,0,0.16,0.03,0.045,0.17,'square');tone(3900,0,0.12,0.03,0.055,0.235,'square');tone(5200,0,0.06,0.02,0.05,0.235);grains(3,0.009,3600,0.3,0.17);grains(3,0.009,4600,0.3,0.235);}}
 }catch(e){AU.err='hit: '+String(e&&e.message);}}
 function blip(freq,dur,vol,noise,bus,pan,tk){snd({f:freq,dur,vol,noise,bus,pan,tk});}
 function tone(f0,f1,dur,vol,bus,pan,tk){snd({f:f0,f1,dur,vol,bus,pan,tk});}
