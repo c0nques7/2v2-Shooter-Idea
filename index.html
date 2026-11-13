@@ -4086,7 +4086,7 @@ function xpTick(){
   const key=xpKey();
   if(key!==XPR.key){if(XPR.xs&&XPR.done!==XPR.key)xpAward(XPR,null);XPR.key=key;XPR.prev=null;XPR.xs=null;$('xpsum').hidden=true;}
   const cur=P.xs;
-  if(XPR.prev){for(const f in XPV){const d=(cur[f]|0)-(XPR.prev[f]|0);if(d>0)xpToast(`+${d*XPV[f]} ${XPT[f]}`);}}
+  if(XPR.prev){for(const f in XPV){const d=(cur[f]|0)-(XPR.prev[f]|0);if(d>0)xpToast(`+${d*XPV[f]}xp ${XPT[f]}`);}}
   XPR.prev=XPR.xs=JSON.parse(JSON.stringify(cur));XPR.team=P.team;if(S.phase==='live')XPR.live=key;
   if(S.phase==='over'&&XPR.done!==key&&XPR.live===key){
     const dm=S.mode==='dm',w=dm?(S.last?S.last.team:-1):S.score[0]>S.score[1]?0:1;
