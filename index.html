@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<title>Zone Arena</title>
+<title>Monday Night Zombie Rumble</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
@@ -224,7 +224,8 @@ body.touch .stabhint{display:none}
 #menu{align-items:stretch;justify-content:stretch;background:linear-gradient(90deg,rgba(10,7,20,.9) 0%,rgba(10,7,20,.62) 34%,rgba(10,7,20,.12) 64%,rgba(10,7,20,0) 80%),radial-gradient(ellipse at 50% 50%,transparent 55%,rgba(10,7,20,.55) 100%)}
 .mwrap{box-sizing:border-box;width:100%;min-height:100%;display:grid;grid-template-columns:minmax(260px,400px) minmax(0,380px) minmax(0,1fr);grid-template-rows:auto 1fr auto;grid-template-areas:"logo logo card" "list panel ." "foot foot foot";gap:clamp(14px,3vh,32px) clamp(18px,3vw,44px);padding:clamp(4px,3vh,36px) clamp(0px,2vw,32px) 0}
 .mlogo{grid-area:logo;display:flex;flex-direction:column;align-items:flex-start;gap:4px}
-.mlogo h1{margin:0;font-family:var(--display);font-weight:700;font-size:clamp(40px,min(11vh,14.5vw),104px);line-height:.82;letter-spacing:.01em;text-transform:uppercase;display:flex;gap:.18em;text-shadow:0 0 22px rgba(95,242,255,.35)}
+.mlogo h1{margin:0;font-family:var(--display);font-weight:700;font-size:clamp(40px,min(11vh,14.5vw),104px);line-height:.82;letter-spacing:.01em;text-transform:uppercase;display:flex;flex-direction:column;gap:.06em;text-shadow:0 0 22px rgba(95,242,255,.35)}
+.mlogo h1 span{font-size:.5em;letter-spacing:.14em;padding-left:.06em;line-height:1}
 .mlogo h1 b{color:var(--accent);text-shadow:0 0 18px rgba(95,242,255,.75),3px 0 0 rgba(255,43,214,.7)}
 .mtag{font-size:clamp(14px,2.2vh,19px);letter-spacing:.36em;text-transform:uppercase;color:var(--muted);font-weight:600;padding-left:3px;display:flex;align-items:center;gap:10px}
 .mtag::before{content:"";width:34px;height:3px;background:var(--accent2);box-shadow:0 0 10px var(--accent2)}
@@ -475,7 +476,7 @@ body.touch .chip{min-height:44px}
 
 <div class="overlay" id="menu">
   <div class="mwrap">
-    <header class="mlogo"><h1>Zone<b>Arena</b></h1><span class="mtag">2v2 Arena Shooter</span></header>
+    <header class="mlogo"><h1><span>Monday Night</span><b>Zombie Rumble</b></h1></header>
     <nav class="mlist" id="mlist" aria-label="Main menu">
       <button class="mi" type="button" data-p="play"><span>Play</span></button>
       <button class="mi" type="button" data-p="online"><span>Play online</span></button>
