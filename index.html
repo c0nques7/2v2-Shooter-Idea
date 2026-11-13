@@ -138,6 +138,7 @@ body{background:var(--bg);color:var(--fg);overflow:hidden;font-family:var(--disp
 #dashpips i{width:30px;height:7px;border-radius:2px;transform:skewX(-20deg);background:linear-gradient(90deg,var(--accent) calc(var(--f,1)*100%),rgba(255,255,255,.14) 0);box-shadow:0 0 6px rgba(95,242,255,calc(var(--g,1)*.5))}
 #zoneline{font-size:15px;background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:4px 8px}
 #zoneline b{font-weight:700}
+#zoneline:empty{display:none}/* Deathmatch and Zombie Rumble have no zone line; an empty box showed as a black bar */
 #ammo{right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));text-align:right}
 #ammonum{font-size:40px;font-weight:700;line-height:.9}
 #ammosub{font-size:13px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
