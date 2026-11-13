@@ -238,13 +238,43 @@ body.touch .stabhint{display:none}
 .mi.act{color:var(--accent)}.mi.act::before{transform:skewX(-14deg) scaleY(1)}
 .mi:focus-visible{outline:none}
 .mi:disabled{opacity:.35;cursor:not-allowed}
-.mpanel{grid-area:panel;align-self:center;display:flex;flex-direction:column;gap:12px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);padding:16px 18px 18px;clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,0 100%);box-shadow:0 0 24px rgba(39,230,255,.12);animation:mpin .18s ease-out}
-@keyframes mpin{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:none}}
-.mphd{display:flex;align-items:center;gap:10px}
-.mphd b{font-family:var(--display);font-size:24px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
-.mback{display:none;font:inherit;font-size:30px;line-height:1;color:var(--fg);background:none;border:1px solid var(--line);border-radius:5px;width:40px;height:40px;cursor:pointer}
-#msetup,.mpp{display:flex;flex-direction:column;gap:10px}
-.mpanel .cap{margin-top:-4px;min-height:1.2em}
+/* mode screen: opens from Play / Play online over the flyover, then Choose map opens #mapscr */
+.mpanel{position:fixed;inset:0;z-index:11;display:flex;flex-direction:column;gap:clamp(8px,2vh,18px);overflow-y:auto;overscroll-behavior:contain;
+  padding:calc(12px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  background:linear-gradient(180deg,rgba(10,7,20,.86) 0%,rgba(10,7,20,.45) 30%,rgba(10,7,20,.45) 62%,rgba(10,7,20,.9) 100%);animation:mpin .18s ease-out}
+@keyframes mpin{from{opacity:0}to{opacity:1}}
+#menu.sub .mwrap>:not(#mpanel){visibility:hidden}
+.mphd{display:flex;align-items:center;gap:12px}.mpsp{visibility:hidden}
+.mcards{flex:1 0 auto;align-self:center;width:min(1180px,100%);display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:clamp(8px,1.4vw,16px);align-content:center}
+.mcd{font:inherit;color:var(--fg);text-align:left;cursor:pointer;position:relative;display:flex;flex-direction:column;gap:6px;min-width:0;min-height:clamp(150px,34vh,300px);justify-content:flex-end;padding:14px 14px 16px;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--mc) 16%,transparent),rgba(12,8,24,.88) 62%);border:1px solid color-mix(in srgb,var(--mc) 35%,transparent);border-top:3px solid var(--mc);
+  clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,0 100%);transition:transform .14s cubic-bezier(.2,.7,.2,1),border-color .12s,background .12s;-webkit-tap-highlight-color:transparent}
+.mcd b{font-family:var(--display);font-weight:700;font-size:clamp(20px,min(3.6vh,2vw),38px);line-height:.95;letter-spacing:.03em;text-transform:uppercase;color:#fff}
+.mctag{font-size:13px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--mc)}
+.mccap{font-size:14px;color:#cfd2ea;min-height:2.4em;line-height:1.2;padding-right:18px}
+.mcpip{display:flex;align-items:center;gap:4px;margin-bottom:auto;flex-wrap:wrap}
+.mcpip i{width:12px;height:22px;border-radius:6px 6px 2px 2px;background:var(--team0);box-shadow:0 0 8px var(--team0)}.mcpip i.t1{background:var(--team1);box-shadow:0 0 8px var(--team1)}
+.mcpip i.zz{background:#9dff4d;box-shadow:0 0 8px #9dff4d;transform:skewX(-10deg);opacity:.85}
+.mcpip em{font-style:normal;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 4px}
+.mcd:hover{border-color:color-mix(in srgb,var(--mc) 70%,transparent)}
+.mcd[aria-checked=true]{transform:translateY(-6px);border-color:var(--mc);background:linear-gradient(180deg,color-mix(in srgb,var(--mc) 30%,transparent),rgba(12,8,24,.9) 70%);box-shadow:0 0 22px color-mix(in srgb,var(--mc) 40%,transparent)}
+.mcd[aria-checked=true]::after{content:"";position:absolute;right:12px;bottom:14px;width:12px;height:12px;background:var(--mc);transform:rotate(45deg);box-shadow:0 0 10px var(--mc)}
+.mcd:focus-visible{outline:2px solid var(--mc);outline-offset:2px}
+.mpopts{align-self:center;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px 22px;width:min(1180px,100%)}
+#msetup,.mpp{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px 22px}
+.mseg{display:flex;align-items:center;gap:0}.mseg>span,.mcode>span{font-size:13px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-right:10px}
+.mseg button{font:inherit;font-size:15px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:rgba(20,15,36,.85);border:1px solid var(--line);padding:8px 14px;min-height:40px;cursor:pointer;margin-left:-1px}
+.mseg button:first-of-type{border-radius:6px 0 0 6px}.mseg button:last-of-type{border-radius:0 6px 6px 0}
+.mseg button[aria-checked=true]{color:#0a0714;background:var(--accent);border-color:var(--accent);position:relative}
+.mseg button.t0[aria-checked=true]{background:var(--team0);border-color:var(--team0)}.mseg button.t1[aria-checked=true]{background:var(--team1);border-color:var(--team1)}
+.mcode{flex-direction:row;align-items:center;flex:0 1 auto}.mcode input{width:12em;font-size:16px}
+.mpbar{display:flex;flex-direction:column;align-items:center;gap:6px}
+#mpgo{width:min(420px,100%);margin-top:0}#netstatus{text-align:center}
+@media (max-width:1000px){.mcards{grid-template-columns:repeat(6,minmax(0,1fr))}.mcd{grid-column:span 2;min-height:clamp(120px,24vh,220px)}.mcd:nth-child(4),.mcd:nth-child(5){grid-column:span 3}.mcd b{font-size:clamp(22px,3.4vw,34px)}}
+@media (max-width:560px){.mcards{grid-template-columns:repeat(2,minmax(0,1fr))}.mpsp{display:none}.mphd .msti{align-items:flex-end;text-align:right}.mcd,.mcd:nth-child(4){grid-column:span 1}.mcd:nth-child(5){grid-column:span 2}.mcd{min-height:118px;padding:10px 10px 12px;gap:4px}.mcd b{font-size:22px}.mccap{font-size:12.5px}.mctag{font-size:11px;letter-spacing:.14em}.mcpip i{width:9px;height:17px}
+  .mseg button{padding:8px 11px}.mcode input{width:9em}}
+@media (max-height:560px) and (min-width:561px){.mcards{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}.mcd,.mcd:nth-child(4),.mcd:nth-child(5){grid-column:span 1;min-height:0;padding:10px 10px 12px;gap:4px}.mcd b{font-size:clamp(17px,2.6vw,22px)}.mccap{display:none}.mctag{font-size:11px;letter-spacing:.12em}.mcpip i{width:8px;height:15px}.mcpip em{margin:0 2px}
+  .mcd[aria-checked=true]{transform:translateY(-3px)}.mpanel{gap:8px}#mpgo{font-size:20px;padding:8px}.mseg button{padding:6px 12px;min-height:36px}}
 .mapf{display:flex;flex-direction:column;gap:4px}
 .maphd{display:flex;align-items:baseline;gap:10px;min-width:0}.maphd .cap{margin:0;min-height:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .maps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
@@ -292,11 +322,9 @@ body.touch .mhint{visibility:hidden}
 @media (max-width:760px){
   .mwrap{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto 1fr auto;grid-template-areas:"logo" "card" "list" "foot";gap:16px}
   .mcard{justify-self:stretch;width:100%}
-  #menu.sub .mlist{display:none}
-  .mpanel{grid-area:list;align-self:start}
-  .mback{display:block}}
-@media (max-width:760px) and (max-height:900px){.mpanel{gap:8px;padding:12px 14px 14px}#msetup,.mpp{gap:7px}.mgo{font-size:20px;padding:9px 14px}}
-@media (max-height:520px) and (min-width:761px){.mwrap{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"logo card" "list panel";grid-template-rows:auto 1fr;gap:10px 28px;padding-top:0}.mfoot{display:none}.mcard{width:min(280px,100%);padding:8px 12px;gap:4px}.mcard .cap{display:none}.mlogo h1{font-size:48px}.mpanel{gap:8px;padding:10px 14px}.mgo{font-size:20px;padding:8px}}
+  }
+@media (max-width:760px) and (max-height:900px){.mgo{font-size:20px;padding:9px 14px}}
+@media (max-height:520px) and (min-width:761px){.mwrap{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"logo card" "list panel";grid-template-rows:auto 1fr;gap:10px 28px;padding-top:0}.mfoot{display:none}.mcard{width:min(280px,100%);padding:8px 12px;gap:4px}.mcard .cap{display:none}.mlogo h1{font-size:48px}.mgo{font-size:20px;padding:8px}}
 #score,#zoneline,#banner,.panel{box-shadow:0 0 0 1px rgba(255,43,214,.12),0 0 18px rgba(39,230,255,.12)}
 #hpnum,#ammonum,#score .s{text-shadow:0 0 12px currentColor}
 #banner h2{text-shadow:0 0 14px rgba(95,242,255,.6)}
@@ -452,25 +480,37 @@ body.touch .chip{min-height:44px}
       <button class="mi" type="button" id="setbtn"><span>Settings</span></button>
       <button class="mi" type="button" id="fullbtn"><span>Full screen</span></button>
     </nav>
-    <section class="mpanel" id="mpanel" hidden aria-live="polite">
-      <div class="mphd"><button class="mback" type="button" id="mback" aria-label="Back">&#8249;</button><b id="mptitle">Play</b></div>
-      <div id="msetup">
-        <label for="modesel">Mode<select id="modesel"><option value="zone">Zone 2v2: attack and defend</option><option value="dm1">Deathmatch 1v1</option><option value="dm2">Team deathmatch 2v2</option><option value="dm4">Team deathmatch 4v4</option><option value="zr">Zombie Rumble: co-op against Revenant waves</option></select></label>
-        <div class="cap" id="modecap"></div>
-        <label for="wsel" hidden>Weapon<select id="wsel"><option value="rifle">Rifle</option><option value="smg">SMG</option><option value="br">Battle rifle</option><option value="sg">Shotgun</option><option value="lmg">LMG</option><option value="sniper">Sniper rifle</option></select></label>
-        <div class="cap" id="wbuildcap" hidden></div>
-        <label for="teampref">Team<select id="teampref"><option value="-1">Auto</option><option value="0">Blue</option><option value="1">Orange</option></select></label>
+    <section class="mpanel" id="mpanel" hidden role="dialog" aria-labelledby="mptitle">
+      <div class="mphd"><button class="btn mshb" type="button" id="mback">&#8249; Back</button><div class="msti"><b id="mptitle">Choose a mode</b><span id="mpsub">Play</span></div><span class="mshb mpsp" aria-hidden="true"></span></div>
+      <div class="mcards" id="mcards" role="radiogroup" aria-label="Mode">
+        <button class="mcd" type="button" role="radio" data-m="zone" style="--mc:#5ff2ff"><span class="mcpip"><i class="t0"></i><i class="t0"></i><em>vs</em><i class="t1"></i><i class="t1"></i></span><span class="mctag">Objective · 2v2</span><b>Zone</b><span class="mccap"></span></button>
+        <button class="mcd" type="button" role="radio" data-m="dm1" style="--mc:#ff2bd6"><span class="mcpip"><i class="t0"></i><em>vs</em><i class="t1"></i></span><span class="mctag">Duel · 1v1</span><b>Deathmatch</b><span class="mccap"></span></button>
+        <button class="mcd" type="button" role="radio" data-m="dm2" style="--mc:#ff5fa8"><span class="mcpip"><i class="t0"></i><i class="t0"></i><em>vs</em><i class="t1"></i><i class="t1"></i></span><span class="mctag">Team · 2v2</span><b>Team deathmatch</b><span class="mccap"></span></button>
+        <button class="mcd" type="button" role="radio" data-m="dm4" style="--mc:#ffc23d"><span class="mcpip"><i class="t0"></i><i class="t0"></i><i class="t0"></i><i class="t0"></i><em>vs</em><i class="t1"></i><i class="t1"></i><i class="t1"></i><i class="t1"></i></span><span class="mctag">Team · 4v4</span><b>Team deathmatch</b><span class="mccap"></span></button>
+        <button class="mcd" type="button" role="radio" data-m="zr" style="--mc:#9dff4d"><span class="mcpip"><i class="t0"></i><i class="t0"></i><em>vs</em><i class="zz"></i><i class="zz"></i><i class="zz"></i><i class="zz"></i></span><span class="mctag">Co-op · 2 players</span><b>Zombie Rumble</b><span class="mccap"></span></button>
       </div>
-      <div class="mpp" data-p="play">
-        <label for="diff">Bot skill<select id="diff"><option value="0.6">Easy</option><option value="1" selected>Normal</option><option value="1.4">Hard</option></select></label>
-        <button class="btn primary mgo msgo" type="button" data-go="play">Choose map &#8250;</button>
-        <button id="practice" type="button" hidden>Start match</button>
+      <div class="mpopts">
+        <div id="msetup">
+          <select id="modesel" hidden><option value="zone">Zone 2v2: attack and defend</option><option value="dm1">Deathmatch 1v1</option><option value="dm2">Team deathmatch 2v2</option><option value="dm4">Team deathmatch 4v4</option><option value="zr">Zombie Rumble: co-op against Revenant waves</option></select>
+          <div class="cap" id="modecap" hidden></div>
+          <label for="wsel" hidden>Weapon<select id="wsel"><option value="rifle">Rifle</option><option value="smg">SMG</option><option value="br">Battle rifle</option><option value="sg">Shotgun</option><option value="lmg">LMG</option><option value="sniper">Sniper rifle</option></select></label>
+          <div class="cap" id="wbuildcap" hidden></div>
+          <select id="teampref" hidden><option value="-1">Auto</option><option value="0">Blue</option><option value="1">Orange</option></select>
+          <div class="mseg" id="teamseg" data-for="teampref" role="radiogroup" aria-label="Team"><span>Team</span><button type="button" role="radio" data-v="-1">Auto</button><button type="button" role="radio" data-v="0" class="t0">Blue</button><button type="button" role="radio" data-v="1" class="t1">Orange</button></div>
+        </div>
+        <div class="mpp" data-p="play">
+          <select id="diff" hidden><option value="0.6">Easy</option><option value="1" selected>Normal</option><option value="1.4">Hard</option></select>
+          <div class="mseg" data-for="diff" role="radiogroup" aria-label="Bot skill"><span>Bots</span><button type="button" role="radio" data-v="0.6">Easy</button><button type="button" role="radio" data-v="1">Normal</button><button type="button" role="radio" data-v="1.4">Hard</button></div>
+          <button id="practice" type="button" hidden>Start match</button>
+        </div>
+        <div class="mpp" data-p="online">
+          <label for="code" class="mcode"><span>Match code</span><input id="code" maxlength="20" autocomplete="off" value="arena-1"></label>
+          <button id="joinbtn" type="button" hidden disabled>Join match</button>
+        </div>
       </div>
-      <div class="mpp" data-p="online">
-        <label for="code">Match code<input id="code" maxlength="20" autocomplete="off" value="arena-1"></label>
-        <button class="btn primary mgo msgo" type="button" data-go="online">Choose map &#8250;</button>
-        <button id="joinbtn" type="button" hidden disabled>Join match</button>
-        <div id="netstatus">Checking online play…</div>
+      <div class="mpbar">
+        <button class="btn primary mgo msgo" type="button" id="mpgo" data-go="play">Choose map &#8250;</button>
+        <div class="cap" id="netstatus">Checking online play…</div>
       </div>
     </section>
     <aside class="mcard" aria-label="Player">
@@ -3856,9 +3896,19 @@ const MODECAP={zone:'Attack and defend sites A and B',
   dm2:()=>`First team to ${CFG.dmKills2} kills · ${CFG.dmTime/60} min`,
   dm4:()=>`First team to ${CFG.dmKills4} kills · ${CFG.dmTime/60} min`,
   zr:'You and a partner against three waves of Revenants'};
-function modeCap(){const v=$('modesel').value,c=MODECAP[v]||MODECAP.zone;$('modecap').textContent=typeof c==='function'?c():c;}
+const capOf=v=>{const c=MODECAP[v]||MODECAP.zone;return typeof c==='function'?c():c;};
+const MCARDS=[...document.querySelectorAll('#mcards .mcd')];
+/* mode screen: the cards and the Team / Bots buttons drive the hidden selects, so readMenu and saved settings work as before */
+function modeCap(){const v=$('modesel').value;$('modecap').textContent=capOf(v);
+  for(const c of MCARDS){c.querySelector('.mccap').textContent=capOf(c.dataset.m);const on=c.dataset.m===v;c.setAttribute('aria-checked',on);c.tabIndex=on?0:-1;}
+  $('teamseg').hidden=v==='zr';}
+function segSync(){document.querySelectorAll('.mseg').forEach(g=>{const v=$(g.dataset.for).value;g.querySelectorAll('button').forEach(b=>b.setAttribute('aria-checked',+b.dataset.v===+v));});}
+function modePick(v){if(!MODECAP[v])return;const sel=$('modesel');if(sel.value!==v){sel.value=v;sel.dispatchEvent(new Event('change'));blip(980,0.022,0.012,false,'ui');}}
+MCARDS.forEach(c=>c.addEventListener('click',()=>modePick(c.dataset.m)));
+document.querySelectorAll('.mseg').forEach(g=>g.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{const sel=$(g.dataset.for);sel.value=b.dataset.v;sel.dispatchEvent(new Event('change'));segSync();blip(980,0.022,0.012,false,'ui');})));
+function modeStep(d){const i=MCARDS.findIndex(c=>c.dataset.m===$('modesel').value),c=MCARDS[(i+d+MCARDS.length)%MCARDS.length];modePick(c.dataset.m);c.focus({preventScroll:false});}
 try{const mv=localStorage.getItem('za-mode');if(mv&&MODECAP[mv])$('modesel').value=mv;}catch(e){}
-modeCap();$('modesel').addEventListener('change',()=>{modeCap();try{localStorage.setItem('za-mode',$('modesel').value);}catch(e){}});
+modeCap();segSync();$('modesel').addEventListener('change',()=>{modeCap();try{localStorage.setItem('za-mode',$('modesel').value);}catch(e){}});
 /* map picker: a tile per map with a top-down thumbnail. In the menu the arena behind it switches too, so the flyover shows the map. */
 function mapPreview(id){const kb=BOXES.slice(),kc=COVER.slice(),km=MAP.id,ka={...SITES.A},kbb={...SITES.B},kt={...THEME};buildBoxes(id);Object.assign(THEME,kt);
   const out={boxes:BOXES.map(b=>({...b})),sites:[{...SITES.A},{...SITES.B}]};BOXES.length=0;BOXES.push(...kb);COVER.length=0;COVER.push(...kc);MAP.id=km;Object.assign(SITES.A,ka);Object.assign(SITES.B,kbb);return out;}
@@ -3928,7 +3978,9 @@ const miVis=()=>MI.filter(b=>b.offsetParent!==null&&!b.disabled);
 function miSet(b,focus){if(!b)return;if(b!==miOn){MI.forEach(x=>x.classList.toggle('on',x===b));if(miOn)blip(980,0.022,0.012,false,'ui');miOn=b;}if(focus)b.focus({preventScroll:true});}
 function mPanel(k){const pn=$('mpanel');MI.forEach(b=>b.classList.toggle('act',!!k&&b.dataset.p===k));$('menu').classList.toggle('sub',!!k);
   if(!k){pn.hidden=true;return;}
-  $('mptitle').textContent=k==='online'?'Play online':'Play';pn.querySelectorAll('.mpp').forEach(d=>{d.hidden=d.dataset.p!==k;});pn.hidden=false;blip(660,0.05,0.03,false,'ui');}
+  $('mpsub').textContent=k==='online'?'Play online':'Play';$('mpgo').dataset.go=k;$('netstatus').hidden=k!=='online';pn.querySelectorAll('.mpp').forEach(d=>{d.hidden=d.dataset.p!==k;});
+  modeCap();segSync();pn.hidden=false;pn.scrollTop=0;blip(660,0.05,0.03,false,'ui');
+  const c=MCARDS.find(x=>x.dataset.m===$('modesel').value);if(c)c.focus({preventScroll:true});}
 MI.forEach(b=>{b.addEventListener('pointerenter',e=>{if(e.pointerType!=='touch')miSet(b);});b.addEventListener('focus',()=>miSet(b));
   if(b.dataset.p)b.addEventListener('click',()=>{miSet(b);mPanel($('mpanel').hidden||!b.classList.contains('act')?b.dataset.p:null);});});
 $('mback').addEventListener('click',()=>{const a=MI.find(b=>b.classList.contains('act'));mPanel(null);if(a)miSet(a,true);});
@@ -3936,8 +3988,12 @@ miSet(MI[0]);
 document.addEventListener('keydown',e=>{if($('menu').hidden||!$('settings').hidden)return;
   const typing=e.target&&/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName);
   if(e.code==='Escape'||(e.code==='Backspace'&&!typing)){if(!$('mpanel').hidden){e.preventDefault();$('mback').click();}else if(typing)e.target.blur();return;}
-  if(typing)return;
-  const inPanel=$('mpanel').contains(document.activeElement);
+  if(typing){if(e.code==='Enter'&&e.target.id==='code'&&!$('mpanel').hidden){e.preventDefault();$('mpgo').click();}return;}
+  if(!$('mpanel').hidden){const ae=document.activeElement;
+    if(/^(ArrowLeft|ArrowRight|ArrowUp|ArrowDown|KeyA|KeyD|KeyW|KeyS)$/.test(e.code)&&!(ae&&ae.closest&&ae.closest('.mseg'))){e.preventDefault();modeStep(/Left|Up|KeyA|KeyW/.test(e.code)?-1:1);}
+    else if(e.code==='Enter'&&!(ae&&ae.closest&&ae.closest('#mback,#mpgo'))){e.preventDefault();$('mpgo').click();}
+    return;}
+  const inPanel=false;
   if(!inPanel&&/^(ArrowUp|ArrowDown|KeyW|KeyS)$/.test(e.code)){e.preventDefault();const v=miVis(),i=v.indexOf(miOn),d=/Up|W/.test(e.code)?-1:1;miSet(v[(i+d+v.length)%v.length]||v[0],true);}
   else if(!inPanel&&e.code==='Enter'&&document.activeElement===document.body&&miOn){e.preventDefault();miOn.click();}
 },true);
