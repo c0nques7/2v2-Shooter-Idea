@@ -3138,50 +3138,84 @@ function buildRange(el,mk){
    - Pathing: one flow field for all of them. Every 0.25 s a Dijkstra pass over the 1 m nav grid measures each cell's walking
      distance to the nearest living player; each Revenant walks down that slope, looking a few cells ahead and going straight
      wherever the line is clear. Neighbours push each other apart, and one that stops making progress backs off and retries.
-   - Bodies: every body part is one InstancedMesh shared by all of them, posed through a scratch rig, so 30 Revenants cost
-     about 17 draw calls in total, not 30 soldiers' worth.
-   - Hits: a head box (taken from the posed rig) and a body box. A headshot kill pops the head.
+   - Bodies: built from voxels ("pixels") on a posed scratch rig, all drawn as instances of one mesh, so a horde is a few draws.
+   - Damage: head, body and each limb take damage on their own, lose pixels where they are hit and fall off at zero (see bullets).
+     Corpses lie for a moment and then dissolve into pixels.
    Stats are CFG keys (z*), tuned on the Range tab, saved and exported like every other rule. */
 const ZB={list:[],id:0,acc:null,dist:new Float32Array(GW*GD),distT:0,hunt:true,endless:false,horde:10,kills:0,spawnT:0,cap:40,grid:0};
 const ZTYPES={
   sham:{name:'Shambler',hp:'zShHp',spd:'zShSpd',dmg:'zShDmg',wind:0.55,cd:1.1,lean:-0.22,tint:0x8e9a8a,eye:0x7dffb0,size:1},
   sprint:{name:'Sprinter',hp:'zSpHp',spd:'zSpSpd',dmg:'zSpDmg',wind:0.32,cd:0.75,lean:-0.55,tint:0xa7928a,eye:0xff5a3c,size:0.96}};
 function zStat(z,k){return CFG[ZTYPES[z.t][k]];}
-/* the body: joints of a scratch rig, and one InstancedMesh per part */
+/* the body: a scratch rig of joints, each body part a little block of voxels ("pixels", about 7 cm). Every voxel of every Revenant
+   is one instance of a single InstancedMesh (plus one for the glowing eyes and seam), so a horde is two draw calls. A part keeps
+   which of its voxels are still there, so bullets knock pixels out of it, a part shot to pieces falls off, and a corpse dissolves. */
+const ZV=0.07;
+const ZREG={head:{name:'head',f:0.75,kill:1},torso:{name:'body',f:1,kill:1},armL:{name:'left arm',f:0.45},armR:{name:'right arm',f:0.45},legL:{name:'left leg',f:0.6},legR:{name:'right leg',f:0.6}};
 const ZR=(function(){
-  const flesh=new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.78,metalness:0.05});
-  const rags=new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.95,metalness:0.02});
-  const metal=new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.4,metalness:0.7});
-  const glow=new THREE.MeshBasicMaterial({color:0xffffff,toneMapped:false});
-  const geo=new THREE.BoxGeometry(1,1,1),cap=ZB.cap;
   const root=new THREE.Object3D(),model=new THREE.Object3D();root.add(model);
-  const J=n=>new THREE.Object3D();
+  const J=()=>new THREE.Object3D();
   const hips=J();hips.position.y=0.95;model.add(hips);
   const spine=J();spine.position.y=0.08;hips.add(spine);
   const head=J();head.position.y=0.58;spine.add(head);
   const sh=[-1,1].map(sx=>{const s=J();s.position.set(sx*0.27,0.47,0);spine.add(s);const e=J();e.position.y=-0.31;s.add(e);return{s,e};});
   const lg=[-1,1].map(sx=>{const h=J();h.position.set(sx*0.1,-0.06,0);hips.add(h);const k=J();k.position.y=-0.44;h.add(k);return{h,k};});
-  const parts=[];
-  // col: 'skin' | 'rag' | 'metal' | 'eye' (eye and seam take the type's glow colour)
-  const P=(name,parent,w,h,d,x,y,z,mat,col)=>{const o=new THREE.Object3D();o.position.set(x,y,z);o.scale.set(w,h,d);parent.add(o);
-    const m=new THREE.InstancedMesh(geo,mat,cap);m.count=0;m.frustumCulled=false;m.userData.noMerge=true;m.castShadow=false;m.receiveShadow=true;
-    m.setColorAt(0,new THREE.Color(1,1,1));m.instanceColor.setUsage(THREE.DynamicDrawUsage);m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(m);
-    parts.push({name,o,m,col});};
-  P('pelvis',hips,0.35,0.18,0.23,0,0,0,rags,'rag');
-  P('torso',spine,0.42,0.5,0.25,0,0.27,0,flesh,'skin');
-  P('vest',spine,0.46,0.22,0.29,0,0.12,0,rags,'rag');
-  P('seam',spine,0.03,0.34,0.02,0.06,0.3,-0.128,glow,'eye');
-  P('collar',spine,0.27,0.08,0.27,0,0.55,0,metal,'metal');
-  P('head',head,0.23,0.26,0.25,0,0.14,0,flesh,'skin');
-  P('eyes',head,0.16,0.03,0.02,0,0.17,-0.128,glow,'eye');
+  const parts=[];let NB=0,NG=0;
+  // kind: skin | rag | metal | glow; reg: the damage region it belongs to
+  const P=(name,parent,w,h,d,x,y,z,kind,reg)=>{const o=new THREE.Object3D();o.position.set(x,y,z);o.scale.set(w,h,d);parent.add(o);
+    const nx=Math.max(1,Math.round(w/ZV)),ny=Math.max(1,Math.round(h/ZV)),nz=Math.max(1,Math.round(d/ZV)),n=nx*ny*nz,off=new Float32Array(n*3);
+    for(let ix=0,i=0;ix<nx;ix++)for(let iy=0;iy<ny;iy++)for(let iz=0;iz<nz;iz++,i++){off[i*3]=(ix+0.5)/nx-0.5;off[i*3+1]=(iy+0.5)/ny-0.5;off[i*3+2]=(iz+0.5)/nz-0.5;}
+    const glow=kind==='glow';parts.push({name,o,w,h,d,nx,ny,nz,n,off,kind,reg,glow});if(glow)NG+=n;else NB+=n;};
+  P('pelvis',hips,0.35,0.18,0.23,0,0,0,'rag','torso');
+  P('torso',spine,0.42,0.5,0.25,0,0.27,0,'skin','torso');
+  P('collar',spine,0.27,0.08,0.27,0,0.55,0,'metal','torso');
+  P('seam',spine,0.06,0.28,0.03,0.06,0.3,-0.14,'glow','torso');
+  P('head',head,0.23,0.26,0.25,0,0.14,0,'skin','head');
+  P('eyes',head,0.16,0.035,0.03,0,0.17,-0.135,'glow','head');
   for(let i=0;i<2;i++){const s=sh[i],l=lg[i],n=i?'R':'L';
-    P('uarm'+n,s.s,0.11,0.33,0.11,0,-0.16,0,flesh,'skin');P('farm'+n,s.e,0.1,0.32,0.1,0,-0.16,0,flesh,'skin');
-    P('thigh'+n,l.h,0.15,0.44,0.16,0,-0.22,0,rags,'rag');P('shin'+n,l.k,0.13,0.42,0.14,0,-0.21,0,flesh,'skin');P('foot'+n,l.k,0.13,0.08,0.25,0,-0.43,-0.05,rags,'rag');}
+    P('uarm'+n,s.s,0.11,0.33,0.11,0,-0.16,0,'skin','arm'+n);P('farm'+n,s.e,0.1,0.32,0.1,0,-0.16,0,'skin','arm'+n);
+    P('thigh'+n,l.h,0.15,0.44,0.16,0,-0.22,0,'rag','leg'+n);P('shin'+n,l.k,0.13,0.42,0.14,0,-0.21,0,'skin','leg'+n);P('foot'+n,l.k,0.13,0.08,0.25,0,-0.43,-0.05,'rag','leg'+n);}
+  const cap=ZB.cap,geo=new THREE.BoxGeometry(0.97,0.97,0.97);
+  const mk=(mat,n)=>{const m=new THREE.InstancedMesh(geo,mat,n);m.count=0;m.frustumCulled=false;m.userData.noMerge=true;m.castShadow=false;m.receiveShadow=true;
+    m.setColorAt(0,new THREE.Color(1,1,1));m.instanceColor.setUsage(THREE.DynamicDrawUsage);m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(m);return m;};
+  const body=mk(new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.8,metalness:0.08}),cap*NB),glowM=mk(new THREE.MeshBasicMaterial({color:0xffffff,toneMapped:false}),cap*NG);
+  // flying pixels: chips knocked off, limbs bursting, corpses dissolving
+  const DN=1600,dBody=mk(new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.8,metalness:0.08}),DN),dGlow=mk(new THREE.MeshBasicMaterial({color:0xffffff,toneMapped:false}),DN);
   const blob=new THREE.InstancedMesh(new THREE.PlaneGeometry(1.2,1.2).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({map:poolTex,color:0x000000,transparent:true,opacity:0.5,depthWrite:false}),cap);
   blob.count=0;blob.frustumCulled=false;blob.userData.noMerge=true;blob.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(blob);
-  const headPart=parts.find(p=>p.name==='head');
-  return{root,model,hips,spine,head,sh,lg,parts,blob,headPart,c:new THREE.Color(),m:new THREE.Matrix4(),v:new THREE.Vector3()};})();
+  const PI={};parts.forEach((p,i)=>{PI[p.name]=i;});
+  const regParts={};parts.forEach((p,i)=>{(regParts[p.reg]||(regParts[p.reg]=[])).push(i);});
+  const regN={};for(const r in regParts)regN[r]=regParts[r].reduce((a,i)=>a+parts[i].n,0);
+  return{root,model,hips,spine,head,sh,lg,parts,PI,regParts,regN,body,glowM,dBody,dGlow,DN,blob,m:new THREE.Matrix4(),m2:new THREE.Matrix4(),q:new THREE.Quaternion(),v:new THREE.Vector3(),v2:new THREE.Vector3(),c:new THREE.Color()};})();
+/* the debris pool */
+const ZD={n:0,px:new Float32Array(ZR.DN),py:new Float32Array(ZR.DN),pz:new Float32Array(ZR.DN),vx:new Float32Array(ZR.DN),vy:new Float32Array(ZR.DN),vz:new Float32Array(ZR.DN),
+  t:new Float32Array(ZR.DN),life:new Float32Array(ZR.DN),sz:new Float32Array(ZR.DN),col:new Float32Array(ZR.DN*3),glow:new Uint8Array(ZR.DN),ax:new Float32Array(ZR.DN*3),spin:new Float32Array(ZR.DN),next:0};
+function zPix(x,y,z,vx,vy,vz,sz,r,g,b,glow,life){if(OPT.particles<1&&Math.random()>OPT.particles+0.25)return;
+  let i=-1;for(let k=0;k<ZR.DN;k++){const j=(ZD.next+k)%ZR.DN;if(ZD.t[j]<=0){i=j;break;}}if(i<0)i=ZD.next;ZD.next=(i+1)%ZR.DN;
+  ZD.px[i]=x;ZD.py[i]=y;ZD.pz[i]=z;ZD.vx[i]=vx;ZD.vy[i]=vy;ZD.vz[i]=vz;ZD.t[i]=ZD.life[i]=life;ZD.sz[i]=sz;ZD.col[i*3]=r;ZD.col[i*3+1]=g;ZD.col[i*3+2]=b;ZD.glow[i]=glow?1:0;
+  const a=Math.random()*Math.PI*2,c=Math.random()*2-1,s=Math.sqrt(1-c*c);ZD.ax[i*3]=s*Math.cos(a);ZD.ax[i*3+1]=c;ZD.ax[i*3+2]=s*Math.sin(a);ZD.spin[i]=(4+Math.random()*10)*(Math.random()<0.5?-1:1);}
+function zPixTick(dt){const R=ZR,bm=R.dBody,gm=R.dGlow;let nb=0,ng=0;
+  for(let i=0;i<R.DN;i++){if(ZD.t[i]<=0)continue;ZD.t[i]-=dt;if(ZD.t[i]<=0)continue;const g=ZD.glow[i];
+    if(g){ZD.vy[i]+=(0.9-ZD.vy[i])*Math.min(1,dt*2.5);ZD.vx[i]*=1-dt*1.5;ZD.vz[i]*=1-dt*1.5;}
+    else{ZD.vy[i]-=16*dt;}
+    ZD.px[i]+=ZD.vx[i]*dt;ZD.py[i]+=ZD.vy[i]*dt;ZD.pz[i]+=ZD.vz[i]*dt;const h=ZD.sz[i]/2;
+    if(!g&&ZD.py[i]<h){ZD.py[i]=h;ZD.vy[i]=Math.abs(ZD.vy[i])>1.2?-ZD.vy[i]*0.3:0;ZD.vx[i]*=0.6;ZD.vz[i]*=0.6;ZD.spin[i]*=0.6;}
+    const age=ZD.life[i]-ZD.t[i],k=Math.min(1,ZD.t[i]/(g?ZD.life[i]:0.45)),s=ZD.sz[i]*(g?k:Math.min(1,k));
+    R.q.setFromAxisAngle(R.v2.set(ZD.ax[i*3],ZD.ax[i*3+1],ZD.ax[i*3+2]),ZD.spin[i]*age);R.m.compose(R.v.set(ZD.px[i],ZD.py[i],ZD.pz[i]),R.q,ZWS.set(s,s,s));
+    const m=g?gm:bm,j=g?ng++:nb++;m.setMatrixAt(j,R.m);R.c.setRGB(ZD.col[i*3],ZD.col[i*3+1],ZD.col[i*3+2]);if(g)R.c.multiplyScalar(0.4+0.6*k);m.setColorAt(j,R.c);}
+  bm.count=nb;gm.count=ng;if(nb){bm.instanceMatrix.needsUpdate=true;bm.instanceColor.needsUpdate=true;}if(ng){gm.instanceMatrix.needsUpdate=true;gm.instanceColor.needsUpdate=true;}}
+const ZWS=new THREE.Vector3();
 /* ---------- simulation ---------- */
+/* each Revenant's own copy of the body: which voxels are left, their colours (with wounds), region health, posed part matrices */
+function zBody(z){const T=ZTYPES[z.t],R=ZR,c=R.c;z.vox=[];z.col=[];z.cnt=[];z.pm=new Float32Array(R.parts.length*16);z.reg={};
+  for(const r in ZREG)z.reg[r]={hp:z.max*ZREG[r].f,max:z.max*ZREG[r].f,gone:false};
+  const tint=new THREE.Color(T.tint),rag=new THREE.Color(0x2a2c2a),metal=new THREE.Color(0x3a3f45),eye=new THREE.Color(T.eye),rot=new THREE.Color(0x4a4438);
+  R.parts.forEach((p,pi)=>{const v=new Uint8Array(p.n).fill(1),col=new Float32Array(p.n*3);
+    for(let i=0;i<p.n;i++){const iy=Math.floor((p.off[i*3+1]+0.5)*p.ny);let b=p.kind==='skin'?tint:p.kind==='rag'?rag:p.kind==='metal'?metal:eye;
+      if(p.name==='torso'&&iy<p.ny*0.38)b=rag;/* the tattered vest */
+      c.copy(b);if(p.kind==='skin'&&Math.random()<0.1)c.lerp(rot,0.6);if(p.kind!=='glow')c.multiplyScalar(0.88+Math.random()*0.24);
+      col[i*3]=c.r;col[i*3+1]=c.g;col[i*3+2]=c.b;}
+    z.vox.push(v);z.col.push(col);z.cnt.push(p.n);});}
 function zTargets(){return S.players.filter(p=>p.st==='alive'&&!(SB.on&&p.bot&&!p.rgId&&S.range));}
 /* walking distance from every free cell to the nearest living player (8-way, diagonals cost 1.414, no corner cutting) */
 function zField(T){const D=ZB.dist,st=++FP.stamp,{gen,closed,hf,hi}=FP;let hn=0;D.fill(1e9);
@@ -3205,7 +3239,7 @@ function zSpawn(t,x,z,yaw){if(ZB.list.length>=ZB.cap){const old=ZB.list.find(q=>
   const T=ZTYPES[t],hp=CFG[T.hp];
   const zo={id:++ZB.id,t,x,z,y:0,vx:0,vz:0,yaw:yaw==null?Math.random()*Math.PI*2:yaw,hp,max:hp,st:'rise',riseT:0.7,wind:0,cd:0,slow:0,flinch:0,
     wp:null,wpT:Math.random()*0.15,ph:Math.random()*6,seed:Math.random()*100,prog:{x,z,t:0},esc:null,deadT:0,headOff:false,flash:0,groanT:1+Math.random()*4,spd:0,atkK:0,fall:1};
-  ZB.list.push(zo);return zo;}
+  zBody(zo);ZB.list.push(zo);return zo;}
 function zRemove(z){const i=ZB.list.indexOf(z);if(i>=0)ZB.list.splice(i,1);}
 function zClear(){ZB.list.length=0;ZB.acc=null;}
 function zHurt(p,dmg,z){if(!p||p.st!=='alive')return;if(SB.on&&SB.god&&!p.bot)return;if(p.prot>0)return;
@@ -3222,9 +3256,9 @@ function zTick(dt){if(!S||S.phase!=='live')return;
     z.cd=Math.max(0,z.cd-dt);z.slow=Math.max(0,z.slow-dt);z.flinch=Math.max(0,z.flinch-dt*4);
     // nearest target
     let tg=null,td=1e9;for(const p of T){const d=hyp(p.x,p.z,z.x,z.z);if(d<td){td=d;tg=p;}}
-    const ty=tg?(tg.y||0):0,reach=tg&&td<CFG.zReach+0.35&&ty<1.1;
+    const lb=zLimbs(z),ty=tg?(tg.y||0):0,reach=tg&&td<CFG.zReach+0.35&&ty<(lb.legs?1.1:0.5);
     // the swing: wind up, then hit whoever is still in reach
-    if(z.wind>0){z.wind-=dt;if(z.wind<=0){z.atkK=1;z.cd=ZTYPES[z.t].cd;if(tg&&td<CFG.zReach+0.6&&ty<1.2&&losPts(z.x,1.2,z.z,tg.x,(tg.y||0)+1.2,tg.z)){zHurt(tg,zStat(z,'dmg'),z);zSwipeSound(z,true);}else zSwipeSound(z,false);}}
+    if(z.wind>0){z.wind-=dt;if(z.wind<=0){z.atkK=1;z.cd=ZTYPES[z.t].cd;if(tg&&td<CFG.zReach+0.6&&ty<(lb.legs?1.2:0.6)&&losPts(z.x,lb.legs?1.2:0.4,z.z,tg.x,(tg.y||0)+1.2,tg.z)){zHurt(tg,Math.round(zStat(z,'dmg')*[0.35,0.6,1][lb.arms]),z);zSwipeSound(z,true);}else zSwipeSound(z,false);}}
     else if(reach&&z.cd<=0&&ZB.hunt){z.wind=ZTYPES[z.t].wind;zVoice(z,'zSnarl',0.9);}
     z.atkK=Math.max(0,z.atkK-dt*3);
     // where to walk
@@ -3236,10 +3270,11 @@ function zTick(dt){if(!S||S.phase!=='live')return;
         else if(z.wpT<=0||!z.wp||hyp(z.wp.x,z.wp.z,z.x,z.z)<0.6){z.wpT=0.15;z.wp=zWaypoint(z);}
         wx=z.wp.x-z.x;wz=z.wp.z-z.z;want=true;
         // sprinters weave while they still have room to
-        if(z.t==='sprint'&&td>5){const l=Math.hypot(wx,wz)||1,s=Math.sin(S.clock*3.1+z.seed)*0.55;const ox=-wz/l*s,oz=wx/l*s;wx=wx/l+ox;wz=wz/l+oz;}}}
-    let spd=zStat(z,'spd')*(z.slow>0?0.35:1)*(z.wind>0?0.3:1);
+        if(z.t==='sprint'&&lb.legs===2&&td>5){const l=Math.hypot(wx,wz)||1,s=Math.sin(S.clock*3.1+z.seed)*0.55;const ox=-wz/l*s,oz=wx/l*s;wx=wx/l+ox;wz=wz/l+oz;}}}
+    // a lost leg halves the pace; with none left it drags itself along
+    let spd=(lb.legs===2?zStat(z,'spd'):lb.legs===1?zStat(z,'spd')*0.5:Math.min(0.75,zStat(z,'spd')))*(z.slow>0?0.35:1)*(z.wind>0?0.3:1);
     const wl=Math.hypot(wx,wz);let dvx=0,dvz=0;if(want&&wl>0.01){dvx=wx/wl*spd;dvz=wz/wl*spd;}
-    const acc=z.t==='sprint'?18:8;z.vx+=clamp(dvx-z.vx,-acc*dt,acc*dt);z.vz+=clamp(dvz-z.vz,-acc*dt,acc*dt);
+    const acc=z.t==='sprint'&&lb.legs===2?18:8;z.vx+=clamp(dvx-z.vx,-acc*dt,acc*dt);z.vz+=clamp(dvz-z.vz,-acc*dt,acc*dt);
     // keep apart from each other
     for(const o of L){if(o===z||o.st==='dead')continue;const dx=z.x-o.x,dz=z.z-o.z,d=dx*dx+dz*dz;if(d<0.49&&d>1e-6){const k=(0.7-Math.sqrt(d))*4;z.vx+=dx*k*dt*6;z.vz+=dz*k*dt*6;}}
     // and out of the players they are clawing at
@@ -3259,36 +3294,80 @@ function zTick(dt){if(!S||S.phase!=='live')return;
   // a hard pass so a crowd never stacks inside itself
   for(let i=0;i<L.length;i++){const a=L[i];if(a.st==='dead')continue;for(let j=i+1;j<L.length;j++){const b=L[j];if(b.st==='dead')continue;const dx=a.x-b.x,dz=a.z-b.z,d=Math.hypot(dx,dz);
     if(d<0.55){const ux=d>1e-4?dx/d:Math.cos(a.seed),uz=d>1e-4?dz/d:Math.sin(a.seed),k=(0.55-d)/2;const ax=a.x+ux*k,az=a.z+uz*k,bx=b.x-ux*k,bz=b.z-uz*k;if(freeAt(ax,az)){a.x=ax;a.z=az;}if(freeAt(bx,bz)){b.x=bx;b.z=bz;}}}}
-  // corpses sink away after a while
-  for(let i=L.length-1;i>=0;i--)if(L[i].st==='dead'&&L[i].deadT>4.2)L.splice(i,1);
+  // corpses go once they have dissolved
+  for(let i=L.length-1;i>=0;i--)if(L[i].st==='dead'&&L[i].deadT>ZDIS0+ZDIS+0.1)L.splice(i,1);
   // the endless horde keeps the range topped up from the far end
   if(ZB.endless&&rgOn()){ZB.spawnT-=dt;const alive=L.filter(z=>z.st!=='dead').length;if(alive<ZB.horde&&ZB.spawnT<=0){ZB.spawnT=0.35;zHordeOne();}}}
 function zHordeOne(){for(let i=0;i<10;i++){const x=40+Math.random()*7,z=(Math.random()*2-1)*17;if(freeAt(x,z)){return zSpawn(Math.random()<0.3?'sprint':'sham',x,z,Math.PI/2);}}return null;}
-/* ---------- bullets ---------- */
-function zHeadBox(z){const s=ZTYPES[z.t].size,r=0.15*s;return{x0:z.hx-r,x1:z.hx+r,y0:z.hy-r,y1:z.hy+r+0.02,z0:z.hz-r,z1:z.hz+r};}
-function zRay(ox,oy,oz,dx,dy,dz,best){let hit=null;
-  for(const z of ZB.list){if(z.st==='dead'||z.hx==null)continue;if(Math.abs(z.x-ox)>best+1&&Math.abs(z.z-oz)>best+1)continue;
-    const top=z.hy-0.14,y0=z.y;
-    if(!z.headOff){const t=rayBox(ox,oy,oz,dx,dy,dz,zHeadBox(z),best);if(t>=0&&t<best){best=t;hit={z,t,head:true};}}
-    // the body leans with the gait, so its box follows the chest, not the feet
-    const cx=(z.x+z.hx)/2,cz=(z.z+z.hz)/2,r=0.3;const t=rayBox(ox,oy,oz,dx,dy,dz,{x0:cx-r,x1:cx+r,z0:cz-r,z1:cz+r,y0,y1:top},best);
-    if(t>=0&&t<best){best=t;hit={z,t,head:false};}}
+/* ---------- bullets ----------
+   A shot is traced through each body part's own box (in the part's posed frame) and then voxel by voxel, so it hits the first
+   pixel that is still there: shots go through holes and past missing limbs. Damage goes to the part's region:
+   head (75% of the Revenant's health; losing it kills), body (100%; emptying it kills), each arm (45%) and each leg (60%).
+   A limb also passes 30% of its damage on to the body. Every hit knocks pixels out around the impact and leaves the edges
+   glowing with ichor; a region at zero falls off in a burst of pixels. Lost arms weaken the swing, a lost leg makes it limp,
+   both legs gone and it crawls. */
+function zLimbs(z){const r=z.reg;return{arms:(r.armL.gone?0:1)+(r.armR.gone?0:1),legs:(r.legL.gone?0:1)+(r.legR.gone?0:1)};}
+function zVoxW(z,p,i,out){const e=z.pm,o=p*16,P=ZR.parts[p],x=P.off[i*3],y=P.off[i*3+1],w=P.off[i*3+2];
+  out.set(e[o]*x+e[o+4]*y+e[o+8]*w+e[o+12],e[o+1]*x+e[o+5]*y+e[o+9]*w+e[o+13],e[o+2]*x+e[o+6]*y+e[o+10]*w+e[o+14]);return out;}
+function zRay(ox,oy,oz,dx,dy,dz,best){let hit=null;const M=ZR.m2;
+  for(const z of ZB.list){if(z.st==='dead'||!z.posed)continue;
+    const cx=z.x-ox,cy=0.8-oy,cz=z.z-oz,tc=cx*dx+cy*dy+cz*dz;if(tc<-1.8||tc>best+1.8)continue;if(cx*cx+cy*cy+cz*cz-tc*tc>3.4)continue;
+    for(let p=0;p<ZR.parts.length;p++){if(!z.cnt[p])continue;const P=ZR.parts[p];M.fromArray(z.pm,p*16).invert();const e=M.elements;
+      const lo=[e[0]*ox+e[4]*oy+e[8]*oz+e[12],e[1]*ox+e[5]*oy+e[9]*oz+e[13],e[2]*ox+e[6]*oy+e[10]*oz+e[14]],ld=[e[0]*dx+e[4]*dy+e[8]*dz,e[1]*dx+e[5]*dy+e[9]*dz,e[2]*dx+e[6]*dy+e[10]*dz];
+      let t0=0,t1=best;for(let a=0;a<3;a++){if(Math.abs(ld[a])<1e-9){if(lo[a]<-0.5||lo[a]>0.5){t0=2;t1=1;break;}continue;}
+        let ta=(-0.5-lo[a])/ld[a],tb=(0.5-lo[a])/ld[a];if(ta>tb){const q=ta;ta=tb;tb=q;}if(ta>t0)t0=ta;if(tb<t1)t1=tb;if(t0>t1)break;}
+      if(t0>t1)continue;
+      const N=(P.nx+P.ny+P.nz)*2+2,st=(t1-t0)/N,v=z.vox[p];
+      for(let k=0;k<=N;k++){const t=t0+st*k,lx=lo[0]+ld[0]*t,ly=lo[1]+ld[1]*t,lz=lo[2]+ld[2]*t;
+        const ix=clamp(Math.floor((lx+0.5)*P.nx),0,P.nx-1),iy=clamp(Math.floor((ly+0.5)*P.ny),0,P.ny-1),iz=clamp(Math.floor((lz+0.5)*P.nz),0,P.nz-1);
+        if(v[(ix*P.ny+iy)*P.nz+iz]){best=t;hit={z,t,p,lx,ly,lz};break;}}}}
   return hit;}
-function zHitAt(h,hx,hy,hz,dist,w,dx,dy,dz){const z=h.z,dmg=wDmg(me.w,h.head,dist,w),a=ZB.acc;
-  const e=a.get(z)||{dmg:0,head:false,x:hx,y:hy,z:hz,dist,dx,dz};a.set(z,e);e.dmg+=dmg;e.head=e.head||h.head;
-  spawnSparks(hx,hy,hz,h.head?ZTYPES[z.t].eye:0xb8c9b0,h.head?9:5,dx,dy,dz);}
+function zHitAt(h,hx,hy,hz,dist,w,dx,dy,dz){const z=h.z,reg=ZR.parts[h.p].reg,head=reg==='head',dmg=wDmg(me.w,head,dist,w),a=ZB.acc;
+  const e=a.get(z)||{dmg:0,head:false,x:hx,y:hy,z:hz,dist,dx,dz,hits:[]};a.set(z,e);e.dmg+=dmg;e.head=e.head||head;e.hits.push({p:h.p,lx:h.lx,ly:h.ly,lz:h.lz,dmg,dx,dy,dz});
+  const c=ZTYPES[z.t].eye;spawnSparks(hx,hy,hz,c,head?4:2,dx,dy,dz);}
+const ZICHOR=new THREE.Color();
+/* knock the voxels nearest the impact out of part p, as flying pixels, and make the edge of the hole glow */
+function zChip(z,p,lx,ly,lz,count,dx,dy,dz){const P=ZR.parts[p],v=z.vox[p],col=z.col[p],s=ZTYPES[z.t].size,list=[];
+  for(let i=0;i<P.n;i++){if(!v[i])continue;const ex=(P.off[i*3]-lx)*P.w,ey=(P.off[i*3+1]-ly)*P.h,ez=(P.off[i*3+2]-lz)*P.d;list.push([ex*ex+ey*ey+ez*ez,i]);}
+  list.sort((a,b)=>a[0]-b[0]);const k=Math.min(count,list.length);let rr=0;const W=ZR.v;
+  for(let j=0;j<k;j++){const i=list[j][1];v[i]=0;z.cnt[p]--;rr=list[j][0];zVoxW(z,p,i,W);
+    zPix(W.x,W.y,W.z,dx*(1.5+Math.random()*2)+(Math.random()-.5)*2.2,1+Math.random()*2.2+dy,dz*(1.5+Math.random()*2)+(Math.random()-.5)*2.2,ZV*0.95*s,col[i*3],col[i*3+1],col[i*3+2],false,1.4+Math.random()*1.2);}
+  if(P.glow)return;
+  ZICHOR.set(ZTYPES[z.t].eye).multiplyScalar(0.75);const r2=Math.pow(Math.sqrt(rr)+ZV*1.3,2);
+  for(let j=k;j<list.length&&list[j][0]<=r2;j++){const i=list[j][1];col[i*3]=ZICHOR.r;col[i*3+1]=ZICHOR.g;col[i*3+2]=ZICHOR.b;}}
+/* a region at zero: every pixel it has left bursts off, and the stump it leaves glows */
+function zSever(z,reg,dx,dz){const R=z.reg[reg];if(R.gone)return;R.gone=true;R.hp=0;const s=ZTYPES[z.t].size,W=ZR.v,ps=ZR.regParts[reg];
+  let cx=0,cy=0,cz=0,n=0;for(const p of ps)for(let i=0;i<ZR.parts[p].n;i++)if(z.vox[p][i]){zVoxW(z,p,i,W);cx+=W.x;cy+=W.y;cz+=W.z;n++;}
+  if(n){cx/=n;cy/=n;cz/=n;}if(reg==='head'){z.hx=cx;z.hy=cy;z.hz=cz;}
+  for(const p of ps){const col=z.col[p];for(let i=0;i<ZR.parts[p].n;i++){if(!z.vox[p][i])continue;zVoxW(z,p,i,W);
+      const ox=W.x-cx,oy=W.y-cy,oz=W.z-cz;z.vox[p][i]=0;
+      zPix(W.x,W.y,W.z,dx*2+ox*6+(Math.random()-.5)*2,1.5+oy*6+Math.random()*2.5,dz*2+oz*6+(Math.random()-.5)*2,ZV*0.95*s,col[i*3],col[i*3+1],col[i*3+2],ZR.parts[p].glow,1.6+Math.random()*1.4);}
+    z.cnt[p]=0;}
+  // the stump: the body voxels nearest the joint glow with ichor
+  const root=ps[0],tgt=reg==='head'?ZR.PI.collar:reg.startsWith('arm')?ZR.PI.torso:ZR.PI.pelvis,e=z.pm,o=root*16;
+  const jx=e[o+4]*0.5+e[o+12],jy=e[o+5]*0.5+e[o+13],jz=e[o+6]*0.5+e[o+14];ZICHOR.set(ZTYPES[z.t].eye).multiplyScalar(0.75);
+  const col=z.col[tgt];for(let i=0;i<ZR.parts[tgt].n;i++){if(!z.vox[tgt][i])continue;zVoxW(z,tgt,i,W);if(Math.hypot(W.x-jx,W.y-jy,W.z-jz)<0.13){col[i*3]=ZICHOR.r;col[i*3+1]=ZICHOR.g;col[i*3+2]=ZICHOR.b;}}}
+function zKill(z,head){z.hp=0;z.st='dead';z.deadT=0;z.wind=0;z.fallDir=(Math.random()<0.5?-1:1);z.fallBack=head||Math.random()<0.5;ZB.kills++;
+  if(head)zHeadPop(z);else zVoice(z,'zDie',0.9);
+  $('confirm').classList.remove('multi');$('confirm').textContent=`${ZTYPES[z.t].name} down`;confirmT=1.3;}
 function zDeliver(){const a=ZB.acc;ZB.acc=null;if(!a||!a.size)return 0;let head=false,kill=false;
   for(const [z,e] of a){if(z.st==='dead')continue;head=head||e.head;dmgNum(e.x,e.y,e.z,e.dmg,e.head);RG.hits++;
-    z.hp-=e.dmg;z.flash=1;z.flinch=1;z.slow=Math.max(z.slow,z.t==='sprint'?0.28:0.2);
-    // a little push along the shot
-    const l=Math.hypot(e.dx,e.dz)||1,k=Math.min(0.25,e.dmg/200);const px=z.x+e.dx/l*k,pz=z.z+e.dz/l*k;if(freeAt(px,pz)){z.x=px;z.z=pz;}
-    RG.read=`${ZTYPES[z.t].name} · ${e.dmg}${e.head?' head':''} at ${e.dist.toFixed(1)} m`;
-    if(z.hp<=0){z.hp=0;z.st='dead';z.deadT=0;z.wind=0;z.fallDir=(Math.random()<0.5?-1:1);z.fallBack=e.head||Math.random()<0.5;if(e.head){z.headOff=true;zHeadPop(z);}else zVoice(z,'zDie',0.9);kill=true;ZB.kills++;
-      RG.read+=` · ${e.head?'headshot kill':'down'}`;$('confirm').classList.remove('multi');$('confirm').textContent=`${ZTYPES[z.t].name} down`;confirmT=1.3;}}
+    z.flash=1;z.flinch=1;z.slow=Math.max(z.slow,z.t==='sprint'?0.28:0.2);
+    const l=Math.hypot(e.dx,e.dz)||1,ux=e.dx/l,uz=e.dz/l,k=Math.min(0.25,e.dmg/200);const px=z.x+ux*k,pz=z.z+uz*k;if(freeAt(px,pz)){z.x=px;z.z=pz;}
+    const hitReg={},off=[];let headKill=false;
+    for(const h of e.hits){const P=ZR.parts[h.p],reg=P.reg,R=z.reg[reg];if(R.gone||!z.cnt[h.p])continue;
+      R.hp-=h.dmg;hitReg[reg]=(hitReg[reg]||0)+h.dmg;if(reg!=='torso')z.reg.torso.hp-=h.dmg*0.3;
+      zChip(z,h.p,h.lx,h.ly,h.lz,clamp(Math.round(h.dmg/R.max*ZR.regN[reg]*0.3),1,10),h.dx,h.dy,h.dz);
+      // a region at zero, or a limb's upper part shot away, falls off
+      const broke=R.hp<=0||(reg!=='torso'&&ZR.regParts[reg].some(q=>!z.cnt[q]));
+      if(broke){if(reg==='torso'){z.reg.torso.hp=0;}else{zSever(z,reg,ux,uz);if(reg==='head')headKill=true;else{off.push(ZREG[reg].name);if(reg.startsWith('leg'))z.slow=0.8;}}}}
+    const regs=Object.keys(hitReg).map(r=>`${ZREG[r].name} ${Math.round(hitReg[r])}`).join(', ');
+    RG.read=`${ZTYPES[z.t].name} · ${regs} at ${e.dist.toFixed(1)} m`+(off.length?` · ${off.join(' and ')} off`:'');
+    if(headKill||z.reg.torso.hp<=0){zKill(z,headKill);kill=true;RG.read+=headKill?' · head off, kill':' · down';}
+    else z.hp=Math.max(1,Math.round(z.reg.torso.hp));}
   if(kill)setTimeout(()=>hitCue('kill'),0);
   hitT=head?0.24:0.16;$('hitmark').classList.toggle('head',head);if(!kill)hitCue(head?'head':'hit');rgReadout();return 1;}
-function zHeadPop(z){for(let i=0;i<3;i++)spawnSparks(z.hx,z.hy,z.hz,i?0x9fb39a:ZTYPES[z.t].eye,8,0,1,0);
-  const sp=spat(z.x,z.z),v=clamp(1-sp.d/45,0.1,1);snd({f:900,f1:200,dur:0.22,vol:0.09*v,noise:true,bus:'fx',pan:sp.pan,tk:'zomb'});}
+function zHeadPop(z){const sp=spat(z.x,z.z),v=clamp(1-sp.d/45,0.1,1);snd({f:900,f1:200,dur:0.22,vol:0.09*v,noise:true,bus:'fx',pan:sp.pan,tk:'zomb'});}
 /* ---------- sounds ----------
    Recorded voices (artisticdude's "Zombies sound pack", OpenGameArt, CC0): groans for Shamblers, higher calls for Sprinters,
    a snarl as a swing starts and a death cry. At most one voice starts every 0.3 s so a horde murmurs instead of roaring at once;
@@ -3300,12 +3379,12 @@ function zGroan(z){if(SFXB)zVoice(z,z.t==='sprint'?'zCall':'zGroan',z.t==='sprin
 function zSwipeSound(z,hit){const sp=spat(z.x,z.z),v=clamp(1-sp.d/30,0.1,1);snd({f:1800,f1:500,dur:0.18,vol:0.05*v,noise:true,type:'bandpass',q:1.2,bus:'fx',pan:sp.pan,tk:'zomb'});
   if(hit)snd({f:130,f1:60,dur:0.16,vol:0.12*v,bus:'fx',pan:sp.pan,tk:'zomb'});}
 /* ---------- drawing ---------- */
-const ZWHITE=new THREE.Color(1.6,1.6,1.6);
-function zPose(z,dt){const R=ZR,T=ZTYPES[z.t],s=T.size;
-  z.ph+=dt*(z.spd*(z.t==='sprint'?1.55:2.6)+0.6);const ph=z.ph,sw=Math.min(1,z.spd/1.2);
+const ZWHITE=new THREE.Color(1.6,1.6,1.6),ZDIS0=2.4,ZDIS=1.4;/* corpses lie for ZDIS0 s, then dissolve into pixels over ZDIS s */
+function zPose(z,dt){const R=ZR,T=ZTYPES[z.t],s=T.size,lb=zLimbs(z),crawl=lb.legs===0,limp=lb.legs===1;
+  z.ph+=dt*(z.spd*(crawl?4.5:z.t==='sprint'&&!limp?1.55:2.6)+0.6);const ph=z.ph,sw=Math.min(1,z.spd/(crawl?0.5:1.2));
   R.root.position.set(z.x,0,z.z);R.root.rotation.set(0,z.yaw,0);R.root.scale.setScalar(s);
   let rise=0;if(z.st==='rise')rise=z.riseT/0.7;R.model.position.set(0,-1.9*rise*rise,0);R.model.rotation.set(0,0,0);
-  const sprint=z.t==='sprint',fl=z.flinch;
+  const sprint=z.t==='sprint'&&!limp,fl=z.flinch;
   R.hips.rotation.set(0,Math.sin(ph)*0.12*sw,Math.sin(ph)*0.07*sw+Math.sin(z.seed)*0.05);R.hips.position.y=0.95-Math.abs(Math.sin(ph))*0.04*sw-(sprint?0.06:0);
   R.spine.rotation.set(T.lean+fl*0.45-z.atkK*0.25,-Math.sin(ph)*0.1*sw,Math.sin(z.seed*1.7)*0.08);
   R.head.rotation.set(-T.lean*0.6-fl*0.3,Math.sin(z.seed*3+S.clock*0.7)*0.25,Math.sin(z.seed+S.clock*1.3)*0.18);
@@ -3315,27 +3394,41 @@ function zPose(z,dt){const R=ZR,T=ZTYPES[z.t],s=T.size;
     const wind=z.wind>0?1-z.wind/T.wind:0;
     if(sprint)A.s.rotation.set(-swing*0.9+0.2,0,sg*0.12);else A.s.rotation.set(1.25+Math.sin(p*0.5+z.seed)*0.12,0,sg*0.08+(i?0.05:-0.05));
     A.e.rotation.set(sprint?1.1:0.25,0,0);
-    if(i===1&&(z.wind>0||z.atkK>0)){A.s.rotation.x=z.wind>0?1.4+wind*1.4:2.8-(1-z.atkK)*2.4;A.s.rotation.z=0.25;}}
-  if(z.st==='dead'){const k=Math.min(1,z.deadT/0.45),e=k*k;R.model.rotation.set((z.fallBack?1:-1)*e*Math.PI/2,0,z.fallDir*e*0.3);
-    const sink=Math.max(0,z.deadT-3.2);R.model.position.y=-sink*0.6+e*0.12;
-    R.spine.rotation.x*=1-e*0.7;for(const A of R.sh)A.s.rotation.x=(1-e)*A.s.rotation.x+e*(z.fallBack?2.6:-0.4);}
+    const sw2=z.reg.armR.gone?0:1;/* the right arm swings, or the left if the right is gone */
+    if(i===sw2&&(z.wind>0||z.atkK>0)){A.s.rotation.x=z.wind>0?1.4+wind*1.4:2.8-(1-z.atkK)*2.4;A.s.rotation.z=0.25*sg;}}
+  // one leg: a heavy hop on the good one, the hips dropping toward the stump
+  if(limp){const gone=z.reg.legL.gone?-1:1;R.hips.position.y=0.92-Math.abs(Math.sin(ph))*0.14*sw;R.hips.rotation.z=gone*0.16;R.spine.rotation.z-=gone*0.12;}
+  // no legs: face down, dragging itself along with its arms
+  if(crawl){R.model.rotation.x=-1.32;R.model.position.z+=1.05;R.model.position.y+=-0.05;R.spine.rotation.set(0.15+fl*0.2,Math.sin(ph)*0.15,0);R.head.rotation.set(0.85,Math.sin(z.seed*3+S.clock)*0.2,0);
+    for(let i=0;i<2;i++){const A=R.sh[i],p=ph+(i?Math.PI:0);A.s.rotation.set(2.75+Math.sin(p)*0.45+(z.wind>0?0.4:0),0,(i?1:-1)*0.25);A.e.rotation.set(0.35-Math.cos(p)*0.3,0,0);}}
+  if(z.st==='dead'){const k=Math.min(1,z.deadT/0.45),e=k*k;
+    if(crawl){R.model.rotation.x=-1.32-e*0.22;R.head.rotation.x=0.85*(1-e);}
+    else{R.model.rotation.set((z.fallBack?1:-1)*e*Math.PI/2,0,z.fallDir*e*0.3);R.model.position.y=e*0.12;
+      R.spine.rotation.x*=1-e*0.7;for(const A of R.sh)A.s.rotation.x=(1-e)*A.s.rotation.x+e*(z.fallBack?2.6:-0.4);}}
   R.root.updateMatrixWorld(true);
-  R.headPart.o.getWorldPosition(R.v);z.hx=R.v.x;z.hy=R.v.y;z.hz=R.v.z;}
+  for(let p=0;p<R.parts.length;p++)z.pm.set(R.parts[p].o.matrixWorld.elements,p*16);z.posed=true;}
 function zRender(dt){
   if(ZB.list.length&&!rgOn())zClear();
-  const R=ZR,L=ZB.list,n=L.length;let i=0;
-  for(const z of L){zPose(z,dt);z.flash=Math.max(0,z.flash-dt*6);const T=ZTYPES[z.t];
-    const tint=R.c,f=z.flash;
-    for(const P of R.parts){let hide=z.headOff&&(P.name==='head'||P.name==='eyes');
-      if(hide){R.m.makeScale(0,0,0);P.m.setMatrixAt(i,R.m);continue;}
-      P.m.setMatrixAt(i,P.o.matrixWorld);
-      const base=P.col==='skin'?T.tint:P.col==='rag'?0x2a2c2a:P.col==='metal'?0x3a3f45:T.eye;tint.set(base);
-      if(P.col==='eye'&&z.st==='dead'){tint.multiplyScalar(Math.max(0,1-z.deadT*1.5));}
-      else if(f>0&&P.col==='skin')tint.lerp(ZWHITE,f*0.6);
-      P.m.setColorAt(i,tint);}
-    R.m.makeTranslation(z.x,0.02,z.z);R.blob.setMatrixAt(i,R.m);i++;}
-  for(const P of R.parts){P.m.count=n;if(n){P.m.instanceMatrix.needsUpdate=true;P.m.instanceColor.needsUpdate=true;}}
-  R.blob.count=n;if(n)R.blob.instanceMatrix.needsUpdate=true;}
+  const R=ZR,L=ZB.list,bm=R.body,gm=R.glowM,BA=bm.instanceMatrix.array,BC=bm.instanceColor.array,GA=gm.instanceMatrix.array,GC=gm.instanceColor.array,W=R.v;
+  let nb=0,ng=0,bi=0;
+  for(const z of L){zPose(z,dt);z.flash=Math.max(0,z.flash-dt*6);const f=z.flash,e=z.pm;
+    const dis=z.st==='dead'&&z.deadT>ZDIS0?(z.deadT-ZDIS0)/ZDIS:-1,eyeK=z.st==='dead'?Math.max(0,1-z.deadT*1.5):1;
+    for(let p=0;p<R.parts.length;p++){if(!z.cnt[p])continue;const P=R.parts[p],v=z.vox[p],col=z.col[p],o=p*16,off=P.off;
+      const ax=e[o]/P.nx,ay=e[o+1]/P.nx,az=e[o+2]/P.nx,bx=e[o+4]/P.ny,by=e[o+5]/P.ny,bz=e[o+6]/P.ny,cx=e[o+8]/P.nz,cy=e[o+9]/P.nz,cz=e[o+10]/P.nz;
+      const A=P.glow?GA:BA,C=P.glow?GC:BC;
+      for(let i=0;i<P.n;i++){if(!v[i])continue;const x=off[i*3],y=off[i*3+1],w=off[i*3+2];
+        const tx=e[o]*x+e[o+4]*y+e[o+8]*w+e[o+12],ty=e[o+1]*x+e[o+5]*y+e[o+9]*w+e[o+13],tz=e[o+2]*x+e[o+6]*y+e[o+10]*w+e[o+14];
+        // dissolving: top down with some noise, each voxel leaving as a glowing pixel that drifts up
+        if(dis>=0){const key=0.55*clamp(1-ty/1.9,0,1)+0.45*((i*0.6180339+p*0.31+z.seed)%1);
+          if(key<dis){v[i]=0;z.cnt[p]--;{R.c.setRGB(col[i*3],col[i*3+1],col[i*3+2]).lerp(ZICHOR.set(ZTYPES[z.t].eye),0.6);zPix(tx,ty,tz,(Math.random()-.5)*0.6,0.4+Math.random()*0.8,(Math.random()-.5)*0.6,ZV*0.9,R.c.r,R.c.g,R.c.b,true,0.7+Math.random()*0.6);}continue;}}
+        const j=P.glow?ng++:nb++,m=j*16;
+        A[m]=ax;A[m+1]=ay;A[m+2]=az;A[m+3]=0;A[m+4]=bx;A[m+5]=by;A[m+6]=bz;A[m+7]=0;A[m+8]=cx;A[m+9]=cy;A[m+10]=cz;A[m+11]=0;A[m+12]=tx;A[m+13]=ty;A[m+14]=tz;A[m+15]=1;
+        let r=col[i*3],g=col[i*3+1],b=col[i*3+2];if(P.glow){r*=eyeK;g*=eyeK;b*=eyeK;}else if(f>0){const q=f*0.6;r+=(1.6-r)*q;g+=(1.6-g)*q;b+=(1.6-b)*q;}
+        C[j*3]=r;C[j*3+1]=g;C[j*3+2]=b;}}
+    if(z.st!=='dead'||z.deadT<ZDIS0+0.3){R.m.makeTranslation(z.x,0.02,z.z);R.blob.setMatrixAt(bi++,R.m);}}
+  bm.count=nb;gm.count=ng;if(nb){bm.instanceMatrix.needsUpdate=true;bm.instanceColor.needsUpdate=true;}if(ng){gm.instanceMatrix.needsUpdate=true;gm.instanceColor.needsUpdate=true;}
+  R.blob.count=bi;if(bi)R.blob.instanceMatrix.needsUpdate=true;
+  zPixTick(dt);}
 /* ---------- the Range tab section ---------- */
 function zSpawnAhead(t){const sp=rgSpot();const yaw=Math.atan2(-(me.x-sp.x),-(me.z-sp.z));return zSpawn(t,sp.x,sp.z,yaw);}
 function zHorde(){for(let i=0;i<ZB.horde;i++)zHordeOne();}
@@ -3351,7 +3444,7 @@ function zRangeUI(el,mk,ab){el.append(mk('h3','','Revenants (Zombie Rumble)'));
   for(const [k,t,lo,hi,st] of [['zShHp','Shambler health',1,500,1],['zShSpd','Shambler speed (m/s)',0.3,6,0.1],['zShDmg','Shambler hit damage',0,100,1],
     ['zSpHp','Sprinter health',1,500,1],['zSpSpd','Sprinter speed (m/s)',1,12,0.1],['zSpDmg','Sprinter hit damage',0,100,1],['zReach','Reach (m)',0.6,3,0.05]])
     devKnob(el,t,lo,hi,st,()=>CFG[k],v=>{CFG[k]=v;sbSave();},CFG0[k]);
-  el.append(mk('div','note','Health and damage apply to the next ones spawned; speed and reach apply at once. "You take no damage" on the Rules tab keeps them from dropping you.'));}
+  el.append(mk('div','note','Health is split over head (75%), body (100%), arms (45% each) and legs (60% each); a head or body at zero kills, a limb at zero falls off. Health and damage apply to the next ones spawned; speed and reach apply at once. "You take no damage" on the Rules tab keeps them from dropping you.'));}
 
 /* ---------- progression: experience, levels, weapon parts and builds ----------
    Matches pay XP (see XPV and xpAward). Player level opens sights, muzzles, stocks, glow colours and build slots; the combat XP
@@ -4512,6 +4605,6 @@ mergeChildren(scene);
 refreshZoneLook('atk');
 // Compile every material's shader up front (in parallel where the browser supports it) so nothing compiles on the first shot or spawn.
 renderer.compileAsync(scene,camera).catch(()=>{}).finally(()=>requestAnimationFrame(frame));
-window.__za={zr:{ZB,ZR,zSpawn:(t,x,z,y)=>zSpawn(t,x,z,y),zTick:dt=>zTick(dt),zRender:dt=>zRender(dt),zClear:()=>zClear(),zRay:(...a)=>zRay(...a),zHorde:()=>zHorde(),rgOn:()=>rgOn()},sim:{hostTick:dt=>hostTick(dt),coverTick:dt=>coverTick(dt),newMatch:()=>newMatch(),MATCH,dmSpawnSpot:p=>dmSpawnSpot(p),findPath:(a,b,c,d)=>findPath(a,b,c,d),freeAt:(x,z)=>freeAt(x,z),losPts:(...a)=>losPts(...a),DM_PTS,BOXES},BL,fire:()=>{const s=mySlot();if(s>=0)fire(s);},damage:(t,d,a,h)=>damage(t,d,a,h),prog:{PROG,PARTS,myW,modW,progSave,progLoad,rebuildVW,lvlOf,XPR},LX,MU,MM,WM,VB,OPT,AU,dev:{DEV,TUNE,GUN,W,COVER0,TWIN,STEP_MODE,devCollect,devApply},damageCover,COVER,coverVis,WH,openWheel:m=>openWheel(m),closeWheel:c=>closeWheel(c),wheelMove:(x,y)=>wheelMove(x,y),gfx:{renderer,scene,camera,applyGfx,DR,render:()=>renderScene(),FREF,BEAMS,get gtao(){return gtaoPass;}},openPause:()=>openPause(),closePause:()=>closePause(),leaveMatch:()=>leaveMatch(),get S(){return S;},me,net,DMGDIR,rg:{RG,rgAdd,rgRemove,rgClear,BOXES},maps:{MAPS,MAP,MATCH,setMap,SITES,DM_PTS,findPath,freeAt,simTick:dt=>netTick(dt),SHOW,showCut:i=>showCut(i),TOD,ISO},botMem,CFG,SB,OPT,AU,get actx(){return actx;},mySlot:()=>mySlot(),sfx:{hitCue,HITX,footstep,slideSound,shotSound,stepSound,get stepBufs(){return stepBufs;},get slideBuf(){return slideBuf;},get gunBufs(){return gunBufs;}}};
+window.__za={zr:{ZB,ZR,zSpawn:(t,x,z,y)=>zSpawn(t,x,z,y),zTick:dt=>zTick(dt),zRender:dt=>zRender(dt),zClear:()=>zClear(),zRay:(...a)=>zRay(...a),zHorde:()=>zHorde(),rgOn:()=>rgOn(),zHitAt:(...a)=>zHitAt(...a),zDeliver:()=>zDeliver(),ZD},sim:{hostTick:dt=>hostTick(dt),coverTick:dt=>coverTick(dt),newMatch:()=>newMatch(),MATCH,dmSpawnSpot:p=>dmSpawnSpot(p),findPath:(a,b,c,d)=>findPath(a,b,c,d),freeAt:(x,z)=>freeAt(x,z),losPts:(...a)=>losPts(...a),DM_PTS,BOXES},BL,fire:()=>{const s=mySlot();if(s>=0)fire(s);},damage:(t,d,a,h)=>damage(t,d,a,h),prog:{PROG,PARTS,myW,modW,progSave,progLoad,rebuildVW,lvlOf,XPR},LX,MU,MM,WM,VB,OPT,AU,dev:{DEV,TUNE,GUN,W,COVER0,TWIN,STEP_MODE,devCollect,devApply},damageCover,COVER,coverVis,WH,openWheel:m=>openWheel(m),closeWheel:c=>closeWheel(c),wheelMove:(x,y)=>wheelMove(x,y),gfx:{renderer,scene,camera,applyGfx,DR,render:()=>renderScene(),FREF,BEAMS,get gtao(){return gtaoPass;}},openPause:()=>openPause(),closePause:()=>closePause(),leaveMatch:()=>leaveMatch(),get S(){return S;},me,net,DMGDIR,rg:{RG,rgAdd,rgRemove,rgClear,BOXES},maps:{MAPS,MAP,MATCH,setMap,SITES,DM_PTS,findPath,freeAt,simTick:dt=>netTick(dt),SHOW,showCut:i=>showCut(i),TOD,ISO},botMem,CFG,SB,OPT,AU,get actx(){return actx;},mySlot:()=>mySlot(),sfx:{hitCue,HITX,footstep,slideSound,shotSound,stepSound,get stepBufs(){return stepBufs;},get slideBuf(){return slideBuf;},get gunBufs(){return gunBufs;}}};
 })();
 </script>
