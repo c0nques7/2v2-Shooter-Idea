@@ -148,6 +148,8 @@ body{background:var(--bg);color:var(--fg);overflow:hidden;font-family:var(--disp
 #cross .h{width:9px;height:2px;left:-4.5px;top:-1px}
 #hitmark{left:50%;top:50%;transform:translate(-50%,-50%) rotate(45deg);width:30px;height:30px;opacity:0;color:#fff}
 #hitmark.head{color:var(--bad);width:38px;height:38px}
+#hitmark.kill{color:#ff1f3d;width:46px;height:46px;filter:drop-shadow(0 0 4px rgba(255,31,61,.9))}
+#hitmark.kill::before{width:3px;left:calc(50% - 1.5px)} #hitmark.kill::after{height:3px;top:calc(50% - 1.5px)}
 #hitmark::before,#hitmark::after{content:"";position:absolute;background:currentColor}
 #hitmark::before{left:calc(50% - 1px);top:0;width:2px;height:100%} #hitmark::after{top:calc(50% - 1px);left:0;height:2px;width:100%}
 #dmg{inset:0;overflow:hidden}
@@ -404,16 +406,21 @@ input,select{font:inherit;font-size:16px;color:var(--fg);background:#0b0f12;bord
 body.touch #view{cursor:default}
 body.touch,body.touch #view{touch-action:none;overscroll-behavior:none}
 body.touch .overlay,body.touch #sbpanel{touch-action:pan-x pan-y}
-body.touch #vitals{bottom:auto;top:calc(10px + env(safe-area-inset-top,0px));min-width:180px}
+/* health and ammo sit at the bottom centre on touch (Joe): health ends just left of centre, ammo starts just right of it,
+   clear of the stick's resting spot (bottom left) and the button cluster (bottom right, about 5 --u wide) */
+body.touch{--u:calc(clamp(40px,7.2vmin,78px)*var(--tsz,1))}
+body.touch #vitals{left:auto;right:calc(50% + 8px);bottom:calc(10px + env(safe-area-inset-bottom,0px));min-width:170px;align-items:stretch}
+body.touch #zoneline{order:-1}
 body.touch #hpnum{font-size:32px}
-body.touch #feed{top:calc(96px + env(safe-area-inset-top,0px))}
-body.touch #ammo{bottom:auto;top:calc(108px + env(safe-area-inset-top,0px));right:calc(150px + env(safe-area-inset-right,0px))}
+
+body.touch #ammo{right:auto;left:calc(50% + 8px);bottom:calc(10px + env(safe-area-inset-bottom,0px));text-align:left;max-width:calc(50% - 8px - var(--u)*5.2 - env(safe-area-inset-right,0px))}
+body.touch #ammosub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 body.touch #ammonum{font-size:30px}
 body.touch #netpill{bottom:auto;top:calc(150px + env(safe-area-inset-top,0px))}
 body.touch #wheel .wsvg{width:min(420px,78vw,60vh)}
 body.touch .btn{min-height:44px}
 body.touch #menu .keys,body.touch #pause .keys{display:none}
-body.touch #vitals{max-width:34vw}
+body.touch #vitals{max-width:min(34vw,calc(50% - 8px - var(--u)*3.8))}
 body.touch .chip{min-height:44px}
 #fullbtn{display:none}body.touch #fullbtn.ok{display:block}
 </style>
@@ -2709,7 +2716,7 @@ const WANG={};WKEYS.forEach((k,i)=>{WANG[k]=-90+i*360/WKEYS.length;});const WSPA
 function wheelAt(a){let best=WKEYS[0],bd=1e9;for(const k of WKEYS){const d=Math.abs(((a-WANG[k])%360+540)%360-180);if(d<bd){bd=d;best=k;}}return best;}
 function arcPath(c,R,r,span){const p=(rad,deg)=>{const t=deg*Math.PI/180;return`${(rad*Math.cos(t)).toFixed(2)} ${(rad*Math.sin(t)).toFixed(2)}`;};
   const a0=c-span/2,a1=c+span/2;return`M${p(R,a0)}A${R} ${R} 0 0 1 ${p(R,a1)}L${p(r,a1)}A${r} ${r} 0 0 0 ${p(r,a0)}Z`;}
-function wStats(k){const w=myW(k);return`${w.pel?w.pel+'×':''}${w.dmg} dmg · ${w.head} head · ${Math.round(60/w.cd)} rpm · ${w.mag} rds`;}
+function wStats(k){const w=myW(k);return`${w.pel?w.pel+'×':''}${dmgTxt(w.dmg)} dmg · ${dmgTxt(w.head)} head · ${Math.round(60/w.cd)} rpm · ${w.mag} rds`;}
 function makeWheel(host,o){
   const NS='http://www.w3.org/2000/svg',svg=document.createElementNS(NS,'svg');svg.setAttribute('viewBox','-160 -160 320 320');svg.classList.add('wsvg');
   const el=(t,a,txt)=>{const n=document.createElementNS(NS,t);for(const k in a)n.setAttribute(k,a[k]);if(txt!=null)n.textContent=txt;return n;};
@@ -3174,17 +3181,21 @@ function rgCoverHit(it,dmg,hx,hy,hz){if(it.hp<=0)return;it.hp=Math.max(0,it.hp-d
 /* after a shot: damage numbers, hit marker and cue, and the readout (damage, range, rings, hits and time to drop a dummy) */
 function rgDeliver(){const a=RG.acc;RG.acc=null;if(!a||!a.size)return false;let head=false;const now=performance.now();
   for(const [it,e] of a){head=head||e.head;dmgNum(e.x,e.y,e.z,e.dmg,e.head);RG.hits++;
-    let msg=`${e.dmg}${e.head?(it.kind==='target'?' bull':' head'):''} at ${e.dist.toFixed(1)} m`;
+    let msg=`${Math.round(e.dmg)}${e.head?(it.kind==='target'?' bull':' head'):''} at ${e.dist.toFixed(1)} m`;
     if(it.kind==='target')msg=`Ring ${e.ring} · `+msg;
     if(it.kind==='dummy'){if(it.hp>=it.max||now-it.lastT>4000){it.hits=0;it.firstT=now;}it.lastT=now;it.hits++;it.hp-=e.dmg;it.flash=1;
       if(it.hp<=0){it.hp=0;it.downT=RG.respawn;const tt=(now-it.firstT)/1000;msg+=` · down in ${it.hits} hit${it.hits>1?'s':''}, ${tt.toFixed(2)} s`;
-        $('confirm').classList.remove('multi');$('confirm').textContent='Dummy down';confirmT=1.3;setTimeout(()=>hitCue('kill'),0);}
+        $('confirm').classList.remove('multi');$('confirm').textContent='Dummy down';confirmT=1.3;setTimeout(()=>{hitCue('kill');killMark();},0);}
       rgBar(it);}
     RG.read=msg;}
-  hitT=head?0.24:0.16;$('hitmark').classList.toggle('head',head);hitCue(head?'head':'hit');rgReadout();return true;}
+  hitT=head?0.24:0.16;$('hitmark').classList.toggle('head',head);$('hitmark').classList.remove('kill');hitCue(head?'head':'hit');rgReadout();return true;}
 function rgReadout(){const el=$('rgread');const acc=RG.shots?Math.round(100*Math.min(RG.hits,RG.shots)/RG.shots):0;el.textContent=RG.read+(RG.shots?`  ·  ${acc}% of ${RG.shots} shots hit`:'');el.hidden=!rgOn()||!RG.read;}
+/* killing shot: the hitmarker turns red and holds a little longer (Joe) */
+function killMark(){hitT=Math.max(hitT,0.34);$('hitmark').classList.add('kill');}
+/* damage as shown: card and set multipliers leave fractions (23.400000001), so whole numbers on hits, one decimal at most in stats */
+function dmgTxt(v){v=+v||0;return String(Math.round(v*10)/10);}
 function dmgNum(x,y,z,dmg,head){_v.set(x,y+0.25,z).project(camera);
-  if(_v.z<1){const el=document.createElement('span');el.textContent=dmg;if(head)el.className='head';el.style.left=((_v.x*0.5+0.5)*innerWidth+(Math.random()-.5)*26)+'px';el.style.top=((-_v.y*0.5+0.5)*innerHeight)+'px';$('dmg').appendChild(el);setTimeout(()=>el.remove(),620);}}
+  if(_v.z<1){const el=document.createElement('span');el.textContent=Math.round(dmg);if(head)el.className='head';el.style.left=((_v.x*0.5+0.5)*innerWidth+(Math.random()-.5)*26)+'px';el.style.top=((-_v.y*0.5+0.5)*innerHeight)+'px';$('dmg').appendChild(el);setTimeout(()=>el.remove(),620);}}
 /* bomb sites at the range: the arena's real sites A and B (54 m downrange). Hold F at a site to arm, hold F again to defuse, or let
    the fuse run out for the full detonation (flash, fireball, blast sound). Nothing ends: the site is ready again right after. */
 const rgRole=()=>S&&S.armed?'def':'atk';
@@ -3484,7 +3495,7 @@ function zSever(z,reg,dx,dz){const R=z.reg[reg];if(R.gone)return;R.gone=true;R.h
   const col=z.col[tgt];for(let i=0;i<ZR.parts[tgt].n;i++){if(!z.vox[tgt][i])continue;zVoxW(z,tgt,i,W);if(Math.hypot(W.x-jx,W.y-jy,W.z-jz)<0.13){col[i*3]=ZICHOR.r;col[i*3+1]=ZICHOR.g;col[i*3+2]=ZICHOR.b;}}}
 function zKill(z,head,by,remote){z.hp=0;z.st='dead';z.deadT=0;z.wind=0;z.fallDir=(Math.random()<0.5?-1:1);if(!remote)z.fallBack=head||Math.random()<0.5;z.headKill=!!head;z.ks=by?by.s:-1;ZB.kills++;
   if(!remote){if(S&&S.zr&&S.mode==='zr')S.zr.kills++;if(by&&S&&S.mode==='zr'){by.k=(by.k|0)+1;xsAdd(by,'zk',by.w);zrOnKill(z,head,by);}}
-  else if(by&&by.s===mySlot())setTimeout(()=>hitCue('kill'),0);
+  else if(by&&by.s===mySlot())setTimeout(()=>{hitCue('kill');killMark();},0);
   if(ZTYPES[z.t].bloat)zBurst(z,by);else if(head)zHeadPop(z);else zVoice(z,'zDie',0.9);}/* no "X down" text for Revenants (Joe): the kill cue and hitmarker say it */
 /* one shooter's hits on one Revenant this shot (by: the player who fired; numbers and the kill call only show for your own) */
 function zApply(z,e,by,pred){if(z.st==='dead')return false;const boss=!!ZTYPES[z.t].boss,l=Math.hypot(e.dx,e.dz)||1,ux=e.dx/l,uz=e.dz/l;
@@ -3513,8 +3524,8 @@ function zDeliver(){const a=ZB.acc;ZB.acc=null;if(!a||!a.size)return 0;let head=
   for(const [z,e] of a){if(z.st==='dead')continue;head=head||e.head;if(gu)for(const h of e.hits)out.push([z.id,h.p,+h.lx.toFixed(3),+h.ly.toFixed(3),+h.lz.toFixed(3),Math.round(h.dmg),ZR.parts[h.p].reg==='head'?1:0]);
     if(zApply(z,e,by,gu))kill=true;}
   if(gu&&out.length&&net.room)net.room.emit('hit',{zr:out}).catch(()=>{});
-  if(kill)setTimeout(()=>hitCue('kill'),0);
-  hitT=head?0.24:0.16;$('hitmark').classList.toggle('head',head);if(!kill)hitCue(head?'head':'hit');rgReadout();return 1;}
+  if(kill)setTimeout(()=>{hitCue('kill');killMark();},0);
+  hitT=head?0.24:0.16;$('hitmark').classList.toggle('head',head);$('hitmark').classList.remove('kill');if(!kill)hitCue(head?'head':'hit');rgReadout();return 1;}
 function zHeadPop(z){const sp=spat(z.x,z.z),v=clamp(1-sp.d/45,0.1,1);snd({f:900,f1:200,dur:0.22,vol:0.09*v,noise:true,bus:'fx',pan:sp.pan,tk:'zomb'});}
 /* ---------- sounds ----------
    Recorded voices (artisticdude's "Zombies sound pack", OpenGameArt, CC0): groans for Shamblers, higher calls for Sprinters,
@@ -4133,7 +4144,7 @@ function shopUI(){const k=SHOP.k,b=buildOf(k),mk=(t,c,x)=>{const n=document.crea
   gr.append(gc);sl.append(gr);
   $('shopAll').checked=PROG.all;shopStats();}
 function shopStats(){const k=SHOP.k,cur=modW(k,effParts(k)),nx=modW(k,shopParts()),el=$('shopStats'),mk=(t,c,x)=>{const n=document.createElement(t);if(c)n.className=c;if(x!=null)n.textContent=x;return n;};
-  el.replaceChildren();const w0=wOf(k);el.append(mk('div','fixed',`${w0.pel?w0.pel+' pellets × ':''}${w0.dmg} damage · ${w0.head} headshot · ${Math.round(60/w0.cd)} rpm (parts never change these)`));
+  el.replaceChildren();const w0=wOf(k);el.append(mk('div','fixed',`${w0.pel?w0.pel+' pellets × ':''}${dmgTxt(w0.dmg)} damage · ${dmgTxt(w0.head)} headshot · ${Math.round(60/w0.cd)} rpm (parts never change these)`));
   for(const [lab,val,txt,bar,hi] of SHOP_ROWS){const a=val(cur),b2=val(nx),d=Math.abs(b2-a)>1e-6*Math.max(1,Math.abs(a))?(b2>a)===hi?'up':'dn':'';
     const row=mk('div','stat '+d);row.append(mk('span','',lab));const br=mk('div','sbar'),f=mk('i'),g=mk('em');
     const fa=clamp(bar(cur),0.03,1),fb=clamp(bar(nx),0.03,1);f.style.width=(Math.min(fa,fb)*100)+'%';g.style.left=(Math.min(fa,fb)*100)+'%';g.style.width=(Math.abs(fb-fa)*100)+'%';br.append(f,g);
@@ -4396,7 +4407,7 @@ const TL=$('touch'),TSTICK=$('tStick'),TKNOB=TSTICK.firstElementChild;
 const tFingers=new Map();let tStickId=null,tStick0={x:0,y:0},tShown=false;
 function touchWanted(){return OPT.touch==='on'||(OPT.touch==='auto'&&(matchMedia('(pointer:coarse)').matches||TOUCH.seen));}
 function touchApply(){const on=touchWanted();if(on!==TOUCH.on){TOUCH.on=on;if(on&&locked)document.exitPointerLock();if(!on)touchRelease();}
-  document.body.classList.toggle('touch',on);TL.style.setProperty('--tsz',OPT.tSize);$('tFire2').hidden=!OPT.tFire2;
+  document.body.classList.toggle('touch',on);TL.style.setProperty('--tsz',OPT.tSize);document.body.style.setProperty('--tsz',OPT.tSize);$('tFire2').hidden=!OPT.tFire2;
   $('touchnote').hidden=!on;$('fullbtn').classList.toggle('ok',!!(document.fullscreenEnabled||document.webkitFullscreenEnabled));}
 function touchRelease(){for(const f of tFingers.values())if(f.el)f.el.classList.remove('dn');tFingers.clear();tStickId=null;TOUCH.mx=TOUCH.my=0;TOUCH.run=false;
   mouseDown=false;keys.KeyC=keys.KeyF=keys.KeyG=false;TSTICK.classList.add('idle');TKNOB.style.transform='';stickHome();}
@@ -4643,12 +4654,12 @@ function fire(s){const w=myW(me.w),n=w.pel||1,acc={},rg=rgOn();if(rg){RG.acc=new
   shotSound(me.w,undefined,undefined,w.supp);if(w.bolt&&me.ammo>0)boltCycle();
   let any=false,anyHead=false;
   for(const k in acc){const h=acc[k],hit=+k;sendHit(hit,h.dmg,h.head);lastHit[hit]=performance.now();any=true;anyHead=anyHead||h.head;dmgNum(h.x,h.y,h.z,h.dmg,h.head);
-    if(rg){RG.hits++;RG.read=`Bot · ${h.dmg}${h.head?' head':''} at ${Math.hypot(h.x-camera.position.x,h.z-camera.position.z).toFixed(1)} m`;rgReadout();}}
+    if(rg){RG.hits++;RG.read=`Bot · ${Math.round(h.dmg)}${h.head?' head':''} at ${Math.hypot(h.x-camera.position.x,h.z-camera.position.z).toFixed(1)} m`;rgReadout();}}
   const zd=zDeliver();
   if(rg&&(rgDeliver()||zd))any=false;
   else if(rg)rgReadout();
   else if(zd)any=false;
-  if(any){hitT=anyHead?0.24:0.16;$('hitmark').classList.toggle('head',anyHead);hitCue(anyHead?'head':'hit');}
+  if(any){hitT=anyHead?0.24:0.16;$('hitmark').classList.toggle('head',anyHead);$('hitmark').classList.remove('kill');hitCue(anyHead?'head':'hit');}
 }
 function fireRay(s,w,spread,acc){
   const vp=viewPitch(),vy=viewYaw(),cp=Math.cos(vp),sp=Math.sin(vp);
@@ -4687,8 +4698,8 @@ function feelHud(dt){
   for(let i=0;i<S.players.length;i++){const p=S.players[i],st=p.st;
     if(P&&i!==s&&now-lastHit[i]<1500&&prevSt[i]!==st){$('confirm').classList.remove('multi');
       if(prevSt[i]==='alive'&&st==='down'){$('confirm').textContent='Downed '+p.name;confirmT=1.3;hitCue('down');}
-      else if(prevSt[i]==='alive'&&st==='dead'){$('confirm').textContent='Killed '+p.name;confirmT=1.3;hitCue('kill');}
-      else if(prevSt[i]==='down'&&st==='dead'){$('confirm').textContent='Finished '+p.name;confirmT=1.3;hitCue('kill');}
+      else if(prevSt[i]==='alive'&&st==='dead'){$('confirm').textContent='Killed '+p.name;confirmT=1.3;hitCue('kill');killMark();}
+      else if(prevSt[i]==='down'&&st==='dead'){$('confirm').textContent='Finished '+p.name;confirmT=1.3;hitCue('kill');killMark();}
     }
     prevSt[i]=st;}
   if(hudMulti.mid!==S.mid){hudMulti.mid=S.mid;hudMulti.id=S.multi?S.multi.id:0;}
