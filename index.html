@@ -1882,7 +1882,7 @@ function crowdCheer(kind,force){if(!actx||!LOOPB.A||!LOOPB.B)return;const now=ac
 const LX=(function(){
   const mat=new THREE.MeshBasicMaterial({color:0xffffff,toneMapped:false}),units=[],meshes=[];
   const bar=(geo,list,base)=>{const m=new THREE.InstancedMesh(geo,mat,list.length),o=new THREE.Object3D();
-    list.forEach((p,i)=>{o.position.set(p[0],p[1],p[2]);o.updateMatrix();m.setMatrixAt(i,o.matrix);units.push({m,i,x:p[0],z:p[2],base:lin(p[3]).multiplyScalar(base),c:new THREE.Color()});});
+    list.forEach((p,i)=>{o.position.set(p[0],p[1],p[2]);o.updateMatrix();m.setMatrixAt(i,o.matrix);units.push({m,i,x:p[0],z:p[2],r:Math.hypot(p[0],p[2]*2.2),k:Math.sqrt(base),base:lin(p[3]).multiplyScalar(base),c:new THREE.Color()});});
     m.instanceColor=new THREE.InstancedBufferAttribute(new Float32Array(list.length*3),3);m.frustumCulled=false;scene.add(m);meshes.push(m);};
   const side=(x,z)=>z<-0.1?NEON.cy:z>0.1?NEON.mg:x<0?NEON.mg:NEON.cy, SEG=2.5;
   // roof edge, just inside the ring beam
@@ -1951,25 +1951,26 @@ function lxTick(dt,t){lxEvents(dt);
   const cues=LX.cues.filter(c=>c.age>=0);
   const pulse=S&&LX.armedOn?0.35+0.65*Math.max(0,Math.sin(t*Math.PI*2*(0.6+2.4*LX.armedK))):0;
   const dk0=LX.dark;LX.dark+=clamp((LX.darkT||0)-LX.dark,-dt*5,dt*4);
-  /* beat strobe (OPT.beatLights, off by default): the idle glow drops while music plays and every light flashes white on each beat;
-     a soft swell instead with reduced motion. Event cues still play over the top. */
-  let bm=1,bf=0;if(OPT.beatLights&&OPT.lights){beatRead(dt);const B=BEAT;if(CALM)bm=1+0.45*(-0.3*B.lvl+0.8*B.s*B.sh);else{bm=1-0.6*B.lvl;bf=B.sh*B.s*2.2;}if(Math.abs(bm-1)>0.004||bf)LX.dirty=true;else bm=1;}
+  /* music visualiser (OPT.beatLights, off by default): a flowing plasma field of neon colour across every roof light, brightened by
+     the bass, sped up by the mids, glinting with the highs, with a soft swell and a ring rolling out from the centre on each beat.
+     No hard flashes; reduced motion keeps it slow and drops the rings. Blends back to the normal lights when no music plays.
+     Event cues still play over the top. */
+  let pl=0;if(OPT.beatLights&&OPT.lights){beatRead(dt);pl=BEAT.lvl;if(pl>0.004)LX.dirty=true;else pl=0;}
   else if(BEAT.lvl){BEAT.lvl=BEAT.s=0;LX.dirty=true;}
   if(!cues.length&&!pulse&&!LX.dirty&&!LX.dark&&!dk0)return;
   let alive=false;
-  for(const u of LX.units){const c=u.c;c.copy(u.base);if(bm!==1)c.multiplyScalar(bm);if(LX.dark)c.multiplyScalar(1-0.93*LX.dark);let sum=0;_lc.setRGB(0,0,0);
+  for(const u of LX.units){const c=u.c;c.copy(u.base);if(pl)plasmaAt(u,pl,c);if(LX.dark)c.multiplyScalar(1-0.93*LX.dark);let sum=0;_lc.setRGB(0,0,0);
     for(const q of cues){const a=lxAmp(q,u.x);if(a<0){q.done=true;continue;}if(a<0.003)continue;alive=true;let col=q.col;
       if(q.kind==='fight'&&q.age>0.35)col=u.x<0?q.colW:q.colE;else if(q.kind==='fight')col=LXC.white;
       else if(q.kind==='match')col=Math.sin(u.x*0.25-q.age*10+1.6)>0?q.col:q.col2;
       else if((q.kind==='kill'||q.kind==='boom')&&q.age<0.3)col=LXC.white;
       else if(q.kind==='multi'&&q.n===3&&q.age>0.6&&q.age<1.25)col=LXC.white;
       _lc.r+=col.r*a;_lc.g+=col.g*a;_lc.b+=col.b*a;sum+=a;}
-    if(bf){_lc.r+=bf;_lc.g+=bf;_lc.b+=bf;sum+=bf;}
     if(pulse){_lc.r+=LXC.red.r*pulse*0.9;_lc.g+=LXC.red.g*pulse*0.9;_lc.b+=LXC.red.b*pulse*0.9;sum+=pulse*0.9;}
     c.multiplyScalar(1-0.75*Math.min(1,sum)).add(_lc);
     u.m.setColorAt(u.i,c);}
   for(const m of LX.meshes)m.instanceColor.needsUpdate=true;
-  LX.cues=LX.cues.filter(c=>!c.done);LX.dirty=alive||pulse>0||LX.dark>0||bm!==1||bf>0;}
+  LX.cues=LX.cues.filter(c=>!c.done);LX.dirty=alive||pulse>0||LX.dark>0||pl>0;}
 let flk={i:-1,t:0,next:3},fpsN=0,fpsT=0;const CALM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 function fxTick(dt,now){
   rainTick(dt);glassTick(dt);marksTick(dt);
@@ -2382,27 +2383,47 @@ function announce(k,at){voiceInit();if(!VB[k])return false;playBuf(VB[k],{bus:'u
    beat phase exactly, loops included, so the lights land on the kick with no detection lag or false beats. A shared analyser
    (150 Hz low-pass, fed by every music gain node) supplies how hard each beat hits: bass level (smoothed over ~0.25 s) against a slowly decaying peak,
    so breakdowns and fades pulse gently or not at all, at any music volume. beatRead() only runs while the option is on. */
-const BEAT={an:null,lp:null,buf:null,pk:0,es:0,s:0,lvl:0,n:-1,tk:'',sh:0};
+const BEAT={an:null,lp:null,buf:null,fa:null,fbuf:null,pk:0,es:0,s:0,lvl:0,n:-1,tk:'',bass:0,mid:0,hi:0,mpk:0,hpk:0,kick:0,since:9,ph:0};
 const BEAT_GRID={musicMenu:[100,0.24],musicShop:[80,0.74],musicMatch:[105,0.42]};
 function beatTap(g){if(!BEAT.an){const lp=actx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=150;lp.Q.value=0.7;
     const an=actx.createAnalyser();an.fftSize=1024;an.smoothingTimeConstant=0;const z=actx.createGain();z.gain.value=0;
+    /* second, full-band analyser for the mids and highs (128 bins, smoothed) */
+    const fa=actx.createAnalyser();fa.fftSize=256;fa.smoothingTimeConstant=0.55;fa.connect(z);BEAT.fa=fa;BEAT.fbuf=new Uint8Array(fa.frequencyBinCount);
     lp.connect(an);an.connect(z);z.connect(actx.destination);BEAT.lp=lp;BEAT.an=an;BEAT.buf=new Float32Array(an.fftSize);}
-  g.connect(BEAT.lp);}
+  g.connect(BEAT.lp);g.connect(BEAT.fa);}
 /* where a looping music source is in its buffer (seconds) at audio time T */
 function musPos(M,T){const s=M.src;if(!s||M.t0==null)return -1;let p=(T-M.t0)*s.playbackRate.value+(M.off||0);
   const L0=s.loopStart||0,L1=s.loopEnd||s.buffer.duration;if(p>L1)p=L0+(p-L0)%Math.max(0.5,L1-L0);return p;}
 function beatRead(dt){const B=BEAT;let M=null,g=0.02;
   if(actx&&actx.state==='running')for(const X of [MU,WM,MM]){if(X.src&&X.g&&X.g.gain.value>g){g=X.g.gain.value;M=X;}}
-  let e=0;if(B.an&&M){B.an.getFloatTimeDomainData(B.buf);for(let i=0;i<B.buf.length;i+=2)e+=B.buf[i]*B.buf[i];e=Math.sqrt(e/(B.buf.length/2));}
+  let e=0,mid=0,hi=0;if(B.an&&M){B.an.getFloatTimeDomainData(B.buf);for(let i=0;i<B.buf.length;i+=2)e+=B.buf[i]*B.buf[i];e=Math.sqrt(e/(B.buf.length/2));
+    /* bins are ~187 Hz wide at 48 kHz: mids ~375 Hz-2 kHz, highs ~3-8.5 kHz (byte values are already on a dB scale) */
+    B.fa.getByteFrequencyData(B.fbuf);const sr=actx.sampleRate/256;
+    for(let i=Math.round(375/sr),j=Math.round(2000/sr);i<=j;i++)mid+=B.fbuf[i];mid/=Math.round(2000/sr)-Math.round(375/sr)+1;
+    for(let i=Math.round(3000/sr),j=Math.min(B.fbuf.length-1,Math.round(8500/sr));i<=j;i++)hi+=B.fbuf[i];hi/=Math.min(B.fbuf.length-1,Math.round(8500/sr))-Math.round(3000/sr)+1;}
   B.es+=(e-B.es)*Math.min(1,dt*4);B.pk=Math.max(B.es,B.pk*Math.exp(-dt/6));
-  let sh=0;if(M){const [bpm,ph]=BEAT_GRID[M.tk],P=60/bpm,p=musPos(M,actx.currentTime-(actx.outputLatency||actx.baseLatency||0));
+  /* each band against its own slowly decaying peak, so the show reads the same at any music volume */
+  const nb=B.pk>0.003?clamp(e/B.pk,0,1.3):0;B.bass+=(nb-B.bass)*Math.min(1,dt*(nb>B.bass?14:5));
+  B.mpk=Math.max(mid,B.mpk*Math.exp(-dt/6));B.hpk=Math.max(hi,B.hpk*Math.exp(-dt/6));
+  const nm=B.mpk>8?clamp((mid/B.mpk-0.7)/0.3,0,1):0,nh=B.hpk>8?clamp((hi/B.hpk-0.65)/0.35,0,1):0;/* dB values: stretch the top 30% */B.mid+=(nm-B.mid)*Math.min(1,dt*6);B.hi+=(nh-B.hi)*Math.min(1,dt*10);
+  let kick=0;if(M){const [bpm,ph]=BEAT_GRID[M.tk],P=60/bpm,p=musPos(M,actx.currentTime-(actx.outputLatency||actx.baseLatency||0));
     if(p>=0){const q=(p-ph)/P,n=Math.floor(q),since=(q-n)*P;
       if(n!==B.n||M.tk!==B.tk){B.n=n;B.tk=M.tk;B.s=B.pk>0.003?clamp(Math.pow(B.es/B.pk,1.5)*1.25,0,1):0;}
-      /* strobe: a hard 70 ms white flash on each beat (about 1.3-1.75 per second with these tracks, under the 3 Hz photosensitivity
-         limit; the 0.3 s floor below keeps any faster track there too). Reduced motion gets a soft swell instead. */
-      sh=CALM?(since<0.04?since/0.04:Math.exp(-(since-0.04)/0.17)):((since<0.07||B.fl!==n)&&P>=0.34?1:0);if(sh)B.fl=n;}}/* B.fl: every beat gets at least one lit frame, even at a low frame rate */
-  else B.s=0;
-  B.lvl+=(B.s-B.lvl)*Math.min(1,dt*1.5);B.sh=sh;}
+      /* beat swell: 50 ms rise, ~0.25 s fall */
+      kick=B.s*(since<0.05?since/0.05:Math.exp(-(since-0.05)/0.25));B.since=since;}}
+  else{B.s=0;B.since=9;}
+  B.kick=kick;B.ph+=dt*(CALM?0.25:0.35+1.3*B.mid+0.9*kick);
+  B.lvl+=((M?1:0)*Math.min(1,B.pk*30)-B.lvl)*Math.min(1,dt*1.2);}
+/* one roof light's plasma colour, blended over its normal colour by amount a */
+const PLC=[lin(NEON.cy),lin(0x4a3cff),lin(NEON.mg),lin(0xff5a8a)],_pc=new THREE.Color();
+function plasmaAt(u,a,c){const B=BEAT,x=u.x,z=u.z,ph=B.ph,calm=CALM;
+  const v=Math.sin(x*0.09+ph)+Math.sin(z*0.21-ph*1.3)+Math.sin(x*0.05+z*0.12+ph*0.7)+Math.sin(u.r*0.14-ph*1.7);
+  const w=v*0.125+0.5;let h=(w*1.3+ph*0.04)%1;if(h<0)h+=1;h*=4;const i=h|0,f=h-i;_pc.copy(PLC[i&3]).lerp(PLC[(i+1)&3],f);
+  let br=0.16+0.95*B.bass*(0.35+0.65*w)+(calm?0.25:0.55)*B.kick;
+  if(!calm){const d=u.r-B.since*55;br+=1.3*B.s*Math.exp(-d*d/32)*Math.exp(-B.since*2);}
+  const sp=calm?0:B.hi*1.4*Math.pow(Math.max(0,Math.sin(v*2.5+ph*3)),10);/* glints on the field's crests ride the hi-hats */
+  br*=u.k*0.65;_pc.multiplyScalar(br).addScalar(sp*u.k*0.35);
+  c.multiplyScalar(1-a).add(_pc.multiplyScalar(a));}
 /* music and rain run through their own filter chains so the Sandbox Sound tab can tune them (volume, pitch, tone, low cut, echo) */
 function musChain(M){const f=actx.createBiquadFilter(),h=actx.createBiquadFilter();f.type='lowpass';f.Q.value=0.5;h.type='highpass';h.Q.value=0.5;
   M.f=f;M.h=h;M.v=actx.createGain();beatTap(M.g);M.w=actx.createGain();M.w.gain.value=0;f.connect(h);h.connect(M.g);M.g.connect(M.v);M.v.connect(AU.master);M.v.connect(M.w);M.w.connect(AU.rev);tuneLoops();}
@@ -4329,7 +4350,7 @@ const SET=[
   ['g','tod','Time of day','sel',[['night','Night (neon)'],['day','Day']]],
   ['g','rain','Rain (visual)','chk'],
   ['g','lights','Reactive arena lights (flash on match events)','chk'],
-  ['g','beatLights','Arena lights strobe to the music (flashing)','chk'],
+  ['g','beatLights','Arena lights react to the music (plasma visualiser)','chk'],
   ['g','fxaa','Anti-aliasing (smooth edges)','chk'],
   ['g','marks','Glowing bullet marks','chk'],
   ['g','ao','High-end: ambient occlusion (soft contact shadows in corners and under cover)','chk'],
