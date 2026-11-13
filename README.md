@@ -132,6 +132,8 @@ Sandbox is a solo test range. Press **T** (or **`**) to open the dev overlay. Th
 - **Weapons:** damage, fire rate, magazine, reload, spread, recoil, move speed and damage falloff for each weapon.
 - **Objects:** click a piece of cover in the view (or aim at it and press T) to select it, then move, resize, change height and HP. Edits mirror to the twin piece on the other side by default. Break, repair, go there, reset.
 
+**Revenants (Monday Night Zombie Rumble, first build):** the Range tab spawns the campaign's undead: Shamblers (slow, 60 HP, reach for you with both arms) and Sprinters (fast, 40 HP, weave as they run), one at a time where props go, as a horde rising at the far end, or as an endless horde that keeps the count topped up. They path around cover on a shared flow field, push apart in a crowd, back off and retry if they get stuck, flinch and slow when hit, and swing at you once in reach (20 and 12 damage). A headshot kill pops the head. Health, speed, damage and reach are sliders there (`CFG.zShHp`, `zShSpd`, `zShDmg`, `zSpHp`, `zSpSpd`, `zSpDmg`, `zReach`). "Revenants: Stand still" freezes them for aim practice. They only exist at the range for now; the campaign itself is planned in phases.
+
 Settings live in this browser (`localStorage` keys `za-sb` and `za-dev`). **Copy JSON** exports every change from the built-in defaults, **Load pasted** applies JSON pasted into the box, and **Reset everything to the built-in defaults** clears them. To make settings the default for every player, the JSON has to be baked into `index.html`.
 
 ## Tech notes
@@ -161,6 +163,7 @@ Settings live in this browser (`localStorage` keys `za-sb` and `za-dev`). **Copy
 | Crowd murmur and cheers | Supplied by Joe from Pixabay: "Crowd cheering" (198411) for the looped murmur and the match-win swell; "Crowd cheer" (406646) and "Crowd cheer and applause" (406644) for cheers on knocks (cut short), round points and wins. | VoiceBosch; Dragon Studio (Pixabay) | [Pixabay Content License](https://pixabay.com/service/license-summary/) |
 | Main menu music (menu only; matches have no music) | "Neon futuristic music" (Pixabay 614622), supplied by Joe, re-encoded to 128 kbps. | ikoliks_aj (Pixabay) | [Pixabay Content License](https://pixabay.com/service/license-summary/) |
 | Match music (fades in from 0:33 after the first "Fight", then loops from 0:37) | "Evasion (dark cyberpunk action)" (Pixabay 123274), supplied by Joe; 0:33 to the end, re-encoded to 112 kbps. | Evgeny Bardyuzha (Pixabay) | [Pixabay Content License](https://pixabay.com/service/license-summary/) |
+| Revenant groans, calls, snarls and death cries | [Zombies sound pack](https://opengameart.org/content/zombies-sound-pack) (`zombie-1` to `zombie-23`, 20 of the 24 clips): 60 Hz high-passed, 50 ms fade, loudness-normalized, mono 22 kHz MP3. | artisticdude (OpenGameArt.org) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | Announcer: 3, 2, 1, Fight, Round won, Round lost, Switching sides, Offense, Defense, The bomb has been planted, Double kill, Triple kill | Joe's own voice recordings, processed with a light vocoder layer and a stadium PA effect (speaker tone, slap-back echoes, long reverb tail). | Joe | Original recording |
 - For headless testing the page exposes `window.__za` (state, player, `CFG`, sandbox settings).
 
