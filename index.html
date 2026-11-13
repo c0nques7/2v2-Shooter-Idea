@@ -843,7 +843,7 @@ function liveTick(dt){
     if(p.st==='down'){
       const helped=S.players.some(r=>r.ak==='rev'&&r.at===p.s);
       if(!helped)p.downT-=dt;
-      if(p.downT<=0)die(p,null,'bled out');else if(p.give)die(p,null,'gave up');
+      if(p.downT<=0)die(p,null,'bled out');else if(p.give){p.giveT=(p.giveT||0)+dt;if(p.giveT>=1.2)die(p,null,'gave up');}else p.giveT=0;/* giving up takes a 1.2 s hold, so a tap of Use while down can't do it */
     }else if(p.st==='dead'){
       p.deadT-=dt;
       if(p.deadT<=0&&S.tickets[p.team]>0&&!(SB.on&&p.bot&&SB.bots==='off')){
@@ -3516,7 +3516,7 @@ function zrSpot(){const P=S.players.filter(p=>p.st!=='dead');let best=null,bs=-1
   return best;}
 function zrTick(dt){const Z=S.zr;if(!Z)return;S.timer+=dt;
   for(const p of S.players){if(p.prot>0)p.prot=Math.max(0,p.prot-dt);
-    if(p.st==='down'){const helped=S.players.some(r=>r.ak==='rev'&&r.at===p.s);if(!helped)p.downT-=dt;if(p.downT<=0)die(p,null,'bled out');else if(p.give)die(p,null,'gave up');}
+    if(p.st==='down'){const helped=S.players.some(r=>r.ak==='rev'&&r.at===p.s);if(!helped)p.downT-=dt;if(p.downT<=0)die(p,null,'bled out');else if(p.give){p.giveT=(p.giveT||0)+dt;if(p.giveT>=1.2)die(p,null,'gave up');}else p.giveT=0;/* giving up takes a 1.2 s hold, so a tap of Use while down can't do it */}
     else if(p.st==='alive')actions(p,dt,'zr');}
   if(!S.players.some(p=>p.st==='alive')){zrEnd(false,S.players.length>1?'Nobody left standing':'You went down');return;}
   let alive=0;for(const z of ZB.list)if(z.st!=='dead')alive++;
@@ -3532,7 +3532,7 @@ function zrTick(dt){const Z=S.zr;if(!Z)return;S.timer+=dt;
       for(const p of S.players){if(p.st==='alive'){p.hp=100;continue;}
         if(p.st==='down'){p.st='alive';p.hp=100;p.ak=null;p.ap=0;feed(`${p.name} is back on their feet`);continue;}
         let x=up.x,z=up.z;for(let i=0;i<16;i++){const a=i/16*Math.PI*2,ex=up.x+Math.cos(a)*1.6,ez=up.z+Math.sin(a)*1.6;if(freeAt(ex,ez)&&segClear(up.x,up.z,ex,ez)){x=ex;z=ez;break;}}
-        dmPlace(p,x,z,up.yaw);feed(`${p.name} is back in`);}}}
+        dmPlace(p,x,z,dmFace(x,z,ZB.list.filter(o=>o.st!=='dead')));feed(`${p.name} is back in`);}}}
   else if(Z.ph==='break'){Z.t-=dt;if(Z.t<=0)zrWave(Z.w+1);}
   Z.left=Z.q.length+alive;}
 function zrEnd(won,why){const Z=S.zr;Z.won=won;Z.why=why;S.phase='over';S.t=Math.max(CFG.overT,14);S.last={team:won?0:1,why};
