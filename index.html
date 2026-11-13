@@ -185,6 +185,7 @@ body.prematch #topbar,body.prematch #mini,body.prematch #feed,body.prematch #vit
 .zcard.r3{box-shadow:inset 0 0 22px rgba(255,194,61,.12)}
 #zrint .zib{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}#zrint .zib .btn{min-height:44px;padding:8px 18px;font-size:17px}
 #zrheld{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;max-width:min(520px,calc(100vw - 32px));margin:3px auto 0}
+.zrcd.set{font-weight:700;background:rgba(0,0,0,.6)}
 .zrcd{display:inline-block;background:rgba(0,0,0,.45);text-shadow:0 1px 2px #000;margin:0;padding:0 6px;border-radius:3px;font-size:12px;border:1px solid var(--hc);color:var(--hc)}
 @media (prefers-reduced-motion:reduce){#zrcap div{animation:none}}
 #banner{left:50%;top:26%;transform:translateX(-50%);text-align:center;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 26px}
@@ -445,7 +446,7 @@ body.touch .chip{min-height:44px}
 <canvas class="hud" id="dmgdir" aria-hidden="true"></canvas><div class="hud" id="flash"></div><div class="hud" id="blastfl"></div>
 <div class="hud" id="zrcap" aria-live="polite"></div>
 <div class="hud" id="zrboss" hidden><b>The Juggernaut</b><div class="zbb"><i id="zrbossF"></i></div><span>Plating turns bullets from the front. Hit it in the back</span></div>
-<div class="hud" id="zrint" hidden role="dialog" aria-label="Intermission"><div class="zih"><b>Intermission</b><span id="zrintT" class="num"></span></div><p id="zrintS"></p><div id="zrcards"></div><div class="zib"><button class="btn" type="button" id="zrreroll"></button><button class="btn primary" type="button" id="zrready">Ready</button></div><p id="zrintP"></p></div>
+<div class="hud" id="zrint" hidden role="dialog" aria-label="Intermission"><div class="zih"><b>Intermission</b><span id="zrintT" class="num"></span></div><p id="zrintS"></p><div id="zrcards"></div><div class="zib"><button class="btn" type="button" id="zrfor" hidden></button><button class="btn" type="button" id="zrreroll"></button><button class="btn primary" type="button" id="zrready">Ready</button></div><p id="zrintP"></p></div>
 <div class="hud" id="banner" hidden><h2 id="bannerT"></h2><p id="bannerS"></p></div>
 <div class="hud" id="xpsum" hidden aria-live="polite"></div>
 <div class="hud" id="xptoast" aria-live="polite"></div>
@@ -1142,7 +1143,7 @@ function packState(){
   const xsPack=x=>{if(!x)return null;const o={w:{}};for(const f in x)if(f!=='w'&&x[f])o[f]=x[f];for(const k in x.w||{})if(x.w[k])o.w[k]=x.w[k];return o;};
   const pl=(p,xs)=>{const o={s:p.s,team:p.team,bot:p.bot?1:0,name:p.name,hp:r(p.hp),st:p.st,x:r(p.x),y:r(p.y),z:r(p.z),yaw:r(p.yaw),pitch:r(p.pitch),w:p.w,sp:p.sp,spx:p.spx,spz:p.spz,spyaw:r(p.spyaw),sh:p.sh};
     if(!p.bot)o.peer=p.peer;if(!dm)o.lastZ=p.lastZ;if(p.st==='down'){o.dhp=r(p.dhp);o.downT=r(p.downT);}if(p.st==='dead')o.deadT=r(p.deadT);
-    if(p.ak){o.ak=p.ak;o.at=p.at;o.ap=r(p.ap);}if(p.wr)o.wr=p.wr|0;if(p.prot>0)o.prot=r(p.prot);if(dm){o.k=p.k|0;o.d=p.d|0;}if(p.sx)o.sx=1;if(p.ds)o.ds=p.ds|0;if(zr){o.fv=p.fv|0;if(p.cards&&p.cards.length)o.cards=p.cards;}{const hf=dmgFrom(p);if(hf.length)o.hf=hf;}
+    if(p.ak){o.ak=p.ak;o.at=p.at;o.ap=r(p.ap);}if(p.wr)o.wr=p.wr|0;if(p.prot>0)o.prot=r(p.prot);if(dm){o.k=p.k|0;o.d=p.d|0;}if(p.sx)o.sx=1;if(p.ds)o.ds=p.ds|0;if(zr){o.fv=p.fv|0;if(p.dropW)o.dropW=p.dropW;if(p.cards&&p.cards.length)o.cards=p.cards;}{const hf=dmgFrom(p);if(hf.length)o.hf=hf;}
     if(xs(p)&&!p.bot)o.xs=xsPack(p.xs);return o;};
   const mk=(tn,xs)=>{const o={...S,t:r(S.t),timer:r(S.timer),clock:r(S.clock),armed:S.armed?{site:S.armed.site,t:r(S.armed.t)}:null,regen:(S.regen||[]).map(v=>v>0?r(v):0),
     players:S.players.map(p=>pl(p,xs))};delete o.tn;if(tn)o.tn=tunePack();
@@ -1160,7 +1161,7 @@ function onRemoteState(msg){
 function onRemoteHit(msg){
   if(!net.host||!S)return;const d=msg.data||{};
   const a=S.players.find(p=>p.peer===msg.peer);const t=S.players[d.t|0];
-  if(a&&d.zc&&typeof d.zc==='object'){if(S.mode==='zr'&&['pick','buy','reroll','ready'].includes(d.zc.a)&&(d.zc.id==null||ZCARDS[d.zc.id]))zrCardAct(a,{a:d.zc.a,id:d.zc.id});return;}
+  if(a&&d.zc&&typeof d.zc==='object'){if(S.mode==='zr'&&['pick','buy','reroll','ready','gun'].includes(d.zc.a)&&(d.zc.id==null||ZCARDS[d.zc.id]))zrCardAct(a,{a:d.zc.a,id:d.zc.id,to:d.zc.to?1:0});return;}
   if(!a||a.st!=='alive')return;
   if(Array.isArray(d.zr)){if(S.mode==='zr')zRemoteHit(a,d.zr);return;}
   const aw=wOf(a.w);const dmg=clamp(Math.round(+d.d||0),1,aw.head*(aw.pel||1));
@@ -3354,11 +3355,11 @@ function zSpawn(t,x,z,yaw,elite){if(ZB.list.length>=ZB.cap){const old=ZB.list.fi
 function zRemove(z){const i=ZB.list.indexOf(z);if(i>=0)ZB.list.splice(i,1);}
 function zClear(){ZB.list.length=0;ZB.acc=null;}
 function zHurt(p,dmg,z,burst){if(!p||p.st!=='alive')return;if(SB.on&&SB.god&&!p.bot)return;if(p.prot>0)return;
-  if(S.mode==='zr'){if(zrHas(p,'ts'))dmg*=0.8;if(burst&&zrHas(p,'bp'))dmg*=0.4;dmg=Math.round(dmg);}
+  if(S.mode==='zr'){if(zrHas(p,'ts'))dmg*=0.8;if(zrSet(p,'med'))dmg*=0.9;if(burst&&zrHas(p,'bp'))dmg*=0.4;if(burst&&zrSet(p,'ark'))dmg*=0.75;dmg=Math.round(dmg);}
   p.hp-=dmg;p.ak=null;p.ap=0;
   // the red damage arcs point at the Revenant that hit you (they only know players, so add it here)
   if(!p.bot&&p.s===mySlot()&&OPT.dmgDir!=='off'){const L=DMGDIR.list,old=L.find(e=>e.s==='z'+z.id);if(old){old.t=DMGDIR.LIFE;old.x=z.x;old.z=z.z;}else{L.push({s:'z'+z.id,x:z.x,z:z.z,t:DMGDIR.LIFE,k:0.9});if(L.length>6)L.shift();}}
-  if(p.hp<=0&&S.mode==='zr'){p.hp=0;p.st='down';p.dhp=CFG.downHP;p.downT=CFG.zrBleed;p.ak=null;p.ap=0;p.d=(p.d|0)+1;feed(`${p.name} is down, dragged under by ${zA(z)}`);}
+  if(p.hp<=0&&S.mode==='zr'){p.hp=0;p.st='down';p.dhp=CFG.downHP;p.downT=CFG.zrBleed+(zrSet(p,'med')>1?10:0);p.ak=null;p.ap=0;p.d=(p.d|0)+1;feed(`${p.name} is down, dragged under by ${zA(z)}`);}
   else if(p.hp<=0){p.hp=0;p.st='dead';p.deadT=S.mode==='dm'?CFG.dmRespawn:CFG.respawn;p.d=(p.d|0)+1;feed(`${p.name} was overrun by ${zA(z)}`);}}
 function zTick(dt){if(!S||S.phase!=='live')return;
   const T=zTargets();ZB.distT-=dt;if(ZB.distT<=0||ZB.grid!==ZB.gridSeen){ZB.distT=0.25;ZB.gridSeen=ZB.grid;zField(T);}
@@ -3485,7 +3486,7 @@ function zKill(z,head,by,remote){z.hp=0;z.st='dead';z.deadT=0;z.wind=0;z.fallDir
 /* one shooter's hits on one Revenant this shot (by: the player who fired; numbers and the kill call only show for your own) */
 function zApply(z,e,by,pred){if(z.st==='dead')return false;const boss=!!ZTYPES[z.t].boss,l=Math.hypot(e.dx,e.dz)||1,ux=e.dx/l,uz=e.dz/l;
     // run cards (Heavy Rounds, Hollow Points) and the Juggernaut's plating: 30% from the front, 160% in the back
-    if(S&&S.mode==='zr'){const hv=zrHas(by,'hv')?1.12:1,hp=zrHas(by,'hp')?1.25:1;let pl=1;
+    if(S&&S.mode==='zr'){const hv=(zrHas(by,'hv')?1.12:1)*[1,1.05,1.15][zrSet(by,'arm')],hp=zrHas(by,'hp')?1.25:1;let pl=1;
       if(boss){const f=ux*-Math.sin(z.yaw)+uz*-Math.cos(z.yaw);pl=f<-0.2?0.3:f>0.35?1.6:0.7;e.plate=pl;}
       if(hv!==1||hp!==1||pl!==1){e.dmg=0;for(const h of e.hits){h.dmg*=hv*pl*(ZR.parts[h.p].reg==='head'?hp:1);e.dmg+=h.dmg;}}}
     const mine=by&&by.s===mySlot();if(mine)dmgNum(e.x,e.y,e.z,e.dmg,e.head);
@@ -3630,7 +3631,12 @@ const ZCARDS={
   bp:{h:'ark',n:'Blast Plating',r:2,d:'Bloater bursts hurt you 60% less'},
   mn:{h:'ark',n:'Live Sites',r:3,d:'Bomb sites A and B blow up under Revenants that step on them'}};
 const ZHOUSE={arm:['Armoury','#ff8a5c'],kin:['Kinetics','#5ff2ff'],med:['Medica','#4dffa6'],brd:['Broadcast','#ffc23d'],ark:['Arena Works','#c99bff']};
-const ZRAR=['','Standard','Rare','Signature'],ZCOST=[0,60,90,130],ZREROLL=30;
+const ZRAR=['','Standard','Rare','Signature'],ZCOST=[0,60,90,130],ZREROLL=30,ZGUN=50;
+/* house sets: two cards of one house give the first bonus, three or more the second */
+const ZSET={arm:['+5% damage','+15% damage'],kin:['+5% move speed','+5% move speed, dash recharges 20% faster'],med:['10% less damage taken','10% less damage taken, 25 s to bleed out'],
+  brd:['+25% Favor','+50% Favor'],ark:['Bloater bursts hurt you 25% less','Bursts hurt you 25% less, broken cover rebuilds in 4 s']};
+function zrSet(p,h){let n=0;if(p&&p.cards)for(const id of p.cards)if(ZCARDS[id]&&ZCARDS[id].h===h)n++;return n>=3?2:n>=2?1:0;}
+function zrMySet(h){if(!S||S.mode!=='zr')return 0;const s=mySlot();return s>=0?zrSet(S.players[s],h):0;}
 const ZFV={kill:1,head:1,multi:3,rev:15,revHot:10,wave:15,surge:30,boss:100};
 const ZTK=['sham','sprint','crawl','bloat','jugg'];
 function zOn(){return rgOn()||!!(S&&S.mode==='zr')||!!(!S&&DIO.on&&DIO.zr);}
@@ -3639,11 +3645,11 @@ function zrHas(p,k){return !!(p&&p.cards&&p.cards.includes(k));}
 function zrAny(k){return !!S&&S.players.some(p=>zrHas(p,k));}
 /* the local player's own cards, for what only their game can apply (reload, magazine, spread, movement, dash, wallrun) */
 function zrMine(k){if(!S||S.mode!=='zr')return false;const s=mySlot();return s>=0&&zrHas(S.players[s],k);}
-function zrWMod(w){if(!S||S.mode!=='zr')return w;const o={...w};if(zrMine('qh'))o.reload*=0.7;if(zrMine('dm'))o.mag=Math.round(o.mag*1.35);
+function zrWMod(w){if(!S||S.mode!=='zr')return w;const o={...w};if(zrMySet('kin'))o.move*=1.05;if(zrMine('qh'))o.reload*=0.7;if(zrMine('dm'))o.mag=Math.round(o.mag*1.35);
   if(zrMine('sa')){o.spread*=0.7;o.recoil*=0.7;o.cone*=0.7;}if(zrMine('fl'))o.move*=1.1;return o;}
 function myDashN(){return Math.max(1,CFG.dashN|0)+(zrMine('tc')?1:0);}
-function myDashCd(){return CFG.dashCd*(zrMine('ad')?0.6:1);}
-function zrFavor(p,n,why){if(!p||!S||S.mode!=='zr'||!(n>0))return;p.fv=(p.fv|0)+Math.round(n);}
+function myDashCd(){return CFG.dashCd*(zrMine('ad')?0.6:1)*(zrMySet('kin')>1?0.8:1);}
+function zrFavor(p,n,why){if(!p||!S||S.mode!=='zr'||!(n>0))return;p.fv=(p.fv|0)+Math.round(n*[1,1.25,1.5][zrSet(p,'brd')]);}
 /* both start in the west base, in the same alcove (on any map) */
 function zrHome(p){const h=DM_HOME[p.s?2:0];let x=-h[0],z=-h[1];if(!freeAt(x,z)){const c=nearestFree(...cellOf(x,z));x=c[0]-50+0.5;z=c[1]-20+0.5;}
   dmPlace(p,x,z,Math.atan2(-(Math.sign(x)*48.5-x),-(Math.sign(z)*9-z)));}
@@ -3652,7 +3658,7 @@ function zrStart(){S.center={own:-1,cap:-1,p:0};S.armed=null;S.tickets=[0,0];S.s
   const short=MATCH.zrLen==='short',home=MAP.id,others=MAP_IDS.filter(m=>m!==home);
   S.zr={len:short?'short':'full',week:1,seg:0,segs:short?3:4,awaySeg:short?2:3,home,away:others[(Math.random()*others.length)|0]||home,
     w:0,nw:0,ph:'pre',t:0,q:[],sp:0,left:0,kills:0,cleared:0,won:false,why:'',boss:null,offers:{},picked:{},ready:{},mine:{A:0,B:0}};
-  zClear();ZB.kills=0;ZB.hunt=true;ZB.endless=false;for(const p of S.players){p.team=0;p.k=0;p.d=0;p.fv=0;p.cards=[];}
+  zClear();ZB.kills=0;ZB.hunt=true;ZB.endless=false;for(const p of S.players){p.team=0;p.k=0;p.d=0;p.fv=0;p.cards=[];p.dropW=null;}
   zrSeg(1);}
 /* a segment starts: its map (switching for the away broadcast), everyone up, healed and home */
 function zrSeg(n){const Z=S.zr;Z.seg=n;Z.w=0;Z.nw=Z.len==='short'?2:3;Z.ph='pre';Z.t=S.phase==='buy'?0:5;Z.q=[];Z.boss=null;Z.offers={};Z.picked={};Z.ready={};Z.mine={A:0,B:0};
@@ -3693,7 +3699,7 @@ function zrTick(dt){const Z=S.zr;if(!Z)return;S.timer+=dt;const short=Z.len==='s
     else if(p.st==='alive'){p.swT=0;actions(p,dt,'zr');zrDashHit(p,dt);}}
   if(Z.ph!=='inter'&&!S.players.some(p=>p.st==='alive')){zrEnd(false,S.players.length>1?'Nobody left standing':'You went down');return;}
   // card effects that belong to the stadium
-  if(zrAny('rb')&&S.regen)for(let i=0;i<S.regen.length;i++)if(S.regen[i]>2)S.regen[i]=2;
+  {const cap=zrAny('rb')?2:S.players.some(p=>zrSet(p,'ark')>1)?4:0;if(cap&&S.regen)for(let i=0;i<S.regen.length;i++)if(S.regen[i]>cap)S.regen[i]=cap;}
   if(zrAny('mn'))for(const k of ['A','B']){Z.mine[k]=Math.max(0,(Z.mine[k]||0)-dt);if(Z.mine[k]>0)continue;const s=SITES[k];
     if(ZB.list.some(o=>o.st==='walk'&&!ZTYPES[o.t].boss&&hyp(o.x,o.z,s.x,s.z)<2.2)){Z.mine[k]=12;const own=S.players.find(p=>zrHas(p,'mn'));zAoe(s.x,s.z,4,90,own);boom(s.x,s.z);feed(`Site ${k} blew under the horde`);}}
   let alive=0;for(const z of ZB.list)if(z.st!=='dead')alive++;
@@ -3717,7 +3723,8 @@ function zrTick(dt){const Z=S.zr;if(!Z)return;S.timer+=dt;const short=Z.len==='s
     if(Z.t<=0||hum.every(p=>Z.ready[p.s])){for(const p of S.players)if(!Z.picked[p.s]&&(Z.offers[p.s]||[]).length)zrCardAct(p,{a:'pick',id:Z.offers[p.s][0]});zrSeg(Z.seg+1);}}
   Z.left=Z.ph==='surge'?alive:Z.q.length+alive;}
 /* the intermission: everyone healed and up, three cards each (bots pick one at once) */
-function zrInter(){const Z=S.zr;Z.ph='inter';Z.t=30;zClear();zrRegroup();Z.offers={};Z.picked={};Z.ready={};
+function zrInter(){const Z=S.zr;Z.ph='inter';Z.t=30;zClear();zrRegroup();Z.offers={};Z.picked={};Z.ready={};Z.gun={};
+  for(const p of S.players)if(!p.bot){const cur=p.dropW||p.w,ks=WKEYS.filter(k=>k!==cur);Z.gun[p.s]=ks[(Math.random()*ks.length)|0];}/* a gun from the drop pool, for the next segment */
   for(const p of S.players){Z.offers[p.s]=zrRoll(p,3);if(p.bot){const o=Z.offers[p.s];zrCardAct(p,{a:'pick',id:o[(Math.random()*o.length)|0]});Z.ready[p.s]=1;}}
   feed(`Intermission · segment ${Z.seg+1} next`);}
 function zrRoll(p,n){const own=new Set([...(p.cards||[]),...((S.zr.offers&&S.zr.offers[p.s])||[])]),pool=[];
@@ -3727,7 +3734,10 @@ function zrRoll(p,n){const own=new Set([...(p.cards||[]),...((S.zr.offers&&S.zr.
 /* a player's choice at the intermission (the host applies its own, its bots' and its guests') */
 function zrCardAct(p,c){const Z=S&&S.zr;if(!Z||Z.ph!=='inter'||!p||!c)return;const s=p.s,of=Z.offers[s]||[];p.cards=p.cards||[];
   if(c.a==='pick'&&!Z.picked[s]&&of.includes(c.id)){p.cards.push(c.id);Z.picked[s]=1;of.splice(of.indexOf(c.id),1);feed(`${p.name} takes ${ZCARDS[c.id].n}`);}
-  else if(c.a==='buy'&&Z.picked[s]&&of.includes(c.id)){const cost=ZCOST[ZCARDS[c.id].r];if((p.fv|0)<cost)return;p.fv-=cost;p.cards.push(c.id);of.splice(of.indexOf(c.id),1);feed(`${p.name} buys ${ZCARDS[c.id].n}`);}
+  else if(c.a==='buy'&&Z.picked[s]&&of.includes(c.id)){const cost=ZCOST[ZCARDS[c.id].r];if((p.fv|0)<cost)return;
+    const to=c.to?S.players.find(q=>q!==p):p;if(!to||(to.cards||[]).includes(c.id))return;to.cards=to.cards||[];
+    p.fv-=cost;to.cards.push(c.id);of.splice(of.indexOf(c.id),1);feed(to===p?`${p.name} buys ${ZCARDS[c.id].n}`:`${p.name} buys ${ZCARDS[c.id].n} for ${to.name}`);}
+  else if(c.a==='gun'&&Z.picked[s]&&Z.gun&&Z.gun[s]&&(p.fv|0)>=ZGUN){p.fv-=ZGUN;p.dropW=Z.gun[s];Z.gun[s]=null;feed(`${p.name} takes the ${W[p.dropW].name} drop`);}
   else if(c.a==='reroll'&&of.length&&(p.fv|0)>=ZREROLL){p.fv-=ZREROLL;Z.offers[s]=[];Z.offers[s]=zrRoll(p,of.length);}
   else if(c.a==='ready'&&Z.picked[s])Z.ready[s]=1;}
 function zrCardSend(c){const s=mySlot();if(s<0||!S)return;if(net.mode!=='online'||net.host)zrCardAct(S.players[s],c);else if(net.room)net.room.emit('hit',{zc:c}).catch(()=>{});}
@@ -3867,7 +3877,9 @@ function zrHud(P){const Z=S.zr;if(!Z)return;const L=Z.left|0;
 /* the cards you hold, under your health */
 function zrHide(){for(const id of ['zrheld','zrboss','zrint'])if(!$(id).hidden)$(id).hidden=true;$('zrcap').replaceChildren();}
 function zrCardsLine(P){const el=$('zrheld'),cs=(P&&P.cards)||[],k=cs.join(',');el.hidden=!cs.length;if(el.dataset.k===k)return;el.dataset.k=k;
-  el.replaceChildren(...cs.filter(id=>ZCARDS[id]).map(id=>{const c=ZCARDS[id],sp=document.createElement('span');sp.className='zrcd';sp.style.setProperty('--hc',ZHOUSE[c.h][1]);sp.textContent=c.n;sp.title=c.d;return sp;}));}
+  const chip=(h,t,d,set)=>{const sp=document.createElement('span');sp.className='zrcd'+(set?' set':'');sp.style.setProperty('--hc',ZHOUSE[h][1]);sp.textContent=t;sp.title=d;return sp;};
+  el.replaceChildren(...Object.keys(ZHOUSE).filter(h=>zrSet(P,h)).map(h=>{const n=zrSet(P,h);return chip(h,`${ZHOUSE[h][0]} set ${n>1?'III':'II'}: ${ZSET[h][n-1]}`,ZSET[h][n-1],true);}),
+    ...cs.filter(id=>ZCARDS[id]).map(id=>{const c=ZCARDS[id];return chip(c.h,c.n,c.d);}));}
 function zrBanner(){const Z=S.zr,bn=$('banner');bn.hidden=false;
   if(S.phase==='buy'){$('bannerT').textContent='Monday Night Zombie Rumble';
     $('bannerS').textContent=`You wake in a tunnel under the ${(MAPS[Z.home]||MAPS.yard).name}. A voice on the PA reads the rules: survive the week and you are retained. The host world is watching. · ${Z.segs} segments, about ${Z.len==='short'?10:25} min · Weapon: ${myW(me.w).name}`;return;}
@@ -3892,27 +3904,35 @@ function zrWatch(){const Z=S.zr,k=S.mid+':'+Z.seg+':'+Z.w+':'+Z.ph+':'+S.phase,w
   else if(Z.ph==='boss'){crowdCheer('point',1);sting('armed',0,0.06);zrCap('Headliner incoming','The Juggernaut');}
   else if(Z.ph==='inter'){crowdCheer('win',0.8);zrCap('Intermission','The patrons are bidding');}}
 /* the intermission: three patron cards. The first pick is free; then Favor buys the others or rerolls them. */
-const ZI={k:''};
+const ZI={k:'',gift:false};
 function zrInterUI(P){const Z=S.zr,el=$('zrint'),on=S.phase==='live'&&Z.ph==='inter'&&!!P;
   if(el.hidden===on){el.hidden=!on;ZI.k='';
     if(on){if(locked)document.exitPointerLock();for(const k in keys)keys[k]=false;mouseDown=false;adsDown=false;}else if(!TOUCH.on)me.wantLock=true;}/* the respawn path re-locks the mouse, once: two lock requests at once could lose the lock and open the pause menu */
   if(!on)return;const s=P.s,of=Z.offers[s]||[],pk=!!Z.picked[s],rd=!!Z.ready[s],fv=P.fv|0;
   $('zrintT').textContent=Math.ceil(Math.max(0,Z.t))+'s';
   const mate=S.players.find(p=>p!==P);$('zrintP').textContent=mate?`${mate.name}: ${Z.ready[mate.s]?'ready':Z.picked[mate.s]?'shopping':'choosing'}`:'';
-  const key=[of.join(','),pk,rd,fv,(P.cards||[]).join(','),TOUCH.on].join('|');if(key===ZI.k)return;ZI.k=key;
+  const gun=(Z.gun||{})[s],gift=ZI.gift&&!!mate,mc=(mate&&mate.cards)||[];
+  const key=[of.join(','),pk,rd,fv,(P.cards||[]).join(','),mc.join(','),gun,gift,TOUCH.on].join('|');if(key===ZI.k)return;ZI.k=key;
   $('zrintS').textContent=pk?`Favor ${fv}. Buy another card, reroll, or ready up for segment ${Z.seg+1}`:`Segment ${Z.seg} survived. The patrons are bidding: take one card, free · Favor ${fv}`;
   const mk=(t,c,x)=>{const n=document.createElement(t);if(c)n.className=c;if(x!=null)n.textContent=x;return n;};
-  $('zrcards').replaceChildren(...of.map((id,i)=>{const c=ZCARDS[id],cost=ZCOST[c.r],no=rd||(pk&&fv<cost),b=mk('button','zcard r'+c.r);b.type='button';
-    b.style.setProperty('--hc',ZHOUSE[c.h][1]);b.setAttribute('aria-disabled',no);
-    b.append(mk('span','zk',TOUCH.on?'':String(i+1)),mk('span','zh',`${ZHOUSE[c.h][0]} · ${ZRAR[c.r]}`),mk('b','',c.n),mk('span','zd',c.d),mk('span','zc',pk?`${cost} Favor`:'Free pick'));
-    b.addEventListener('click',()=>{if(b.getAttribute('aria-disabled')==='true')return;blip(980,0.022,0.012,false,'ui');zrCardSend({a:pk?'buy':'pick',id});});return b;}));
-  if(!of.length)$('zrcards').append(mk('p','',pk?'You took every card on offer.':''));
+  const who=gift&&pk?mate:P,held=h=>((who.cards||[]).filter(q=>ZCARDS[q]&&ZCARDS[q].h===h).length);
+  $('zrcards').replaceChildren(...of.map((id,i)=>{const c=ZCARDS[id],cost=ZCOST[c.r],no=rd||(pk&&(fv<cost||(who.cards||[]).includes(id))),b=mk('button','zcard r'+c.r);b.type='button';
+    b.style.setProperty('--hc',ZHOUSE[c.h][1]);b.setAttribute('aria-disabled',no);const hn=held(c.h);
+    b.append(mk('span','zk',TOUCH.on?'':String(i+1)),mk('span','zh',`${ZHOUSE[c.h][0]} · ${ZRAR[c.r]}`+(hn?` · ${who===P?'you hold':who.name+' holds'} ${hn}`:'')),mk('b','',c.n),mk('span','zd',c.d),
+      mk('span','zc',pk?`${cost} Favor${who!==P?' · for '+who.name:''}`:'Free pick'));
+    b.addEventListener('click',()=>{if(b.getAttribute('aria-disabled')==='true')return;blip(980,0.022,0.012,false,'ui');zrCardSend(pk?{a:'buy',id,to:who!==P?1:0}:{a:'pick',id});});return b;}));
+  if(gun&&W[gun]){const no=rd||!pk||fv<ZGUN,b=mk('button','zcard gun');b.type='button';b.style.setProperty('--hc',ZHOUSE.arm[1]);b.setAttribute('aria-disabled',no);
+    b.append(mk('span','zk',TOUCH.on?'':String(of.length+1)),mk('span','zh','Armoury · Gun drop'),mk('b','',W[gun].name),mk('span','zd',`Swap your gun for the ${W[gun].name} for the rest of the run, from the next segment`),mk('span','zc',pk?`${ZGUN} Favor`:'After your free pick'));
+    b.addEventListener('click',()=>{if(b.getAttribute('aria-disabled')==='true')return;blip(980,0.022,0.012,false,'ui');zrCardSend({a:'gun'});});$('zrcards').append(b);}
+  const gf=$('zrfor');gf.hidden=!mate||!pk||rd;gf.textContent=`Buying for: ${gift?mate.name:'you'}`;
+  if(!of.length&&!gun)$('zrcards').append(mk('p','',pk?'You took every card on offer.':''));
   const rr=$('zrreroll');rr.textContent=`Reroll${TOUCH.on?'':' (R)'} · ${ZREROLL} Favor`;rr.disabled=rd||!of.length||fv<ZREROLL;
   const go=$('zrready');go.textContent=rd?'Waiting for your partner':!pk?'Pick a card first':`Ready${TOUCH.on?'':' (Enter)'}`;go.disabled=rd||!pk;}
+$('zrfor').addEventListener('click',()=>{ZI.gift=!ZI.gift;ZI.k='';blip(760,0.022,0.012,false,'ui');});
 $('zrreroll').addEventListener('click',()=>{if(!$('zrreroll').disabled){blip(760,0.022,0.012,false,'ui');zrCardSend({a:'reroll'});}});
 $('zrready').addEventListener('click',()=>{if(!$('zrready').disabled){blip(980,0.022,0.012,false,'ui');zrCardSend({a:'ready'});}});
 window.addEventListener('keydown',e=>{if($('zrint').hidden)return;const c=e.code;let used=true;
-  if(/^Digit[123]$/.test(c)){const b=$('zrcards').children[+c.slice(5)-1];if(b&&b.tagName==='BUTTON')b.click();}
+  if(/^Digit[1-4]$/.test(c)){const b=$('zrcards').children[+c.slice(5)-1];if(b&&b.tagName==='BUTTON')b.click();}
   else if(c==='KeyR')$('zrreroll').click();else if(c==='Enter'||c==='NumpadEnter'||c==='Space')$('zrready').click();else used=false;
   if(used){e.preventDefault();e.stopImmediatePropagation();}},true);
 
@@ -4454,7 +4474,7 @@ function dashHud(){const n=myDashN(),el=$('dashpips');while(el.children.length-1
 function localTick(dt){
   const s=mySlot();const P=s>=0?S.players[s]:null;
   if(!P){camera.position.set(0,45,34);camera.rotation.set(-0.95,0,0);vm.visible=false;return;}
-  if(P.sp!==me.sp){if(me.sp>=0&&!locked)me.wantLock=true;me.sp=P.sp;me.x=P.spx;me.z=P.spz;me.y=0;me.vy=0;me.yaw=P.spyaw;me.pitch=0;me.w=me.wPref;showWeapon(me.w);me.ammo=myW(me.w).mag;me.reloadT=0;me.pick=-1;me.give=false;me.vx=me.vz=0;me.rcP=me.rcY=me.bloom=0;me.slideT=0;me.wr=0;me.wrLast=null;me.kicked=false;me.mantle=null;me.dashN=myDashN();me.dashR=0;me.dashT=0;me.drawT=0.42;me.kP=me.kV=me.kUp=me.kYaw=me.kRoll=me.boltT=0;}
+  if(P.sp!==me.sp){if(me.sp>=0&&!locked)me.wantLock=true;me.sp=P.sp;me.x=P.spx;me.z=P.spz;me.y=0;me.vy=0;me.yaw=P.spyaw;me.pitch=0;me.w=S.mode==='zr'&&P.dropW&&W[P.dropW]?P.dropW:me.wPref;showWeapon(me.w);me.ammo=myW(me.w).mag;me.reloadT=0;me.pick=-1;me.give=false;me.vx=me.vz=0;me.rcP=me.rcY=me.bloom=0;me.slideT=0;me.wr=0;me.wrLast=null;me.kicked=false;me.mantle=null;me.dashN=myDashN();me.dashR=0;me.dashT=0;me.drawT=0.42;me.kP=me.kV=me.kUp=me.kYaw=me.kRoll=me.boltT=0;}
   if(S.mid!==me.mid){me.mid=S.mid;newMatchLocal();}
   if(S.round!==me.round){me.round=S.round;me.w=me.wPref;showWeapon(me.w);me.ammo=myW(me.w).mag;}
   const alive=P.st==='alive',downed=P.st==='down';
