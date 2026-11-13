@@ -1213,7 +1213,7 @@ const keys={};let mouseDown=false,adsDown=false,locked=false,dragMode=false;
 const TOUCH={on:false,mx:0,my:0,run:false};
 
 /* ---------- settings (graphics, sound, controls), saved per browser ---------- */
-const OPT0={preset:'high',res:1,autoRes:true,shadows:2,bloom:1,fxaa:true,film:0.6,rain:true,tod:'night',particles:1,marks:true,crowd:1,fog:1,bright:1,fov:78,shake:1,fps:false,lights:true,ao:false,refl:false,beams:false,smaa:false,aniso:false,
+const OPT0={preset:'high',res:1,autoRes:true,shadows:2,bloom:1,fxaa:true,film:0.6,rain:true,tod:'night',particles:1,marks:true,crowd:1,fog:1,bright:1,fov:78,shake:1,fps:false,lights:true,beatLights:false,ao:false,refl:false,beams:false,smaa:false,aniso:false,
   vMaster:0.8,vWeapons:0.9,vFx:0.9,vSteps:0.8,vUi:0.8,vAmb:0.6,vRain:0,vMusic:0.6,vMatch:0.5,reverb:0.4,sens:1,adsSens:1,invertY:false,touch:'auto',tSens:1,tAdsSens:1,tSize:1,tFire2:true,tAutoRun:true,dmgDir:'arc'};
 const PRESETS={low:{res:0.75,shadows:0,bloom:0,fxaa:false,film:0,rain:false,particles:0.5,marks:false,crowd:0.35,ao:false,refl:false,beams:false,smaa:false,aniso:false},
   medium:{res:1,shadows:1,bloom:1,fxaa:true,film:0.4,rain:true,particles:1,marks:true,crowd:0.7,ao:false,refl:false,beams:false,smaa:false,aniso:false},
@@ -1951,9 +1951,13 @@ function lxTick(dt,t){lxEvents(dt);
   const cues=LX.cues.filter(c=>c.age>=0);
   const pulse=S&&LX.armedOn?0.35+0.65*Math.max(0,Math.sin(t*Math.PI*2*(0.6+2.4*LX.armedK))):0;
   const dk0=LX.dark;LX.dark+=clamp((LX.darkT||0)-LX.dark,-dt*5,dt*4);
+  /* beat pulse (OPT.beatLights, off by default): the idle glow dips a little between beats and swells on each one; a soft
+     ~0.15 s decay, never a hard strobe, and smaller with reduced motion. Event cues still play over the top. */
+  let bm=1;if(OPT.beatLights&&OPT.lights){beatRead(dt);const B=BEAT,k=CALM?0.45:1;bm=1+k*(-0.3*B.lvl+0.8*B.s*B.sh);if(Math.abs(bm-1)>0.004)LX.dirty=true;else bm=1;}
+  else if(BEAT.lvl){BEAT.lvl=BEAT.s=0;LX.dirty=true;}
   if(!cues.length&&!pulse&&!LX.dirty&&!LX.dark&&!dk0)return;
   let alive=false;
-  for(const u of LX.units){const c=u.c;c.copy(u.base);if(LX.dark)c.multiplyScalar(1-0.93*LX.dark);let sum=0;_lc.setRGB(0,0,0);
+  for(const u of LX.units){const c=u.c;c.copy(u.base);if(bm!==1)c.multiplyScalar(bm);if(LX.dark)c.multiplyScalar(1-0.93*LX.dark);let sum=0;_lc.setRGB(0,0,0);
     for(const q of cues){const a=lxAmp(q,u.x);if(a<0){q.done=true;continue;}if(a<0.003)continue;alive=true;let col=q.col;
       if(q.kind==='fight'&&q.age>0.35)col=u.x<0?q.colW:q.colE;else if(q.kind==='fight')col=LXC.white;
       else if(q.kind==='match')col=Math.sin(u.x*0.25-q.age*10+1.6)>0?q.col:q.col2;
@@ -1964,7 +1968,7 @@ function lxTick(dt,t){lxEvents(dt);
     c.multiplyScalar(1-0.75*Math.min(1,sum)).add(_lc);
     u.m.setColorAt(u.i,c);}
   for(const m of LX.meshes)m.instanceColor.needsUpdate=true;
-  LX.cues=LX.cues.filter(c=>!c.done);LX.dirty=alive||pulse>0||LX.dark>0;}
+  LX.cues=LX.cues.filter(c=>!c.done);LX.dirty=alive||pulse>0||LX.dark>0||bm!==1;}
 let flk={i:-1,t:0,next:3},fpsN=0,fpsT=0;const CALM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 function fxTick(dt,now){
   rainTick(dt);glassTick(dt);marksTick(dt);
@@ -2331,7 +2335,7 @@ function musicTick(){if(!actx||actx.state!=='running')return;const inShop=!$('sh
   if(want&&!MU.buf){if(!MU.loading){MU.loading=true;b64Audio(MUSIC_MP3).then(b=>{MU.buf=b;}).catch(e=>{AU.err='music: '+String(e&&e.message);});}return;}
   if(!MU.g){MU.g=actx.createGain();MU.g.gain.value=0;musChain(MU);}
   const t=actx.currentTime;
-  if(want){if(!MU.src){MU.src=actx.createBufferSource();MU.src.buffer=MU.buf;MU.src.loop=true;MU.src.connect(MU.f);MU.src.playbackRate.value=TUNE[MU.tk].pitch;MU.src.start();MU.g.gain.setValueAtTime(0,t);}
+  if(want){if(!MU.src){MU.src=actx.createBufferSource();MU.src.buffer=MU.buf;MU.src.loop=true;MU.src.connect(MU.f);MU.src.playbackRate.value=TUNE[MU.tk].pitch;MU.src.start();MU.t0=actx.currentTime;MU.off=0;MU.g.gain.setValueAtTime(0,t);}
     /* while the Workshop is open the menu track keeps running silently, so it picks up where it was when the Workshop closes */
     MU.g.gain.setTargetAtTime(inShop?0:0.5*OPT.vMusic,t,inShop?0.45:(MU.on?0.1:0.6));MU.on=true;MU.offAt=0;}
   else if(MU.src){if(MU.on){MU.on=false;MU.g.gain.setTargetAtTime(0,t,0.35);MU.offAt=t+2;}else if(t>MU.offAt){try{MU.src.stop();}catch(e){}MU.src.disconnect();MU.src=null;}}}
@@ -2345,7 +2349,7 @@ function shopMusicTick(){if(!actx||actx.state!=='running')return;const want=!$('
   if((want||MU.buf)&&!WM.buf){if(!WM.loading){WM.loading=true;b64Audio(SHOP_MP3).then(b=>{WM.buf=b;}).catch(e=>{AU.err='workshop music: '+String(e&&e.message);});}if(want)return;}
   if(!WM.g){WM.g=actx.createGain();WM.g.gain.value=0;musChain(WM);}
   const t=actx.currentTime;
-  if(want){if(!WM.src){WM.src=actx.createBufferSource();WM.src.buffer=WM.buf;WM.src.loop=true;WM.src.loopEnd=WM.buf.duration-0.03;WM.src.connect(WM.f);WM.src.playbackRate.value=TUNE[WM.tk].pitch;WM.src.start();WM.g.gain.cancelScheduledValues(t);WM.g.gain.setValueAtTime(0,t);}
+  if(want){if(!WM.src){WM.src=actx.createBufferSource();WM.src.buffer=WM.buf;WM.src.loop=true;WM.src.loopEnd=WM.buf.duration-0.03;WM.src.connect(WM.f);WM.src.playbackRate.value=TUNE[WM.tk].pitch;WM.src.start();WM.t0=actx.currentTime;WM.off=0;WM.g.gain.cancelScheduledValues(t);WM.g.gain.setValueAtTime(0,t);}
     WM.g.gain.setTargetAtTime(0.8*OPT.vMusic,t,WM.on?0.1:0.5);WM.on=true;WM.offAt=0;}
   else if(WM.src){if(WM.on){WM.on=false;WM.g.gain.setTargetAtTime(0,t,0.45);WM.offAt=t+2.5;}else if(t>WM.offAt){try{WM.src.stop();}catch(e){}WM.src.disconnect();WM.src=null;}}}
 /* match music: "Evasion (dark cyberpunk action)" by Evgeny Bardyuzha (supplied by Joe; Pixabay 123274). The embedded file is the track from
@@ -2360,7 +2364,7 @@ function matchMusicTick(){if(!actx||actx.state!=='running')return;const play=!!S
   const want=play&&MM.go&&OPT.vMatch>0.001&&!!MM.buf;
   if(!MM.g){MM.g=actx.createGain();MM.g.gain.value=0;musChain(MM);}
   const t=actx.currentTime;
-  if(want){if(!MM.src){MM.src=actx.createBufferSource();MM.src.buffer=MM.buf;MM.src.loop=true;MM.src.loopStart=4;MM.src.loopEnd=MM.buf.duration-0.06;MM.src.connect(MM.f);MM.src.playbackRate.value=TUNE[MM.tk].pitch;MM.src.start(0,0);MM.g.gain.cancelScheduledValues(t);MM.g.gain.setValueAtTime(0,t);}
+  if(want){if(!MM.src){MM.src=actx.createBufferSource();MM.src.buffer=MM.buf;MM.src.loop=true;MM.src.loopStart=4;MM.src.loopEnd=MM.buf.duration-0.06;MM.src.connect(MM.f);MM.src.playbackRate.value=TUNE[MM.tk].pitch;MM.src.start(0,0);MM.t0=actx.currentTime;MM.off=0;MM.g.gain.cancelScheduledValues(t);MM.g.gain.setValueAtTime(0,t);}
     MM.g.gain.setTargetAtTime(0.36*OPT.vMatch,t,MM.on?0.15:1.2);MM.on=true;}
   else if(MM.src){if(MM.on){MM.on=false;MM.g.gain.setTargetAtTime(0,t,0.4);MM.offAt=t+2.5;}else if(t>MM.offAt){try{MM.src.stop();}catch(e){}MM.src.disconnect();MM.src=null;}}}
 /* announcer, recorded by Joe: "3", "2", "1", "Fight", then "Round won" / "Round lost", "Switching sides" and
@@ -2372,9 +2376,34 @@ const VOICE_MP3={3:'SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjYwLjE2LjEwMAAAAAAAAAAAAAAA
 const VB={};let voiceLoading=false;
 function voiceInit(){if(voiceLoading||!actx)return;voiceLoading=true;for(const k in VOICE_MP3)b64Audio(VOICE_MP3[k]).then(b=>{VB[k]=b;}).catch(e=>{AU.err='voice: '+String(e&&e.message);});}
 function announce(k,at){voiceInit();if(!VB[k])return false;playBuf(VB[k],{bus:'ui',vol:0.55,tk:'announcer',wet:0.03,at:at||0});return true;}
+/* beat pulse for the arena lights (OPT.beatLights). Each soundtrack's tempo and first-beat offset were measured offline from the
+   embedded files (menu 100 BPM, Workshop 80, match 105), and the playback position of whichever track is loudest right now gives the
+   beat phase exactly, loops included, so the lights land on the kick with no detection lag or false beats. A shared analyser
+   (150 Hz low-pass, fed by every music gain node) supplies how hard each beat hits: bass level (smoothed over ~0.25 s) against a slowly decaying peak,
+   so breakdowns and fades pulse gently or not at all, at any music volume. beatRead() only runs while the option is on. */
+const BEAT={an:null,lp:null,buf:null,pk:0,es:0,s:0,lvl:0,n:-1,tk:'',sh:0};
+const BEAT_GRID={musicMenu:[100,0.24],musicShop:[80,0.74],musicMatch:[105,0.42]};
+function beatTap(g){if(!BEAT.an){const lp=actx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=150;lp.Q.value=0.7;
+    const an=actx.createAnalyser();an.fftSize=1024;an.smoothingTimeConstant=0;const z=actx.createGain();z.gain.value=0;
+    lp.connect(an);an.connect(z);z.connect(actx.destination);BEAT.lp=lp;BEAT.an=an;BEAT.buf=new Float32Array(an.fftSize);}
+  g.connect(BEAT.lp);}
+/* where a looping music source is in its buffer (seconds) at audio time T */
+function musPos(M,T){const s=M.src;if(!s||M.t0==null)return -1;let p=(T-M.t0)*s.playbackRate.value+(M.off||0);
+  const L0=s.loopStart||0,L1=s.loopEnd||s.buffer.duration;if(p>L1)p=L0+(p-L0)%Math.max(0.5,L1-L0);return p;}
+function beatRead(dt){const B=BEAT;let M=null,g=0.02;
+  if(actx&&actx.state==='running')for(const X of [MU,WM,MM]){if(X.src&&X.g&&X.g.gain.value>g){g=X.g.gain.value;M=X;}}
+  let e=0;if(B.an&&M){B.an.getFloatTimeDomainData(B.buf);for(let i=0;i<B.buf.length;i+=2)e+=B.buf[i]*B.buf[i];e=Math.sqrt(e/(B.buf.length/2));}
+  B.es+=(e-B.es)*Math.min(1,dt*4);B.pk=Math.max(B.es,B.pk*Math.exp(-dt/6));
+  let sh=0;if(M){const [bpm,ph]=BEAT_GRID[M.tk],P=60/bpm,p=musPos(M,actx.currentTime-(actx.outputLatency||actx.baseLatency||0));
+    if(p>=0){const q=(p-ph)/P,n=Math.floor(q),since=(q-n)*P;
+      if(n!==B.n||M.tk!==B.tk){B.n=n;B.tk=M.tk;B.s=B.pk>0.003?clamp(Math.pow(B.es/B.pk,1.5)*1.25,0,1):0;}
+      /* 40 ms rise, ~0.17 s fall: a swell, not a strobe */
+      sh=since<0.04?since/0.04:Math.exp(-(since-0.04)/0.17);}}
+  else B.s=0;
+  B.lvl+=(B.s-B.lvl)*Math.min(1,dt*1.5);B.sh=sh;}
 /* music and rain run through their own filter chains so the Sandbox Sound tab can tune them (volume, pitch, tone, low cut, echo) */
 function musChain(M){const f=actx.createBiquadFilter(),h=actx.createBiquadFilter();f.type='lowpass';f.Q.value=0.5;h.type='highpass';h.Q.value=0.5;
-  M.f=f;M.h=h;M.v=actx.createGain();M.w=actx.createGain();M.w.gain.value=0;f.connect(h);h.connect(M.g);M.g.connect(M.v);M.v.connect(AU.master);M.v.connect(M.w);M.w.connect(AU.rev);tuneLoops();}
+  M.f=f;M.h=h;M.v=actx.createGain();beatTap(M.g);M.w=actx.createGain();M.w.gain.value=0;f.connect(h);h.connect(M.g);M.g.connect(M.v);M.v.connect(AU.master);M.v.connect(M.w);M.w.connect(AU.rev);tuneLoops();}
 const MUS_SRC={musicMenu:[MU,()=>MUSIC_MP3,0.5,'vMusic'],musicShop:[WM,()=>SHOP_MP3,0.8,'vMusic'],musicMatch:[MM,()=>MATCH_MP3,0.36,'vMatch']};
 /* Sound tab Test for a music track: 8 s of it through its own chain (follows the sliders while it plays), then a fade */
 let DEVMUS=null;
@@ -4298,6 +4327,7 @@ const SET=[
   ['g','tod','Time of day','sel',[['night','Night (neon)'],['day','Day']]],
   ['g','rain','Rain (visual)','chk'],
   ['g','lights','Reactive arena lights (flash on match events)','chk'],
+  ['g','beatLights','Arena lights pulse to the music','chk'],
   ['g','fxaa','Anti-aliasing (smooth edges)','chk'],
   ['g','marks','Glowing bullet marks','chk'],
   ['g','ao','High-end: ambient occlusion (soft contact shadows in corners and under cover)','chk'],
@@ -5231,6 +5261,6 @@ mergeChildren(scene);
 refreshZoneLook('atk');
 // Compile every material's shader up front (in parallel where the browser supports it) so nothing compiles on the first shot or spawn.
 renderer.compileAsync(scene,camera).catch(()=>{}).finally(()=>requestAnimationFrame(frame));
-window.__za={dio:DIO,zr:{ZB,ZR,ZCARDS,zrCardSend:c=>zrCardSend(c),zrCardAct:(p,c)=>zrCardAct(p,c),zrSeg:n=>zrSeg(n),zrInter:()=>zrInter(),zAoe:(...a)=>zAoe(...a),zSpawn:(t,x,z,y,e)=>zSpawn(t,x,z,y,e),zTick:dt=>zTick(dt),zRender:dt=>zRender(dt),zClear:()=>zClear(),zRay:(...a)=>zRay(...a),zHorde:()=>zHorde(),rgOn:()=>rgOn(),zBurst:(z,b)=>zBurst(z,b),zPack:()=>zPack(),zApplyT:(z,e,b)=>zApply(z,e,b),zSync:(a,b)=>zSync(a,b),zrWave:n=>zrWave(n),zKill:(z,h,b)=>zKill(z,h,b),zHitAt:(...a)=>zHitAt(...a),zDeliver:()=>zDeliver(),ZD},sim:{hostTick:dt=>hostTick(dt),coverTick:dt=>coverTick(dt),newMatch:()=>newMatch(),MATCH,dmSpawnSpot:p=>dmSpawnSpot(p),findPath:(a,b,c,d)=>findPath(a,b,c,d),freeAt:(x,z)=>freeAt(x,z),losPts:(...a)=>losPts(...a),DM_PTS,BOXES},BL,fire:()=>{const s=mySlot();if(s>=0)fire(s);},damage:(t,d,a,h)=>damage(t,d,a,h),prog:{PROG,PARTS,myW,modW,progSave,progLoad,rebuildVW,lvlOf,XPR},LX,MU,MM,WM,VB,OPT,AU,dev:{DEV,TUNE,GUN,W,COVER0,TWIN,STEP_MODE,devCollect,devApply},damageCover,COVER,coverVis,WH,openWheel:m=>openWheel(m),closeWheel:c=>closeWheel(c),wheelMove:(x,y)=>wheelMove(x,y),gfx:{renderer,scene,camera,applyGfx,DR,render:()=>renderScene(),FREF,BEAMS,get gtao(){return gtaoPass;}},openPause:()=>openPause(),closePause:()=>closePause(),leaveMatch:()=>leaveMatch(),get S(){return S;},me,net,DMGDIR,rg:{RG,rgAdd,rgRemove,rgClear,BOXES},maps:{MAPS,MAP,MATCH,setMap,SITES,DM_PTS,findPath,freeAt,simTick:dt=>netTick(dt),SHOW,showCut:i=>showCut(i),TOD,ISO},botMem,CFG,SB,OPT,AU,get actx(){return actx;},mySlot:()=>mySlot(),sfx:{hitCue,HITX,footstep,slideSound,shotSound,stepSound,get stepBufs(){return stepBufs;},get slideBuf(){return slideBuf;},get gunBufs(){return gunBufs;}}};
+window.__za={dio:DIO,beat:BEAT,lx:LX,opt:OPT,zr:{ZB,ZR,ZCARDS,zrCardSend:c=>zrCardSend(c),zrCardAct:(p,c)=>zrCardAct(p,c),zrSeg:n=>zrSeg(n),zrInter:()=>zrInter(),zAoe:(...a)=>zAoe(...a),zSpawn:(t,x,z,y,e)=>zSpawn(t,x,z,y,e),zTick:dt=>zTick(dt),zRender:dt=>zRender(dt),zClear:()=>zClear(),zRay:(...a)=>zRay(...a),zHorde:()=>zHorde(),rgOn:()=>rgOn(),zBurst:(z,b)=>zBurst(z,b),zPack:()=>zPack(),zApplyT:(z,e,b)=>zApply(z,e,b),zSync:(a,b)=>zSync(a,b),zrWave:n=>zrWave(n),zKill:(z,h,b)=>zKill(z,h,b),zHitAt:(...a)=>zHitAt(...a),zDeliver:()=>zDeliver(),ZD},sim:{hostTick:dt=>hostTick(dt),coverTick:dt=>coverTick(dt),newMatch:()=>newMatch(),MATCH,dmSpawnSpot:p=>dmSpawnSpot(p),findPath:(a,b,c,d)=>findPath(a,b,c,d),freeAt:(x,z)=>freeAt(x,z),losPts:(...a)=>losPts(...a),DM_PTS,BOXES},BL,fire:()=>{const s=mySlot();if(s>=0)fire(s);},damage:(t,d,a,h)=>damage(t,d,a,h),prog:{PROG,PARTS,myW,modW,progSave,progLoad,rebuildVW,lvlOf,XPR},LX,MU,MM,WM,VB,OPT,AU,dev:{DEV,TUNE,GUN,W,COVER0,TWIN,STEP_MODE,devCollect,devApply},damageCover,COVER,coverVis,WH,openWheel:m=>openWheel(m),closeWheel:c=>closeWheel(c),wheelMove:(x,y)=>wheelMove(x,y),gfx:{renderer,scene,camera,applyGfx,DR,render:()=>renderScene(),FREF,BEAMS,get gtao(){return gtaoPass;}},openPause:()=>openPause(),closePause:()=>closePause(),leaveMatch:()=>leaveMatch(),get S(){return S;},me,net,DMGDIR,rg:{RG,rgAdd,rgRemove,rgClear,BOXES},maps:{MAPS,MAP,MATCH,setMap,SITES,DM_PTS,findPath,freeAt,simTick:dt=>netTick(dt),SHOW,showCut:i=>showCut(i),TOD,ISO},botMem,CFG,SB,OPT,AU,get actx(){return actx;},mySlot:()=>mySlot(),sfx:{hitCue,HITX,footstep,slideSound,shotSound,stepSound,get stepBufs(){return stepBufs;},get slideBuf(){return slideBuf;},get gunBufs(){return gunBufs;}}};
 })();
 </script>
