@@ -3866,7 +3866,7 @@ function mapPick(id,quiet){if(!MAPS[id])id='yard';MATCH.map=id;try{localStorage.
   MAPEL.querySelectorAll('.mapt').forEach(b=>{const on=b.dataset.m===id;b.setAttribute('aria-checked',on);b.tabIndex=on?0:-1;});
   const M=MAPS[id],T=M.theme;$('msname').textContent=M.name;$('msth').textContent=T.title;$('mscap').textContent=M.cap+' '+T.tag+'.';$('mapscr').style.setProperty('--mc',hexCss(T.a));
   if(!quiet)blip(980,0.022,0.012,false,'ui');
-  if(!S&&!SB.on){if(setMap(id)&&MS.open){ISO.fade=1;isoScene(true);isoReset();}SHOW.map=MAP_IDS.indexOf(id);SHOW.want=-1;}/* nothing running: show it behind the menu */}
+  if(!S&&!SB.on){if(setMap(id)&&MS.open){ISO.fade=1;isoScene(true);}/* zoom and pan carry over to the next map */SHOW.map=MAP_IDS.indexOf(id);SHOW.want=-1;}/* nothing running: show it behind the menu */}
 function mapStep(d){const n=MAP_IDS[(MAP_IDS.indexOf(MATCH.map)+d+MAP_IDS.length)%MAP_IDS.length];mapPick(n);}
 for(const id of MAP_IDS){const b=document.createElement('button');b.type='button';b.className='mapt';b.dataset.m=id;b.setAttribute('role','radio');
   const cv=document.createElement('canvas');cv.width=220;cv.height=88;b.append(cv);const sp=document.createElement('span');sp.textContent=MAPS[id].name;b.append(sp);MAPEL.append(b);mapThumb(cv,id);
