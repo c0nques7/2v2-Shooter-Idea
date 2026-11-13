@@ -2583,8 +2583,11 @@ canvas.addEventListener('mousedown',e=>{
 window.addEventListener('mouseup',e=>{if(e.button===0)mouseDown=false;if(e.button===2)adsDown=false;if(e.button===1&&WH.open&&WH.mode==='hold')closeWheel(true);});
 canvas.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault();});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
+const MSPK={avg:0};
 document.addEventListener('mousemove',e=>{
   if(WH.open){if(locked)wheelMove(e.movementX,e.movementY);return;}
+  if(locked){const ax=Math.abs(e.movementX),ay=Math.abs(e.movementY);/* pointer lock sometimes reports one huge bogus jump (seen as a sudden half turn); drop an event far beyond the recent motion */
+    if((ax>320||ay>320)&&Math.max(ax,ay)>MSPK.avg*8+60){MSPK.avg*=0.9;return;}MSPK.avg+=(Math.max(ax,ay)-MSPK.avg)*0.2;}
   if(locked||(dragMode&&e.buttons)){const k=0.0023*OPT.sens*(1-0.32*me.ads)*(1+(OPT.adsSens-1)*me.ads);me.yaw-=e.movementX*k;me.pitch=clamp(me.pitch-e.movementY*k*(OPT.invertY?-1:1),-1.45,1.45);me.swayX=clamp(me.swayX+e.movementX*0.012,-1,1);me.swayY=clamp(me.swayY+e.movementY*0.012,-1,1);}
 });
 /* Mouse capture. Browsers refuse pointer lock for about a second after the player leaves it with Esc, and only grant it
@@ -3205,6 +3208,8 @@ function zPix(x,y,z,vx,vy,vz,sz,r,g,b,glow,life){if(OPT.particles<1&&Math.random
   let i=-1;for(let k=0;k<ZR.DN;k++){const j=(ZD.next+k)%ZR.DN;if(ZD.t[j]<=0){i=j;break;}}if(i<0)i=ZD.next;ZD.next=(i+1)%ZR.DN;
   ZD.px[i]=x;ZD.py[i]=y;ZD.pz[i]=z;ZD.vx[i]=vx;ZD.vy[i]=vy;ZD.vz[i]=vz;ZD.t[i]=ZD.life[i]=life;ZD.sz[i]=sz;ZD.col[i*3]=r;ZD.col[i*3+1]=g;ZD.col[i*3+2]=b;ZD.glow[i]=glow?1:0;
   const a=Math.random()*Math.PI*2,c=Math.random()*2-1,s=Math.sqrt(1-c*c);ZD.ax[i*3]=s*Math.cos(a);ZD.ax[i*3+1]=c;ZD.ax[i*3+2]=s*Math.sin(a);ZD.spin[i]=(4+Math.random()*10)*(Math.random()<0.5?-1:1);}
+/* upload only the instances in use (the buffers are sized for a full horde: re-sending all of them every frame was ~1.5 MB) */
+function zUpd(m,n){if(!n)return;for(const a of [m.instanceMatrix,m.instanceColor]){const k=a.itemSize;a.clearUpdateRanges();a.addUpdateRange(0,n*k);a.needsUpdate=true;}}
 function zPixTick(dt){const R=ZR,bm=R.dBody,gm=R.dGlow;let nb=0,ng=0;
   for(let i=0;i<R.DN;i++){if(ZD.t[i]<=0)continue;ZD.t[i]-=dt;if(ZD.t[i]<=0)continue;const g=ZD.glow[i];
     if(g){ZD.vy[i]+=(0.9-ZD.vy[i])*Math.min(1,dt*2.5);ZD.vx[i]*=1-dt*1.5;ZD.vz[i]*=1-dt*1.5;}
@@ -3214,7 +3219,7 @@ function zPixTick(dt){const R=ZR,bm=R.dBody,gm=R.dGlow;let nb=0,ng=0;
     const age=ZD.life[i]-ZD.t[i],k=Math.min(1,ZD.t[i]/(g?ZD.life[i]:0.45)),s=ZD.sz[i]*(g?k:Math.min(1,k));
     R.q.setFromAxisAngle(R.v2.set(ZD.ax[i*3],ZD.ax[i*3+1],ZD.ax[i*3+2]),ZD.spin[i]*age);R.m.compose(R.v.set(ZD.px[i],ZD.py[i],ZD.pz[i]),R.q,ZWS.set(s,s,s));
     const m=g?gm:bm,j=g?ng++:nb++;m.setMatrixAt(j,R.m);R.c.setRGB(ZD.col[i*3],ZD.col[i*3+1],ZD.col[i*3+2]);if(g)R.c.multiplyScalar(0.4+0.6*k);m.setColorAt(j,R.c);}
-  bm.count=nb;gm.count=ng;if(nb){bm.instanceMatrix.needsUpdate=true;bm.instanceColor.needsUpdate=true;}if(ng){gm.instanceMatrix.needsUpdate=true;gm.instanceColor.needsUpdate=true;}}
+  bm.count=nb;gm.count=ng;zUpd(bm,nb);zUpd(gm,ng);}
 const ZWS=new THREE.Vector3();
 /* ---------- simulation ---------- */
 /* each Revenant's own copy of the body: which voxels are left, their colours (with wounds), region health, posed part matrices */
@@ -3449,6 +3454,9 @@ function zPose(z,dt){const R=ZR,T=ZTYPES[z.t],s=T.size,lb=zLimbs(z),crawl=lb.leg
   for(let p=0;p<R.parts.length;p++)z.pm.set(R.parts[p].o.matrixWorld.elements,p*16);z.posed=true;}
 function zRender(dt){
   if(ZB.list.length&&!zOn())zClear();
+  // the first time Revenants can appear, build their shaders ahead (one instance each, under the floor) so the first ones rising don't stall a frame
+  if(!ZB.warm&&zOn()){ZB.warm=1;const R0=ZR;R0.m.makeTranslation(0,-50,0);for(const m of [R0.body,R0.glowM,R0.dBody,R0.dGlow,R0.blob]){m.setMatrixAt(0,R0.m);m.count=1;m.instanceMatrix.needsUpdate=true;}
+    try{renderer.compileAsync(scene,camera).catch(()=>{});}catch(e){}}
   if(ZB.list.length&&zGuest())zGuestTick(dt);
   const R=ZR,L=ZB.list,bm=R.body,gm=R.glowM,BA=bm.instanceMatrix.array,BC=bm.instanceColor.array,GA=gm.instanceMatrix.array,GC=gm.instanceColor.array,W=R.v;
   let nb=0,ng=0,bi=0;
@@ -3467,7 +3475,7 @@ function zRender(dt){
         let r=col[i*3],g=col[i*3+1],b=col[i*3+2];if(P.glow){r*=eyeK;g*=eyeK;b*=eyeK;}else if(f>0){const q=f*0.6;r+=(1.6-r)*q;g+=(1.6-g)*q;b+=(1.6-b)*q;}
         C[j*3]=r;C[j*3+1]=g;C[j*3+2]=b;}}
     if(z.st!=='dead'||z.deadT<ZDIS0+0.3){R.m.makeTranslation(z.x,0.02,z.z);R.blob.setMatrixAt(bi++,R.m);}}
-  bm.count=nb;gm.count=ng;if(nb){bm.instanceMatrix.needsUpdate=true;bm.instanceColor.needsUpdate=true;}if(ng){gm.instanceMatrix.needsUpdate=true;gm.instanceColor.needsUpdate=true;}
+  bm.count=nb;gm.count=ng;zUpd(bm,nb);zUpd(gm,ng);
   R.blob.count=bi;if(bi)R.blob.instanceMatrix.needsUpdate=true;
   zPixTick(dt);}
 /* ---------- the Range tab section ---------- */
