@@ -1360,7 +1360,7 @@ void main(){vec3 V=normalize(cameraPosition-vW);float ndv=abs(dot(normalize(vN),
   const frame=new THREE.Mesh(mergeGeometries(geos),frameM);frame.castShadow=true;frame.receiveShadow=true;grp.add(frame);
   // the roof-edge LED line is part of the reactive lights (LX)
   scene.add(grp);
-  return{U,frameM,
+  return{U,frameM,roofM,sideM,
     tod(day){U.uTint.value.copy(lin(day?0xdfeefa:0x34466e));U.uSheen.value.copy(lin(day?0xffffff:0x7a5cc0));U.uDrop.value.copy(lin(day?0xf2f7fb:0xb8d4ff));
       U.uOp.value=day?0.05:0.05;U.uFr.value=day?0.28:0.16;U.uDropOp.value=day?0.4:0.32;frameM.color.copy(lin(day?0x8a919c:0x2b2f3c));}};
 })();
@@ -1703,11 +1703,17 @@ const rain=new THREE.LineSegments(rainGeo,new THREE.LineBasicMaterial({color:lin
 let rainT=0;
 function rainTick(dt){if(!rain.visible)return;rainT+=dt;const n=rainGeo.drawRange.count/2,cx=camera.position.x,cz=camera.position.z,R=36,H=26;
   for(let i=0;i<n;i++){const sx=rainSeed[i*3],sy=rainSeed[i*3+1],sz=rainSeed[i*3+2];
-    const x=cx+(((sx*R-cx)%R)+R)%R-R/2,z=cz+(((sz*R-cz)%R)+R)%R-R/2,j=i*6;let y=(((sy*H-rainT*(20+8*sx))%H)+H)%H;if(x>-50.3&&x<50.3&&z>-20.3&&z<20.3)y+=ROOF_Y;
+    const x=cx+(((sx*R-cx)%R)+R)%R-R/2,z=cz+(((sz*R-cz)%R)+R)%R-R/2,j=i*6;let y=(((sy*H-rainT*(20+8*sx))%H)+H)%H;if(x>-50.3&&x<50.3&&z>-20.3&&z<20.3)y+=ROOF_Y;else if(Math.abs(x)<ST.x+0.8&&Math.abs(z)<ST_BACK+0.8)y+=canopyY(Math.abs(z));/* the stands' glass canopy keeps the crowd dry */
     
     rainPos[j]=x;rainPos[j+1]=y;rainPos[j+2]=z;rainPos[j+3]=x+0.07;rainPos[j+4]=y+0.75;rainPos[j+5]=z+0.02;}
   rainGeo.attributes.position.needsUpdate=true;}
 function glassTick(dt){GLASS.U.uTime.value=(GLASS.U.uTime.value+dt)%1000;}
+/* grandstand size (built further down): 18 tiers behind each long wall, under a sloped glass canopy that runs from the arena's
+   roof edge up to the top of the back wall, so the crowd sits in the dry */
+const ST={z0:22,rows:18,dz:0.9,dy:0.72,x:48,sec:12};
+const ST_BACK=ST.z0+ST.rows*ST.dz,ST_TOP=WALL_H+ST.rows*ST.dy+2.2;
+const CAN_Z0=20.1,CAN_Y1=ST_TOP+0.6,CAN_SLOPE=(CAN_Y1-ROOF_Y)/(ST_BACK+0.5-CAN_Z0);
+const canopyY=az=>ROOF_Y+(az-CAN_Z0)*CAN_SLOPE;/* glass height over the stands at |z| */
 const holos=[];
 (function(){const defs=[['ZONE//ARENA','2V2 · ATTACK · DEFEND',NEON.cy],['RETURN HP','100 · 80 · 60 · 45 · 30',NEON.mg],['HOLD CENTER','+10 HP SPAWN',NEON.am],['ARM THE CHARGE','SITE A · SITE B',NEON.vi]];
   defs.forEach((d,i)=>{const c=document.createElement('canvas');c.width=512;c.height=256;const g=c.getContext('2d'),cc='#'+d[2].toString(16).padStart(6,'0');
@@ -1716,7 +1722,7 @@ const holos=[];
     g.fillStyle='rgba(0,0,0,.45)';for(let y=0;y<256;y+=4)g.fillRect(0,y,512,1.5);
     const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;
     const m=new THREE.Mesh(new THREE.PlaneGeometry(16,8),new THREE.MeshBasicMaterial({map:t,transparent:true,opacity:0.5,blending:THREE.AdditiveBlending,depthWrite:false,fog:false,toneMapped:false}));
-    const sz=i<2?-1:1;m.position.set(i%2?24:-24,23,sz*37);if(sz>0)m.rotation.y=Math.PI;m.rotation.x=sz>0?0.14:0.14;scene.add(m);holos.push(m);});})();
+    const sz=i<2?-1:1;m.position.set(i%2?24:-24,CAN_Y1+5.5,sz*(ST_BACK+1));if(sz>0)m.rotation.y=Math.PI;m.rotation.x=0.22;scene.add(m);holos.push(m);});})();
 const marks=[];let markTex=null;
 function mark(x,y,z,dx,dy,dz,color,warm){if(!OPT.marks&&!warm)return;
   if(!markTex){const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),gr=g.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(0.22,'rgba(255,255,255,.55)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,64,64);markTex=new THREE.CanvasTexture(c);}
@@ -1727,8 +1733,6 @@ mark(0,-50,0,0,1,0,0xffffff,true);
 function marksTick(dt){for(const m of marks){if(m.t<=0)continue;m.t-=dt;if(m.t<=0){m.s.visible=false;continue;}const k=m.t/m.life,sc=0.09+0.14*k;m.s.material.opacity=k*k;m.s.scale.set(sc,sc,1);}}
 /* grandstands and crowd: tiered stands rise behind both long walls so the crowd shows over the top */
 const TEAMC=[0x1f8fff,0xff6a1a];
-const ST={z0:22,rows:10,dz:0.9,dy:0.72,x:48,sec:12};
-const ST_BACK=ST.z0+ST.rows*ST.dz,ST_TOP=WALL_H+ST.rows*ST.dy+2.2;
 (function(){const m=new THREE.MeshStandardMaterial({color:lin(0x272a38),roughness:0.85,metalness:0.2});
   const box=(w,h,d,x,y,z,mat)=>{const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat||m);b.position.set(x,y,z);b.receiveShadow=true;scene.add(b);return b;};
   for(const sz of [-1,1]){
@@ -1739,6 +1743,16 @@ const ST_BACK=ST.z0+ST.rows*ST.dz,ST_TOP=WALL_H+ST.rows*ST.dy+2.2;
     // aisle light strips run up the steps between sections
     const L=Math.hypot(ST.rows*ST.dz,ST.rows*ST.dy),ang=Math.atan2(ST.rows*ST.dy,ST.rows*ST.dz);
     for(let x=-ST.x+ST.sec;x<ST.x;x+=ST.sec){const a=box(0.08,0.04,L,x,WALL_H+ST.rows*ST.dy/2+0.05,sz*(ST.z0+ST.rows*ST.dz/2),stripMat);a.rotation.x=sz*-ang;}}
+  // glass canopy: one sloped pane per stand (the arena roof's rain shader), steel rafters on the section lines, a beam at the top
+  const D=ST_BACK+0.5-CAN_Z0,Ls=Math.hypot(D,CAN_Y1-ROOF_Y),tilt=Math.atan2(CAN_Y1-ROOF_Y,D),W2=ST.x*2+1.2,geos=[];
+  const bar=(w,h,d,x,y,z,rx)=>{const b=new THREE.BoxGeometry(w,h,d);if(rx)b.rotateX(rx);b.translate(x,y,z);geos.push(b);};
+  for(const sz of [-1,1]){const pane=new THREE.Mesh(new THREE.PlaneGeometry(W2,Ls),GLASS.roofM);pane.rotation.order='YXZ';
+    pane.rotation.set(sz>0?-Math.PI/2-tilt:-Math.PI/2+tilt,0,0);pane.position.set(0,(ROOF_Y+CAN_Y1)/2,sz*(CAN_Z0+D/2));pane.renderOrder=3;pane.userData.noMerge=true;scene.add(pane);
+    const my=(ROOF_Y+CAN_Y1)/2+0.2,mz=sz*(CAN_Z0+D/2);
+    for(let x=-ST.x;x<=ST.x+0.01;x+=ST.sec)bar(0.22,0.4,Ls,x,my,mz,sz>0?-tilt:tilt);
+    for(let k=1;k<4;k++){const f=k/4;bar(W2,0.1,0.1,0,ROOF_Y+(CAN_Y1-ROOF_Y)*f+0.12,sz*(CAN_Z0+D*f));}
+    bar(W2+0.4,0.45,0.45,0,CAN_Y1,sz*(ST_BACK+0.5));}
+  const fr=new THREE.Mesh(mergeGeometries(geos),GLASS.frameM);fr.castShadow=false;fr.receiveShadow=true;scene.add(fr);
 })();
 // One instanced mesh draws every spectator. A vertex shader animates them (idle sway, cheering, the wave), driven by a few uniforms.
 const CROWD_U={uTime:{value:0},uHype:{value:0},uWave:{value:-99},uWaveOn:{value:0},uTeam:{value:[0,0]},uSec:{value:new Array(16).fill(0)}};
