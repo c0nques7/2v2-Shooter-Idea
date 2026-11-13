@@ -3481,8 +3481,7 @@ function zSever(z,reg,dx,dz){const R=z.reg[reg];if(R.gone)return;R.gone=true;R.h
 function zKill(z,head,by,remote){z.hp=0;z.st='dead';z.deadT=0;z.wind=0;z.fallDir=(Math.random()<0.5?-1:1);if(!remote)z.fallBack=head||Math.random()<0.5;z.headKill=!!head;z.ks=by?by.s:-1;ZB.kills++;
   if(!remote){if(S&&S.zr&&S.mode==='zr')S.zr.kills++;if(by&&S&&S.mode==='zr'){by.k=(by.k|0)+1;xsAdd(by,'zk',by.w);zrOnKill(z,head,by);}}
   else if(by&&by.s===mySlot())setTimeout(()=>hitCue('kill'),0);
-  if(ZTYPES[z.t].bloat)zBurst(z,by);else if(head)zHeadPop(z);else zVoice(z,'zDie',0.9);
-  if(by&&by.s===mySlot()){$('confirm').classList.remove('multi');$('confirm').textContent=`${ZTYPES[z.t].name} down`;confirmT=1.3;}}
+  if(ZTYPES[z.t].bloat)zBurst(z,by);else if(head)zHeadPop(z);else zVoice(z,'zDie',0.9);}/* no "X down" text for Revenants (Joe): the kill cue and hitmarker say it */
 /* one shooter's hits on one Revenant this shot (by: the player who fired; numbers and the kill call only show for your own) */
 function zApply(z,e,by,pred){if(z.st==='dead')return false;const boss=!!ZTYPES[z.t].boss,l=Math.hypot(e.dx,e.dz)||1,ux=e.dx/l,uz=e.dz/l;
     // run cards (Heavy Rounds, Hollow Points) and the Juggernaut's plating: 30% from the front, 160% in the back
