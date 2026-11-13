@@ -161,6 +161,8 @@ body{background:var(--bg);color:var(--fg);overflow:hidden;font-family:var(--disp
 #prompt kbd,.keys kbd{font-family:var(--mono);font-size:.85em;border:1px solid var(--line);border-radius:3px;padding:0 5px;background:rgba(255,255,255,.06)}
 #blastfl{inset:0;background:radial-gradient(ellipse at center,rgba(255,240,215,.95),rgba(255,160,70,.55) 55%,rgba(255,110,40,.25));opacity:0;mix-blend-mode:screen}
 #dmgdir{inset:0;width:100%;height:100%;z-index:6}
+/* while the opening weapon wheel is up, only the wheel shows (it already names the mode, side and countdown) */
+body.prematch #topbar,body.prematch #mini,body.prematch #feed,body.prematch #vitals,body.prematch #ammo,body.prematch #cross,body.prematch #netpill,body.prematch #banner,body.prematch #prompt,body.prematch #rgread,body.prematch #dmgdir{visibility:hidden}
 #flash{inset:0;background:radial-gradient(ellipse at center,transparent 45%,rgba(227,88,77,.55));opacity:0;transition:opacity .25s}
 #banner{left:50%;top:26%;transform:translateX(-50%);text-align:center;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 26px}
 #banner h2{margin:0;font-size:34px;letter-spacing:.04em;text-wrap:balance}
@@ -4008,6 +4010,7 @@ const miniC=$('mini').getContext('2d'),ringC=$('ring').getContext('2d');
 let hudT=0,lastPickerKey='';
 function hud(dt){
   xpTick();wbuildsTick();
+  document.body.classList.toggle('prematch',WH.open&&WH.mode==='start');
   dmgDirTick(dt);
   hitT-=dt;flashT-=dt;$('hitmark').style.opacity=hitT>0?1:0;$('flash').style.opacity=flashT>0?Math.min(1,flashT*2.5):0;
   for(const p of sparks){if(p.t<=0)continue;p.t-=dt;if(p.t<=0){p.m.visible=false;continue;}p.vy-=14*dt;p.m.position.x+=p.vx*dt;p.m.position.y=Math.max(0.02,p.m.position.y+p.vy*dt);p.m.position.z+=p.vz*dt;p.m.material.opacity=Math.min(1,p.t*5);}
