@@ -295,6 +295,10 @@ body.touch .stabhint{display:none}
 .mcd:focus-visible{outline:2px solid var(--mc);outline-offset:2px}
 .mpopts{display:flex;flex-direction:column;align-items:stretch;gap:8px}
 #msetup,.mpp{display:flex;flex-direction:column;align-items:stretch;gap:8px}
+#zrweeks{display:grid;grid-template-columns:1fr 1fr;gap:6px}#zrweeks .zwh{grid-column:1/-1;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.zwk{font:inherit;text-align:left;display:flex;flex-direction:column;gap:0;padding:4px 9px;min-height:40px;min-width:0;border-radius:6px;border:1px solid var(--line);background:rgba(20,15,36,.85);color:var(--fg);cursor:pointer}
+.zwk b,.zwk span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.zwk b{font-size:14px;letter-spacing:.04em;text-transform:uppercase}.zwk span{font-size:12px;color:var(--muted)}
+.zwk.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}.zwk.on b{color:var(--accent)}.zwk:disabled{opacity:.5;cursor:default}
 .mseg{display:flex;align-items:center;gap:0}.mseg>span,.mcode>span{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);width:5.4em;flex:none}
 .mseg button{flex:1;font:inherit;font-size:14px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);background:rgba(20,15,36,.85);border:1px solid var(--line);padding:7px 8px;min-height:38px;cursor:pointer;margin-left:-1px}
 .mseg button:first-of-type{border-radius:6px 0 0 6px}.mseg button:last-of-type{border-radius:0 6px 6px 0}
@@ -541,6 +545,7 @@ body.touch .chip{min-height:44px}
           <div class="cap" id="wbuildcap" hidden></div>
           <select id="teampref" hidden><option value="-1">Auto</option><option value="0">Blue</option><option value="1">Orange</option></select>
           <select id="zrlen" hidden><option value="1">Full</option><option value="0">Short</option></select>
+          <div id="zrweeks" role="radiogroup" aria-label="Week" hidden></div>
           <div class="mseg" id="zrseg" data-for="zrlen" role="radiogroup" aria-label="Broadcast length" hidden><span>Length</span><button type="button" role="radio" data-v="1">Full · 25 min</button><button type="button" role="radio" data-v="0">Short · 10 min</button></div>
           <div class="mseg" id="teamseg" data-for="teampref" role="radiogroup" aria-label="Team"><span>Team</span><button type="button" role="radio" data-v="-1">Auto</button><button type="button" role="radio" data-v="0" class="t0">Blue</button><button type="button" role="radio" data-v="1" class="t1">Orange</button></div>
         </div>
@@ -3671,6 +3676,22 @@ function zRangeUI(el,mk,ab){el.append(mk('h3','','Revenants (Zombie Rumble)'));
    back beside their partner. A player at zero HP goes down and bleeds out unless revived (Revenants leave the downed alone and
    go for whoever is still standing). The run ends when nobody is standing, or when the last wave is cleared. In solo play the
    partner is a bot that fights the Revenants and comes to revive you. */
+/* the campaign: four weeks, each unlocked by clearing the one before. Progress is per browser ('za-zr'): cleared weeks and best times. */
+const ZWEEKS=[null,{n:'Draft Night',boss:'The Juggernaut',built:1},{n:'Forge Circuit',boss:'The Matriarch'},{n:'Glass Cathedral',boss:'The Hive Choir'},{n:'Championship',boss:'The Champion'}];
+const ZCAMP=(()=>{let d={};try{d=JSON.parse(localStorage.getItem('za-zr')||'{}')||{};}catch(e){}if(!d.w||typeof d.w!=='object')d.w={};if(!(d.sel>=1&&d.sel<=4))d.sel=1;return d;})();
+function zcSave(){try{localStorage.setItem('za-zr',JSON.stringify(ZCAMP));}catch(e){}}
+function zcWeek(n){return ZCAMP.w[n]||(ZCAMP.w[n]={c:0,runs:0,best:{}});}
+function zcOpen(n){return n===1||!!(ZCAMP.w[n-1]&&ZCAMP.w[n-1].c);}
+function zcPlayable(n){return zcOpen(n)&&!!(ZWEEKS[n]&&ZWEEKS[n].built);}
+function zcSel(){return zcPlayable(ZCAMP.sel)?ZCAMP.sel:1;}
+/* a run ended: every client that played it records it */
+function zcRecord(Z,secs){const w=zcWeek(Z.week||1),was=!!w.c;w.runs=(w.runs|0)+1;if(Z.won){w.c=1;const k=Z.len==='short'?'short':'full';if(!(w.best[k]>0)||secs<w.best[k])w.best[k]=Math.round(secs);}zcSave();zcUI();return Z.won&&!was;}
+function zcUI(){const el=$('zrweeks');if(!el)return;const mk=(t,c,x)=>{const n=document.createElement(t);if(c)n.className=c;if(x!=null)n.textContent=x;return n;};const sel=zcSel();
+  el.replaceChildren(...[1,2,3,4].map(n=>{const W0=ZWEEKS[n],w=ZCAMP.w[n]||{},open=zcOpen(n),play=zcPlayable(n),b=mk('button','zwk'+(n===sel?' on':''));b.type='button';
+    b.setAttribute('role','radio');b.setAttribute('aria-checked',n===sel);b.disabled=!play;
+    const mm=t=>Math.floor(t/60)+':'+String(Math.round(t)%60).padStart(2,'0')/* fmt is declared further down; this runs at startup */,st=!open?`Clear Week ${n-1} to unlock`:!W0.built?'Unlocked · coming soon':w.c?`Cleared${w.best.full?' · Full '+mm(w.best.full):''}${w.best.short?' · Short '+mm(w.best.short):''}`:w.runs?`${w.runs} run${w.runs>1?'s':''}, not cleared yet`:'Not played yet';
+    b.title=`Week ${n}: ${W0.n} · ${st}`;b.append(mk('b','',`${n} · ${W0.n}`),mk('span','',st));
+    b.addEventListener('click',()=>{if(!play)return;ZCAMP.sel=n;zcSave();zcUI();modeCap();blip(980,0.022,0.012,false,'ui');});return b;}));}
 /* The run (phase 3: Week 1, Draft Night). A Full broadcast is four segments (home, home, away, home); a Short one is three
    (home, away, home). The away segment is on a random other map. Each segment is a few waves with 10 s breathers, then a finale:
    an elite surge you hold out against, or in the last segment the headliner, the Juggernaut. Between segments an intermission
@@ -3727,7 +3748,7 @@ function zrHome(p){const h=DM_HOME[p.s?2:0];let x=-h[0],z=-h[1];if(!freeAt(x,z))
 function zrStart(){S.center={own:-1,cap:-1,p:0};S.armed=null;S.tickets=[0,0];S.sudden=false;
   S.timer=0;S.phase='buy';S.t=Math.max(CFG.buy,CFG.buy1);S.last=null;
   const short=MATCH.zrLen==='short',home=MAP.id,others=MAP_IDS.filter(m=>m!==home);
-  S.zr={len:short?'short':'full',week:1,seg:0,segs:short?3:4,awaySeg:short?2:3,home,away:others[(Math.random()*others.length)|0]||home,
+  S.zr={len:short?'short':'full',week:MATCH.zrWeek||1,seg:0,segs:short?3:4,awaySeg:short?2:3,home,away:others[(Math.random()*others.length)|0]||home,
     w:0,nw:0,ph:'pre',t:0,q:[],sp:0,left:0,kills:0,cleared:0,won:false,why:'',boss:null,offers:{},picked:{},ready:{},mine:{A:0,B:0}};
   zClear();ZB.kills=0;ZB.hunt=true;ZB.endless=false;for(const p of S.players){p.team=0;p.k=0;p.d=0;p.fv=0;p.cards=[];p.dropW=null;}
   zrSeg(1);}
@@ -3930,7 +3951,7 @@ function zRemoteHit(a,list){const aw=wOf(a.w),max=aw.head*(aw.pel||1);const now=
 /* ---------- the HUD ---------- */
 function zrHud(P){const Z=S.zr;if(!Z)return;const L=Z.left|0;
   $('sc0').textContent=Z.seg;$('sc1').textContent=L;
-  $('roundinfo').textContent=`Week 1 · Draft Night · segment ${Z.seg} of ${Z.segs}`+(Z.seg===Z.awaySeg?' (away)':'')+(Z.ph==='wave'||Z.ph==='break'?` · wave ${Math.max(1,Z.w)} of ${Z.nw}`:'')+(Z.act&&ZDIR[Z.act]?` · ${ZDIR[Z.act].n}, double Favor`:'');
+  $('roundinfo').textContent=`Week ${Z.week||1} · ${ZWEEKS[Z.week||1].n} · segment ${Z.seg} of ${Z.segs}`+(Z.seg===Z.awaySeg?' (away)':'')+(Z.ph==='wave'||Z.ph==='break'?` · wave ${Math.max(1,Z.w)} of ${Z.nw}`:'')+(Z.act&&ZDIR[Z.act]?` · ${ZDIR[Z.act].n}, double Favor`:'');
   const rb=$('role');rb.hidden=false;rb.className='dm';rb.textContent='Co-op';
   const left=`${L} Revenant${L===1?'':'s'} left`,t=Math.ceil(Z.t);
   $('objective').textContent=S.phase==='buy'?`Get ready. The broadcast goes live in ${Math.ceil(S.t)}`:S.phase!=='live'?'':
@@ -3956,7 +3977,7 @@ function zrBanner(){const Z=S.zr,bn=$('banner');bn.hidden=false;
   if(S.phase==='buy'){$('bannerT').textContent='Monday Night Zombie Rumble';
     $('bannerS').textContent=`You wake in a tunnel under the ${(MAPS[Z.home]||MAPS.yard).name}. A voice on the PA reads the rules: survive the week and you are retained. The host world is watching. · ${Z.segs} segments, about ${Z.len==='short'?10:25} min · Weapon: ${myW(me.w).name}`;return;}
   $('bannerT').textContent=Z.won?'Week complete':'Broadcast terminated';
-  $('bannerS').textContent=(Z.won?'You have been retained':`${Z.why} in segment ${Z.seg}${Z.ph==='boss'?', against the Juggernaut':Z.w?', wave '+Z.w:''}`)+` · ${Z.kills|0} Revenants dropped · ${fmt(S.timer)} · new run in ${Math.ceil(S.t)}`;}
+  $('bannerS').textContent=(Z.won?'You have been retained'+(ZW.unl&&ZWEEKS[ZW.unl]?` · Week ${ZW.unl}: ${ZWEEKS[ZW.unl].n} unlocked${ZWEEKS[ZW.unl].built?'':' (coming soon)'}`:''):`${Z.why} in segment ${Z.seg}${Z.ph==='boss'?', against the Juggernaut':Z.w?', wave '+Z.w:''}`)+` · ${Z.kills|0} Revenants dropped · ${fmt(S.timer)} · new run in ${Math.ceil(S.t)}`;}
 /* the Circuit's announcer, as captions until the lines are recorded, and the crowd (on every client, from the shared state) */
 const ZW={k:'',st:{},fv:0,fvK:-1};
 function zrCap(t,sub){const el=$('zrcap'),d=document.createElement('div');d.textContent=t;if(sub){const s=document.createElement('small');s.textContent=sub;d.append(s);}
@@ -3967,10 +3988,10 @@ function zrWatch(){const Z=S.zr,k=S.mid+':'+Z.seg+':'+Z.w+':'+Z.ph+':'+S.phase,w
     if(o==='alive'&&p.st==='down')zrCap('Warrior down',p.name);else if(o==='down'&&p.st==='alive'&&Z.ph!=='inter')zrCap('Warrior revived',p.name);}
   if(k===was)return;ZW.k=k;
   if(fresh)return;
-  if(S.phase==='over'){crowdCheer(Z.won?'win':'knock',1);sting(Z.won?'win':'lose');zrCap(Z.won?'Week complete':'Broadcast terminated',Z.won?'You have been retained':Z.why);}
+  if(S.phase==='over'){crowdCheer(Z.won?'win':'knock',1);sting(Z.won?'win':'lose');ZW.unl=zcRecord(Z,S.timer)?(Z.week||1)+1:0;zrCap(Z.won?'Week complete':'Broadcast terminated',Z.won?'You have been retained':Z.why);}
   else if(S.phase!=='live')return;
   else if(Z.ph==='pre')zrCap(`Segment ${Z.seg}`,Z.act&&ZDIR[Z.act]?`Directive: ${ZDIR[Z.act].n}. ${ZDIR[Z.act].d}. Double Favor`:Z.seg===Z.awaySeg?`Away broadcast from the ${MAPS[MAP.id].name}`:'The host world is watching');
-  else if(Z.ph==='wave'){if(Z.w>1)sting('armed',0,0.04);if(Z.seg===1&&Z.w===1)zrCap('The Circuit presents','Week 1: Draft Night · the host world is watching');else zrCap(Z.w===Z.nw?'Final wave':`Wave ${Z.w}`,`Segment ${Z.seg}`);}
+  else if(Z.ph==='wave'){if(Z.w>1)sting('armed',0,0.04);if(Z.seg===1&&Z.w===1)zrCap('The Circuit presents',`Week ${Z.week||1}: ${ZWEEKS[Z.week||1].n} · the host world is watching`);else zrCap(Z.w===Z.nw?'Final wave':`Wave ${Z.w}`,`Segment ${Z.seg}`);}
   else if(Z.ph==='break'){crowdCheer('point',1);sting('win',0,0.04);}
   else if(Z.ph==='surge'){sting('armed',0,0.05);zrCap('Surge','Elites incoming. Hold the floor');}
   else if(Z.ph==='boss'){crowdCheer('point',1);sting('armed',0,0.06);zrCap('Headliner incoming','The Juggernaut');}
@@ -4226,13 +4247,13 @@ const MODECAP={zone:'Attack and defend sites A and B',
   dm1:()=>`First to ${CFG.dmKills1} kills · ${CFG.dmTime/60} min`,
   dm2:()=>`First team to ${CFG.dmKills2} kills · ${CFG.dmTime/60} min`,
   dm4:()=>`First team to ${CFG.dmKills4} kills · ${CFG.dmTime/60} min`,
-  zr:()=>$('zrlen').value==='0'?'Week 1: Draft Night · three segments and the Juggernaut · about 10 min':'Week 1: Draft Night · four segments and the Juggernaut · about 25 min'};
+  zr:()=>{const n=zcSel(),W0=ZWEEKS[n];return `Week ${n}: ${W0.n} · ${$('zrlen').value==='0'?'three':'four'} segments and ${W0.boss} · about ${$('zrlen').value==='0'?10:25} min`;}};
 const capOf=v=>{const c=MODECAP[v]||MODECAP.zone;return typeof c==='function'?c():c;};
 const MCARDS=[...document.querySelectorAll('#mcards .mcd')];
 /* mode screen: the cards and the Team / Bots buttons drive the hidden selects, so readMenu and saved settings work as before */
 function modeCap(){const v=$('modesel').value;$('modecap').textContent=capOf(v);
   for(const c of MCARDS){c.querySelector('.mccap').textContent=capOf(c.dataset.m);const on=c.dataset.m===v;c.setAttribute('aria-checked',on);c.tabIndex=on?0:-1;}
-  $('teamseg').hidden=v==='zr';$('zrseg').hidden=v!=='zr';}
+  $('teamseg').hidden=v==='zr';$('zrseg').hidden=v!=='zr';$('zrweeks').hidden=v!=='zr';}
 function segSync(){document.querySelectorAll('.mseg').forEach(g=>{const v=$(g.dataset.for).value;g.querySelectorAll('button').forEach(b=>b.setAttribute('aria-checked',+b.dataset.v===+v));});}
 function modePick(v){if(!MODECAP[v])return;const sel=$('modesel');if(sel.value!==v){sel.value=v;sel.dispatchEvent(new Event('change'));blip(980,0.022,0.012,false,'ui');if(!$('mpanel').hidden)dioShow(v);}}
 MCARDS.forEach(c=>c.addEventListener('click',()=>modePick(c.dataset.m)));
@@ -4242,7 +4263,7 @@ try{const mv=localStorage.getItem('za-mode');if(mv&&MODECAP[mv])$('modesel').val
 /* Zombie Rumble length: Short by default on touch devices, Full otherwise; remembered once picked */
 {let v=null;try{v=localStorage.getItem('za-zrlen');}catch(e){}$('zrlen').value=v==='0'||v==='1'?v:matchMedia('(pointer:coarse)').matches?'0':'1';
   $('zrlen').addEventListener('change',()=>{modeCap();try{localStorage.setItem('za-zrlen',$('zrlen').value);}catch(e){}});}
-modeCap();segSync();$('modesel').addEventListener('change',()=>{modeCap();try{localStorage.setItem('za-mode',$('modesel').value);}catch(e){}});
+zcUI();modeCap();segSync();$('modesel').addEventListener('change',()=>{modeCap();try{localStorage.setItem('za-mode',$('modesel').value);}catch(e){}});
 /* map picker: a tile per map with a top-down thumbnail. In the menu the arena behind it switches too, so the flyover shows the map. */
 function mapPreview(id){const kb=BOXES.slice(),kc=COVER.slice(),km=MAP.id,ka={...SITES.A},kbb={...SITES.B},kt={...THEME};buildBoxes(id);Object.assign(THEME,kt);
   const out={boxes:BOXES.map(b=>({...b})),sites:[{...SITES.A},{...SITES.B}]};BOXES.length=0;BOXES.push(...kb);COVER.length=0;COVER.push(...kc);MAP.id=km;Object.assign(SITES.A,ka);Object.assign(SITES.B,kbb);return out;}
@@ -4295,7 +4316,7 @@ $('mszin').addEventListener('click',()=>isoZoom(1.5));$('mszout').addEventListen
     if(pts.size>=2){const [a,b]=[...pts.values()],d=Math.hypot(a.x-b.x,a.y-b.y);if(pinch>0&&d>0)isoZoom(d/pinch,(a.x+b.x)/2,(a.y+b.y)/2);pinch=d;}
     else isoPan(dx,dy);});
   const up=e=>{pts.delete(e.pointerId);pinch=0;if(!pts.size)M.classList.remove('drag');};M.addEventListener('pointerup',up);M.addEventListener('pointercancel',up);}
-function readMenu(){const mv=SB.on?SB.mode:$('modesel').value;MATCH.range=SB.on&&mv==='range';if(MATCH.range){MATCH.mode='dm';MATCH.size=4;}else if(mv==='zr'){MATCH.mode='zr';MATCH.size=1;MATCH.zrLen=$('zrlen').value==='0'?'short':'full';}else if(!/^dm[124]$/.test(mv)){MATCH.mode='zone';MATCH.size=2;}else{MATCH.mode='dm';MATCH.size=+mv.slice(2);}
+function readMenu(){const mv=SB.on?SB.mode:$('modesel').value;MATCH.range=SB.on&&mv==='range';if(MATCH.range){MATCH.mode='dm';MATCH.size=4;}else if(mv==='zr'){MATCH.mode='zr';MATCH.size=1;MATCH.zrWeek=zcSel();MATCH.zrLen=$('zrlen').value==='0'?'short':'full';}else if(!/^dm[124]$/.test(mv)){MATCH.mode='zone';MATCH.size=2;}else{MATCH.mode='dm';MATCH.size=+mv.slice(2);}
   if(W[$('wsel').value]){me.wPref=$('wsel').value;me.w=me.wPref;showWeapon(me.w);me.ammo=myW(me.w).mag;try{localStorage.setItem('za-w',me.wPref);}catch(e){}}me.name=($('nick').value||'Player').replace(/[^\w .'-]/g,'').slice(0,16)||'Player';me.teamPref=+$('teampref').value;diffMul=+$('diff').value;try{localStorage.setItem('za-name',me.name);}catch(e){}}
 function enterGame(){dioHide();if(MS.open){MS.open=false;isoScene(false);TOD.cur='';}$('mapscr').hidden=true;$('menu').classList.remove('mapon');$('menu').hidden=true;for(const id of ['topbar','mini','vitals','ammo','cross','netpill'])$(id).hidden=false;requestLock();blip(660,0.05,0.03,false,'ui');}
 function startSolo(){readMenu();net.mode='solo';net.myPeer='local';net.host=true;net.hostPeer='local';S=null;newMatch();S.diff=diffMul;
