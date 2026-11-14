@@ -234,6 +234,14 @@ body.touch .stabhint{display:none}
 #fps{left:max(12px,env(safe-area-inset-left,0px));bottom:calc(8px + env(safe-area-inset-bottom,0px));font-family:var(--mono);font-size:12px;color:var(--muted);background:rgba(0,0,0,.45);padding:2px 6px;border-radius:4px}
 #lockhint{left:50%;top:58%;transform:translateX(-50%);font-size:19px;border:1px solid var(--accent);background:var(--panel);padding:6px 14px;border-radius:5px}
 .overlay{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;padding-block:calc(16px + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow:auto}
+#endscr{background:rgba(6,5,14,.62);z-index:11;overflow-y:auto;align-items:flex-start}
+#endcol{margin:auto;display:flex;flex-direction:column;align-items:center;gap:12px;width:min(560px,100%)}
+#endcol>.hud{position:static;transform:none;left:auto;top:auto;width:100%;box-sizing:border-box}
+#endbtns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;width:100%}
+#endbtns .btn{flex:1 1 180px;min-height:52px;font-size:20px}
+#endbtns .btn:focus-visible,#endbtns .btn.pad{outline:3px solid var(--accent);outline-offset:3px}
+#endnote{margin:0;color:var(--muted);font-size:15px;text-align:center;min-height:1.2em}
+body.ended #touch,body.ended #zrcap,body.ended #down,body.ended #lockhint,body.ended #prompt,body.ended #ring{visibility:hidden}
 #down{background:rgba(60,8,6,.38);pointer-events:none;z-index:6;flex-direction:column;gap:6px;text-align:center}
 #down h2{margin:0;font-size:46px;letter-spacing:.08em;color:#ffb3ab}
 #down p{margin:0;font-size:18px}
@@ -482,6 +490,7 @@ body.touch .chip{min-height:44px}
 </div>
 <div class="hud" id="lockhint" hidden>Click to aim · <span id="lockmode"></span></div>
 
+<div class="overlay" id="endscr" hidden role="dialog" aria-label="Match over"><div id="endcol"><div id="endbtns"><button class="btn primary" type="button" id="eagain">Play again</button><button class="btn" type="button" id="emenu">Main menu</button></div><p id="endnote"></p></div></div>
 <div class="overlay" id="down" hidden>
   <h2>Downed</h2>
   <p id="downtxt"></p>
@@ -922,7 +931,7 @@ function hostTick(dt){
   if(S.phase==='buy'){S.t-=dt;if(S.t<=0){S.phase='live';S.t=0;}}
   else if(S.phase==='live'){if(S.mode==='dm'){dmTick(dt);if(S.range)rgSiteTick(dt);}else if(S.mode==='zr')zrTick(dt);else liveTick(dt);if(S.phase==='live')regenTick(dt);}
   else if(S.phase==='post'){S.t-=dt;if(S.t<=0){if(!SB.on&&(S.score[0]>=CFG.winScore||S.score[1]>=CFG.winScore)){S.phase='over';S.t=CFG.overT;feed(`${TEAMN[S.score[0]>S.score[1]?0:1]} wins the match`);}else{S.round++;startRound();}}}
-  else if(S.phase==='over'){S.t-=dt;if(S.t<=0)newMatch();}
+  else if(S.phase==='over'){if(net.mode!=='solo'||SB.on)S.t-=dt;const hum=S.players.filter(p=>!p.bot);if(S.t<=0||(hum.length&&S.again&&hum.every(p=>S.again.includes(p.s))))newMatch();}
   for(const p of S.players)if(p.bot)botThink(p,dt);
   if(ZB.list.length)zTick(dt);
 }
@@ -1177,6 +1186,7 @@ function onRemoteState(msg){
 function onRemoteHit(msg){
   if(!net.host||!S)return;const d=msg.data||{};
   const a=S.players.find(p=>p.peer===msg.peer);const t=S.players[d.t|0];
+  if(a&&d.again){if(S.phase==='over'){S.again=S.again||[];if(!S.again.includes(a.s))S.again.push(a.s);}return;}
   if(a&&d.zc&&typeof d.zc==='object'){if(S.mode==='zr'&&['pick','buy','reroll','ready','gun','dir'].includes(d.zc.a)&&(d.zc.id==null||ZCARDS[d.zc.id]))zrCardAct(a,{a:d.zc.a,id:d.zc.id,to:d.zc.to?1:0});return;}
   if(!a||a.st!=='alive')return;
   if(Array.isArray(d.zr)){if(S.mode==='zr')zRemoteHit(a,d.zr);return;}
@@ -3977,7 +3987,7 @@ function zrBanner(){const Z=S.zr,bn=$('banner');bn.hidden=false;
   if(S.phase==='buy'){$('bannerT').textContent='Monday Night Zombie Rumble';
     $('bannerS').textContent=`You wake in a tunnel under the ${(MAPS[Z.home]||MAPS.yard).name}. A voice on the PA reads the rules: survive the week and you are retained. The host world is watching. · ${Z.segs} segments, about ${Z.len==='short'?10:25} min · Weapon: ${myW(me.w).name}`;return;}
   $('bannerT').textContent=Z.won?'Week complete':'Broadcast terminated';
-  $('bannerS').textContent=(Z.won?'You have been retained'+(ZW.unl&&ZWEEKS[ZW.unl]?` · Week ${ZW.unl}: ${ZWEEKS[ZW.unl].n} unlocked${ZWEEKS[ZW.unl].built?'':' (coming soon)'}`:''):`${Z.why} in segment ${Z.seg}${Z.ph==='boss'?', against the Juggernaut':Z.w?', wave '+Z.w:''}`)+` · ${Z.kills|0} Revenants dropped · ${fmt(S.timer)} · new run in ${Math.ceil(S.t)}`;}
+  $('bannerS').textContent=(Z.won?'You have been retained'+(ZW.unl&&ZWEEKS[ZW.unl]?` · Week ${ZW.unl}: ${ZWEEKS[ZW.unl].n} unlocked${ZWEEKS[ZW.unl].built?'':' (coming soon)'}`:''):`${Z.why} in segment ${Z.seg}${Z.ph==='boss'?', against the Juggernaut':Z.w?', wave '+Z.w:''}`)+` · ${Z.kills|0} Revenants dropped · ${fmt(S.timer)}${overIn('run')}`;}
 /* the Circuit's announcer, as captions until the lines are recorded, and the crowd (on every client, from the shared state) */
 const ZW={k:'',st:{},fv:0,fvK:-1};
 function zrCap(t,sub){const el=$('zrcap'),d=document.createElement('div');d.textContent=t;if(sub){const s=document.createElement('small');s.textContent=sub;d.append(s);}
@@ -4442,7 +4452,7 @@ function toggleSettings(force){const el=$('settings');const open=force!==undefin
 let pauseAt=0;
 function inPlay(){return !!S&&$('menu').hidden;}
 function autoLock(gesture){if(inPlay()&&!locked&&$('pause').hidden&&!otherOverlay())grabMouse(gesture);}
-function otherOverlay(){return !$('settings').hidden||!$('sbpanel').hidden||!$('dead').hidden||!$('zrint').hidden;}
+function otherOverlay(){return !$('endscr').hidden||!$('settings').hidden||!$('sbpanel').hidden||!$('dead').hidden||!$('zrint').hidden;}
 function openPause(){if(!inPlay()||!$('pause').hidden)return;closeWheel(false);$('pause').hidden=false;pauseAt=performance.now();
   for(const k in keys)keys[k]=false;mouseDown=false;adsDown=false;if(locked)document.exitPointerLock();
   restartArm=0;restartUI();
@@ -4460,8 +4470,54 @@ function restartMatch(){if(!canRestart())return;restartArm=0;closeWheel(false);
   newMatchLocal();me.mid=S.mid;closePause();autoLock(true);}
 /* local side of a new match, for whoever sees S.mid change: reopen the start weapon pick and restart the match music after the next FIGHT */
 function newMatchLocal(){WH.auto=false;if(WH.open)closeWheel(false);me.round=0;MM.go=false;MM.on=false;if(MM.src){try{MM.src.stop();}catch(e){}MM.src.disconnect();MM.src=null;}}
+/* ---------- end of match: Play again / Main menu (touch, mouse, keyboard, controller) ----------
+   Shown whenever a match or run ends (phase 'over'), e.g. a Zombie Rumble wipe or a Deathmatch win. The banner and the XP
+   summary move into its column so nothing overlaps. Offline the game waits for a choice; online the countdown still runs
+   and the next match starts early once every human has pressed Play again. */
+const END={home:null,pad:{},padI:0,padT:0};
+function overIn(w){return net.mode==='solo'&&!SB.on?'':` · new ${w} in ${Math.ceil(S.t)}`;}
+function endShow(){const el=$('endscr');if(!el.hidden)return;
+  if(!END.home)END.home={p:$('banner').parentNode,n:$('xpsum').nextSibling};
+  const col=$('endcol');col.insertBefore($('banner'),$('endbtns'));col.insertBefore($('xpsum'),$('endbtns'));
+  el.hidden=false;document.body.classList.add('ended');closeWheel(false);WH.auto=false;touchRelease();
+  for(const k in keys)keys[k]=false;mouseDown=false;adsDown=false;
+  if(!$('pause').hidden){$('pause').hidden=true;toggleSettings(false);}
+  if(locked)document.exitPointerLock();
+  END.padI=0;END.pad=endPadRead()||{};endFocus(0,false);}
+function endHide(){const el=$('endscr');if(el.hidden)return;el.hidden=true;document.body.classList.remove('ended');
+  if(END.home){END.home.p.insertBefore($('banner'),END.home.n);END.home.p.insertBefore($('xpsum'),END.home.n);}
+  for(const b of $('endbtns').children)b.classList.remove('pad');}
+function endBtns(){return [...$('endbtns').children].filter(b=>!b.disabled);}
+function endFocus(i,pad){const bs=[...$('endbtns').children];END.padI=(i+bs.length)%bs.length;for(const b of bs)b.classList.toggle('pad',!!pad&&b===bs[END.padI]);try{bs[END.padI].focus({preventScroll:true});}catch(e){}}
+function endTick(P){const over=!!S&&S.phase==='over'&&inPlay();if(!over){endHide();return;}endShow();
+  const s=mySlot(),hum=S.players.filter(p=>!p.bot),rd=hum.filter(p=>S.again&&S.again.includes(p.s)).length,mine=s>=0&&!!S.again&&S.again.includes(s);
+  const ag=$('eagain'),solo=net.mode==='solo';
+  const t=solo?'Play again':mine?`Ready ${rd}/${hum.length}`:'Play again';if(ag.textContent!==t)ag.textContent=t;ag.disabled=mine;
+  const note=solo?'':mine?`Waiting for the others · next ${S.mode==='zr'?'run':'match'} in ${Math.ceil(S.t)}`:hum.length>1?`${rd}/${hum.length} ready · starts early when everyone is ready`:'';
+  if($('endnote').textContent!==note)$('endnote').textContent=note;
+  endPad();}
+function endAgain(){if(!S||S.phase!=='over')return;const s=mySlot();blip(660,0.05,0.03,false,'ui');
+  if(net.mode==='solo'){endHide();restartMatch();return;}
+  if(s<0)return;if(net.host){S.again=S.again||[];if(!S.again.includes(s))S.again.push(s);}else if(net.room)net.room.emit('hit',{again:1}).catch(()=>{});
+  if(!S.again)S.again=[];if(!S.again.includes(s))S.again.push(s);/* shown at once; the next packet from the host confirms it */
+  const bs=endBtns();if(bs.length)endFocus([...$('endbtns').children].indexOf(bs[0]),false);}
+function endMenu(){blip(520,0.05,0.03,false,'ui');leaveMatch();}
+$('eagain').addEventListener('click',endAgain);$('emenu').addEventListener('click',endMenu);
+document.addEventListener('keydown',e=>{if($('endscr').hidden)return;const c=e.code;
+  if(/^(ArrowLeft|ArrowUp|KeyA|KeyW)$/.test(c)){e.preventDefault();e.stopImmediatePropagation();endFocus(END.padI-1,true);}
+  else if(/^(ArrowRight|ArrowDown|KeyD|KeyS|Tab)$/.test(c)){e.preventDefault();e.stopImmediatePropagation();endFocus(END.padI+(e.shiftKey&&c==='Tab'?-1:1),true);}
+  else if(c==='Enter'||c==='Space'||c==='NumpadEnter'){e.preventDefault();e.stopImmediatePropagation();const b=$('endbtns').children[END.padI];if(b&&!b.disabled)b.click();}
+  else if(c==='Escape'||c==='Backspace'){e.preventDefault();e.stopImmediatePropagation();}},true);
+/* controllers: D-pad or left stick moves between the buttons, A (or Start) presses the highlighted one */
+function endPadRead(){let gp=null;try{for(const g of navigator.getGamepads?navigator.getGamepads():[])if(g&&g.connected){gp=g;break;}}catch(e){}if(!gp)return null;
+  const b=i=>!!(gp.buttons[i]&&gp.buttons[i].pressed),ax=gp.axes[0]||0,ay=gp.axes[1]||0;
+  return {a:b(0)||b(9),prev:b(14)||b(12)||ax<-0.6||ay<-0.6,next:b(15)||b(13)||ax>0.6||ay>0.6};}
+function endPad(){const r=endPadRead();if(!r)return;const o=END.pad||{};
+  if(r.prev&&!o.prev)endFocus(END.padI-1,true);if(r.next&&!o.next)endFocus(END.padI+1,true);
+  if(r.a&&!o.a){const b=$('endbtns').children[END.padI];if(b&&!b.disabled)b.click();}
+  END.pad=r;}
 function closePause(){if($('pause').hidden)return;$('pause').hidden=true;toggleSettings(false);autoLock();blip(660,0.05,0.03,false,'ui');}
-function leaveMatch(){xpFlush();bigCountOff();closeWheel(false);WH.auto=false;$('pause').hidden=true;toggleSettings(false);toggleSB(false);
+function leaveMatch(){endHide();xpFlush();bigCountOff();closeWheel(false);WH.auto=false;$('pause').hidden=true;toggleSettings(false);toggleSB(false);
   if(net.room){try{net.room.leave().catch(()=>{});}catch(e){}}
   net.mode='none';net.room=null;net.host=false;net.hostPeer=null;net.myPeer=null;rgClear();RG.init=false;RG.shots=RG.hits=0;RG.read='';S=null;zrHide();rgSync();setMap(MATCH.map);tuneApply();SB.on=false;me.sp=-1;me.round=0;me.mid=0;coverTick();
   for(const id of ['topbar','mini','vitals','ammo','cross','netpill','banner','prompt','ring','lockhint','down','dead','fps'])$(id).hidden=true;
@@ -4998,15 +5054,15 @@ function hud(dt){
   if(zr&&(S.phase==='over'||S.phase==='buy'))zrBanner();
   else if(dm&&S.phase==='over'){bn.hidden=false;const w=S.last?S.last.team:-1,top=S.players.reduce((a,b)=>(b.k|0)>(a.k|0)?b:a,S.players[0]);
     $('bannerT').textContent=w<0?'Draw':S.size===1&&P?(w===myTeam?'You win':'You lose'):P?(w===myTeam?'Your team wins':`${TEAMN[w]} wins`):`${TEAMN[w]} wins`;
-    $('bannerS').textContent=`${S.score[0]}–${S.score[1]}`+(S.size>1?` · most kills: ${top.name} (${top.k|0})`:'')+` · new match in ${Math.ceil(S.t)}`;}
+    $('bannerS').textContent=`${S.score[0]}–${S.score[1]}`+(S.size>1?` · most kills: ${top.name} (${top.k|0})`:'')+`${overIn('match')}`;}
   else if(dm&&S.phase==='buy'){bn.hidden=false;$('bannerT').textContent=modeName('dm',S.size);$('bannerS').textContent=`First to ${S.kills} kills, or the most kills in ${fmt(S.timer)} · Weapon: ${myW(me.w).name} · keys 1–6 switch guns`;}
   else if(S.phase==='post'&&S.last){bn.hidden=false;$('bannerT').textContent=(S.last.team===myTeam&&P?'Round won':P?'Round lost':TEAMN[S.last.team]+' wins the round');$('bannerS').textContent=`${TEAMN[S.last.team]}: ${S.last.why} · ${S.score[0]}–${S.score[1]} · sides swap next round`;}
-  else if(S.phase==='over'){bn.hidden=false;const w=S.score[0]>S.score[1]?0:1;$('bannerT').textContent=`${TEAMN[w]} wins the match`;$('bannerS').textContent=`${S.score[0]}–${S.score[1]} · new match in ${Math.ceil(S.t)}`;}
+  else if(S.phase==='over'){bn.hidden=false;const w=S.score[0]>S.score[1]?0:1;$('bannerT').textContent=`${TEAMN[w]} wins the match`;$('bannerS').textContent=`${S.score[0]}–${S.score[1]}${overIn('match')}`;}
   else if(S.phase==='buy'){bn.hidden=false;$('bannerT').textContent=role?(role==='atk'?'You attack this round':'You defend this round'):'Round '+S.round;$('bannerS').textContent=(role==='atk'?'Start in your home base on the west end':'Sites A and B are in your half. Hold them.')+` · Weapon: ${myW(me.w).name} · keys 1–6 switch guns`;}
   else bn.hidden=true;
   if(WH.open)bn.hidden=true;
   // down / dead overlays
-  $('down').hidden=!(P&&P.st==='down');
+  $('down').hidden=!(P&&P.st==='down'&&S.phase!=='over');endTick(P);
   if(P&&P.st==='down'){const mate=S.players.find(o=>o.team===myTeam&&o!==P);$('downtxt').textContent=`Bleeding out in ${Math.ceil(P.downT)}s · ${mate&&mate.st==='alive'?mate.name+' can revive you':'no teammate up'} · ${TOUCH.on?'hold Use':'hold G'} to give up`;}
   const dead=P&&P.st==='dead'&&S.phase==='live';$('dead').hidden=!dead;
   if(me.wantLock&&!dead){me.wantLock=false;autoLock();}
