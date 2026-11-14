@@ -113,21 +113,36 @@ body{background:var(--bg);color:var(--fg);overflow:hidden;font-family:var(--disp
 .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
 #topbar{top:calc(10px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:4px}
 #score{display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 14px}
+#score .sd{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:28px}
+#score .mid{display:flex;flex-direction:column;align-items:center;gap:1px}
+#score .pips{display:flex;gap:3px;height:4px}#score .pips:empty{display:none}#score .pips i{width:7px;height:4px;border-radius:1px;background:currentColor;opacity:.85}
+#score .me .s{text-decoration:underline 2px;text-underline-offset:4px}
+#objrow{display:flex;align-items:center;gap:8px;max-width:min(560px,calc(100vw - 32px))}#objrow:has(#role[hidden]):has(#objective:empty){display:none}
+#zrsb{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;column-gap:16px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:5px 14px 6px;min-width:230px}
+#zrsb .c{display:flex;flex-direction:column;align-items:center;line-height:1}
+#zrsb .c b{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:20px;font-weight:700}
+#zrsb .c.big b{font-size:30px;color:#ff6a5a;text-shadow:0 0 12px currentColor}
+#zrsb .c.fv b{color:var(--warn)}
+#zrsb .c small{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:3px;white-space:nowrap}
+#zrsb .bar{grid-column:1/-1;height:3px;margin-top:5px;background:rgba(255,255,255,.12);border-radius:2px;overflow:hidden}#zrsb .bar i{display:block;height:100%;background:#ff6a5a;transition:width .2s}
+body.zrmode #score,body.zrmode #tickets{display:none}
+body:not(.zrmode) #zrsb{display:none}
 #score .s{font-size:28px;font-weight:700;line-height:1}
 #score .t0{color:var(--team0)} #score .t1{color:var(--team1)}
 #clock{font-size:22px;min-width:64px;text-align:center}
+#tickets:empty{display:none}
 #bigc{left:50%;top:57%;transform:translate(-50%,-50%);font-size:min(30vh,220px);font-weight:700;line-height:1;color:#fff;text-shadow:0 0 18px rgba(95,242,255,.9),0 0 60px rgba(39,230,255,.55);will-change:transform}
 #bigc.last{text-shadow:0 0 18px rgba(255,80,100,.95),0 0 60px rgba(255,40,64,.6)}
 #bigc span{display:inline-block;animation:bigpop .9s cubic-bezier(.2,.9,.3,1) both}
 @keyframes bigpop{0%{transform:scale(1.9);opacity:0}18%{transform:scale(1);opacity:1}100%{transform:scale(.92);opacity:.85}}
 @media (prefers-reduced-motion:reduce){#bigc span{animation:none}}
-#roundinfo{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-#role{font-size:14px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:2px 10px;border-radius:4px}
-#role.atk{background:rgba(255,43,214,.2);color:#ff9bea} #role.dm{background:rgba(255,194,61,.16);color:#ffd27a} #role.def{background:rgba(39,230,255,.16);color:#a6f6ff}
+#roundinfo{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+#role{flex:none;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:2px 10px;border-radius:4px}
+#role.zd{background:rgba(255,194,61,.16);color:var(--warn)} #role.atk{background:rgba(255,43,214,.2);color:#ff9bea} #role.dm{background:rgba(255,194,61,.16);color:#ffd27a} #role.def{background:rgba(39,230,255,.16);color:#a6f6ff}
 #objective{font-size:15px;color:var(--fg);text-shadow:0 1px 2px #000}
 #tickets{font-size:13px;color:var(--muted)}
 #mini{top:calc(10px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px));border:1px solid var(--line);border-radius:6px;background:var(--panel)}
-#feed{top:calc(12px + env(safe-area-inset-top,0px));left:max(12px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:3px;font-size:14px;max-width:38vw}
+#feed{top:calc(12px + env(safe-area-inset-top,0px));left:max(12px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:3px;font-size:13px;max-width:min(30vw,280px)}
 #feed div{background:var(--panel);padding:2px 8px;border-radius:4px}
 #vitals{left:max(16px,env(safe-area-inset-left,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:6px;min-width:220px}
 #hpnum{font-size:44px;font-weight:700;line-height:.9}
@@ -443,10 +458,9 @@ body.touch .chip{min-height:44px}
 
 <div class="hud num" id="bigc" hidden></div>
 <div class="hud" id="topbar" hidden>
-  <div id="score"><span class="s t0 num" id="sc0">0</span><span class="num" id="clock">2:00</span><span class="s t1 num" id="sc1">0</span></div>
-  <div id="roundinfo">Round 1 · first to 5</div>
-  <div id="role" class="atk">Attack</div>
-  <div id="objective"></div>
+  <div id="score"><div class="sd t0" id="sd0"><span class="s num" id="sc0">0</span><span class="pips" id="tk0"></span></div><div class="mid"><span class="num" id="clock">2:00</span><span id="roundinfo">Round 1 · to 5</span></div><div class="sd t1" id="sd1"><span class="s num" id="sc1">0</span><span class="pips" id="tk1"></span></div></div>
+  <div id="zrsb"><div class="c"><b id="zsW">1/3</b><small id="zsWl">Wave</small></div><div class="c big"><b id="zsL">0</b><small id="zsLl">Revenants</small></div><div class="c fv"><b id="zsF">0</b><small>Favor</small></div><div class="bar"><i id="zsB"></i></div></div>
+  <div id="objrow"><span id="role" class="atk">Attack</span><span id="objective"></span></div>
   <div id="tickets" class="num"></div>
   <div id="zrheld" hidden></div>
 </div>
@@ -3767,7 +3781,7 @@ function zrSeg(n){const Z=S.zr;Z.act=n>1&&Z.dirOn&&Z.dir?Z.dir:null;Z.dir=null;Z
   const id=n===Z.awaySeg?Z.away:Z.home;if(id!==MAP.id){zClear();setMap(id);}S.map=MAP.id;
   S.cover=COVER.map(b=>b.max);S.regen=COVER.map(()=>0);
   for(const p of S.players){p.swUsed=0;p.ak=null;p.ap=0;zrHome(p);}
-  if(n>1)feed(n===Z.awaySeg?`Segment ${n} of ${Z.segs}: away broadcast from the ${MAPS[MAP.id].name}`:`Segment ${n} of ${Z.segs}`);}
+}
 /* how many of each kind a wave sends, growing through the run */
 function zrWaveDef(seg,w,short){const k=seg-1+(w-1)*0.5,n=Math.round((short?11:14)+k*(short?4:3.5));
   const sp=Math.round(n*Math.min(0.35,0.12+k*0.05)),cr=Math.round(n*0.12),bl=seg>=2||w>=3?Math.min(4,1+Math.floor(k/1.5)):0;
@@ -3777,7 +3791,7 @@ function zrQueue(c){const q=[];for(const t in c)for(let i=0;i<c[t];i++)q.push(t)
   {const hd=q.slice(0,6),bl=hd.filter(t=>t==='bloat');if(bl.length){q.splice(0,6,...hd.filter(t=>t!=='bloat'));q.push(...bl);}}/* Bloaters never lead */
   return q;}
 function zrWave(n){const Z=S.zr;Z.w=n;Z.ph='wave';Z.sp=1;const c=zrWaveDef(Z.seg,n,Z.len==='short');if(Z.act==='swarm')for(const k in c)c[k]=Math.round(c[k]*1.3);Z.q=zrQueue(c);Z.total=Z.q.length;
-  feed(`Wave ${n} of ${Z.nw}: ${Z.q.length} Revenants`);}
+}
 /* where the next one rises: an open spot 14+ m from everyone still in the fight (about 24 m is best), out of their sight if it can */
 function zrSpot(far){const P=S.players.filter(p=>p.st!=='dead');let best=null,bs=-1e9;
   for(let k=0;k<16;k++){const c=DM_PTS[(Math.random()*DM_PTS.length)|0];if(!c)continue;const x=c.x+(Math.random()-.5)*2,z=c.z+(Math.random()-.5)*2;if(!freeAt(x,z))continue;
@@ -3810,9 +3824,9 @@ function zrTick(dt){const Z=S.zr;if(!Z)return;S.timer+=dt;const short=Z.len==='s
   else if(Z.ph==='wave'){Z.sp-=dt;
     if(Z.q.length&&Z.sp<=0&&alive<cap){if(zrRise(Z.q[0])){Z.q.shift();alive++;Z.sp=(0.3+Math.random()*0.6)*(Z.seg===1&&Z.w===1?1.5:1);}else Z.sp=0.25;}
     if(!Z.q.length&&!alive){Z.cleared++;for(const p of S.players){xsAdd(p,'wv');zrFavor(p,ZFV.wave*(zrHas(p,'sp')?2:1));}
-      if(Z.w<Z.nw){Z.ph='break';Z.t=Z.act==='rush'?3:CFG.zrBreak;feed(`Wave ${Z.w} cleared · next in ${Math.round(Z.t)}s`);zrRegroup();}
-      else if(Z.seg<Z.segs){Z.ph='surge';Z.t=(short?25:40)*(Z.act==='long'?1.6:1);Z.sp=0.5;zrRegroup();feed('Surge: elites are coming. Hold the floor');}
-      else{Z.ph='boss';Z.sp=4;zrRegroup();const b=zrRise('jugg',false,true);if(b){b.hp=b.max=Math.round(CFG.zJgHp*(short?0.6:1));zBossHp(b);}feed('Headliner incoming: The Juggernaut');}}}
+      if(Z.w<Z.nw){Z.ph='break';Z.t=Z.act==='rush'?3:CFG.zrBreak;zrRegroup();}
+      else if(Z.seg<Z.segs){Z.ph='surge';Z.t=(short?25:40)*(Z.act==='long'?1.6:1);Z.sp=0.5;zrRegroup();}
+      else{Z.ph='boss';Z.sp=4;zrRegroup();const b=zrRise('jugg',false,true);if(b){b.hp=b.max=Math.round(CFG.zJgHp*(short?0.6:1));zBossHp(b);}}}}
   else if(Z.ph==='break'){Z.t-=dt;if(Z.t<=0)zrWave(Z.w+1);}
   else if(Z.ph==='surge'){Z.t=Math.max(0,Z.t-dt);Z.sp-=dt;
     if(Z.t>0&&Z.sp<=0&&alive<cap+4){const r=Math.random(),t=r<0.12?'bloat':r<0.45?'sprint':r<0.55?'crawl':'sham';if(zrRise(t,Math.random()<0.35))alive++;Z.sp=short?0.55:0.4;}
@@ -3960,17 +3974,17 @@ function zRemoteHit(a,list){const aw=wOf(a.w),max=aw.head*(aw.pel||1);const now=
   for(const [z,e] of by)zApply(z,e,a);}
 /* ---------- the HUD ---------- */
 function zrHud(P){const Z=S.zr;if(!Z)return;const L=Z.left|0;
-  $('sc0').textContent=Z.seg;$('sc1').textContent=L;
-  $('roundinfo').textContent=`Week ${Z.week||1} · ${ZWEEKS[Z.week||1].n} · segment ${Z.seg} of ${Z.segs}`+(Z.seg===Z.awaySeg?' (away)':'')+(Z.ph==='wave'||Z.ph==='break'?` · wave ${Math.max(1,Z.w)} of ${Z.nw}`:'')+(Z.act&&ZDIR[Z.act]?` · ${ZDIR[Z.act].n}, double Favor`:'');
-  const rb=$('role');rb.hidden=false;rb.className='dm';rb.textContent='Co-op';
-  const left=`${L} Revenant${L===1?'':'s'} left`,t=Math.ceil(Z.t);
-  $('objective').textContent=S.phase==='buy'?`Get ready. The broadcast goes live in ${Math.ceil(S.t)}`:S.phase!=='live'?'':
-    Z.ph==='pre'?`Segment ${Z.seg}${Z.seg===Z.awaySeg?`, away at the ${MAPS[MAP.id].name}`:''}. Revenants rise in ${t}`:
-    Z.ph==='break'?`Wave ${Z.w} cleared. Breathe: wave ${Z.w+1} rises in ${t}`:
-    Z.ph==='surge'?(Z.t>0?`Surge: hold the floor for ${t}s · ${L} on the floor`:`Surge over: drop the last ${L}`):
-    Z.ph==='boss'?'Headliner: the Juggernaut. Get behind it, and sidestep the charge':
-    Z.ph==='inter'?`Intermission · segment ${Z.seg+1} in ${t}`:`Survive wave ${Z.w}${Z.w===Z.nw?' (last of the segment)':''}: ${left}`;
-  $('tickets').textContent=P?`Favor ${P.fv|0} · you dropped ${P.k|0} · together ${Z.kills|0}`:'';
+  /* the co-op board: wave (and segment) | Revenants left, or the countdown between waves | your Favor; a bar fills as the wave dies */
+  const t=Math.ceil(Z.t),live=S.phase==='live',buy=S.phase==='buy',cd=buy?Math.ceil(S.t):t;
+  const W=Z.ph==='surge'?'Surge':Z.ph==='boss'?'Boss':`${Math.max(1,Z.w)}/${Z.nw}`;
+  $('zsW').textContent=W;$('zsWl').textContent=(Z.ph==='surge'||Z.ph==='boss'?'':'Wave · ')+`seg ${Z.seg||1}/${Z.segs}`+(Z.seg===Z.awaySeg?' away':'');
+  const count=buy||live&&(Z.ph==='pre'||Z.ph==='break'||Z.ph==='inter'||(Z.ph==='surge'&&Z.t>0));
+  $('zsL').textContent=count?cd:L;$('zsL').style.color=count?'var(--accent)':'';
+  $('zsLl').textContent=buy?'Going live':!live?(L===1?'Revenant':'Revenants'):Z.ph==='pre'?'Revenants rise':Z.ph==='break'?'Next wave':Z.ph==='inter'?'Intermission':Z.ph==='surge'&&Z.t>0?`Hold · ${L} up`:L===1?'Revenant':'Revenants';
+  $('zsF').textContent=P?P.fv|0:0;
+  $('zsB').style.width=(Z.ph==='wave'&&Z.total?100*clamp(1-L/Z.total,0,1):Z.ph==='break'||Z.ph==='inter'?100:0).toFixed(1)+'%';
+  const rb=$('role'),dir=Z.act&&ZDIR[Z.act];rb.hidden=!dir;if(dir){rb.className='zd';rb.textContent=`${ZDIR[Z.act].n} · 2× Favor`;}
+  $('objective').textContent=!live?'':Z.ph==='surge'?(Z.t>0?'Elites incoming. Hold the floor':`Drop the last ${L}`):'';
   {const bb=$('zrboss'),on=S.phase==='live'&&Z.ph==='boss'&&!!Z.boss;bb.hidden=!on;const tb=$('topbar').getBoundingClientRect().bottom;
     if(on){$('zrbossF').style.width=(100*clamp(Z.boss.hp/(Z.boss.max||1),0,1)).toFixed(1)+'%';bb.style.top=(tb+6)+'px';}
     $('zrcap').style.top=Math.max(innerHeight*0.28,(on?bb.getBoundingClientRect().bottom:tb)+12)+'px';}/* below everything up top */
@@ -5010,10 +5024,12 @@ function hud(dt){
   $('sc0').textContent=S.score[0];$('sc1').textContent=S.score[1];
   $('clock').textContent=S.phase==='buy'?'0:0'+Math.ceil(S.t):S.armed?fmt(S.armed.t):SB.on&&!SB.timer?'∞':fmt(S.timer);
   $('clock').style.color=S.armed?'var(--bad)':'';bigCount();
-  $('roundinfo').textContent=S.range?'Shooting range':dm?`${modeName('dm',S.size)} · first to ${S.kills} kills`:`Round ${S.round} · first to ${CFG.winScore}`+(S.sudden?' · sudden death, no respawns':'');
-  const rb=$('role');if(S.range)rb.hidden=true;else if(dm&&P){rb.hidden=false;rb.className='dm';rb.textContent=S.size===1?'Deathmatch':'Team '+TEAMN[myTeam];}else if(role){rb.hidden=false;rb.className=role;rb.textContent=(role==='atk'?'Attack':'Defend')+' · '+TEAMN[myTeam];}else rb.hidden=true;
+  /* one score box: the round or kill target under the clock, respawns as pips under each side, your side underlined */
+  $('roundinfo').textContent=S.range?'Range':dm?`First to ${S.kills}`:S.sudden?`Round ${S.round} · sudden death`:`Round ${S.round} · to ${CFG.winScore}`;
+  for(const t of [0,1]){$('sd'+t).classList.toggle('me',!!P&&!S.range&&(S.size>1||dm)&&myTeam===t);const pk=$('tk'+t),n=dm||S.range?0:Math.max(0,S.tickets[t]|0);if(pk.childElementCount!==n)pk.replaceChildren(...Array.from({length:n},()=>document.createElement('i')));}
+  const rb=$('role');if(S.range||dm)rb.hidden=true;else if(role){rb.hidden=false;rb.className=role;rb.textContent=role==='atk'?'Attack':'Defend';}else rb.hidden=true;
   let obj='';
-  if(dm)obj=S.phase==='buy'?'Get ready. Match starts in '+Math.ceil(S.t):S.phase==='live'?(S.size===1?`Kill your opponent. First to ${S.kills} wins`:`Score kills for your team. First to ${S.kills} wins`):'';
+  if(dm)obj=S.phase==='buy'?'Get ready. Match starts in '+Math.ceil(S.t):'';
   else if(S.phase==='buy')obj='Get ready. Round starts in '+Math.ceil(S.t);
   else if(S.armed)obj=role==='atk'?`Charge armed at ${S.armed.site}. Keep defenders off it.`:`Charge armed at ${S.armed.site}. Defuse it!`;
   else if(role==='atk')obj='Push in and arm the charge at A or B';else if(role==='def')obj='Hold sites A and B until time runs out';
@@ -5021,12 +5037,13 @@ function hud(dt){
   $('objective').textContent=obj;
   const C=S.center||{own:-1,cap:-1,p:0};
   const cTxt=C.cap>=0&&C.p>0?`${C.cap===myTeam?'you are':TEAMN[C.cap]+' is'} taking the center ${Math.round(C.p*100)}%`:C.own<0?'center neutral':C.own===myTeam?`you hold the center (+${CENTER_HP} HP spawn)`:`${TEAMN[C.own]} holds the center`;
-  if(P&&S.range)$('tickets').textContent=`Bot kills ${P.k|0} · deaths ${P.d|0}`;
-  else if(P&&dm)$('tickets').textContent=`You  ${P.k|0} kills · ${P.d|0} deaths`;
-  else if(P)$('tickets').textContent=`Respawns left  you ${S.tickets[myTeam]} · them ${S.tickets[1-myTeam]} · ${cTxt}`;else $('tickets').textContent='';
+  /* the center only earns a line while someone is taking it; who holds it shows on the minimap */
+  if(!dm&&!S.range&&S.phase==='live'&&!S.armed&&C.cap>=0&&C.p>0)$('objective').textContent=cTxt[0].toUpperCase()+cTxt.slice(1);
+  $('tickets').textContent=P&&S.range?`Bot kills ${P.k|0} · deaths ${P.d|0}`:'';
+  document.body.classList.toggle('zrmode',zr);
   if(zr)zrHud(P);else zrHide();
   // feed
-  const fd=$('feed');const items=S.feed.filter(f=>S.clock-f.t<7).slice(-5);const fk=items.map(f=>f.t+f.m).join('|');
+  const fd=$('feed');const items=S.feed.filter(f=>S.clock-f.t<6).slice(-(TOUCH.on?3:4));const fk=items.map(f=>f.t+f.m).join('|');
   if(fd.dataset.k!==fk){fd.dataset.k=fk;fd.replaceChildren(...items.map(f=>{const d=document.createElement('div');d.textContent=f.m;return d;}));}
   // vitals
   if(P){
@@ -5094,7 +5111,7 @@ function hud(dt){
   let np='';
   if(net.mode==='solo')np=SB.on&&S.range?'Shooting range · T opens the spawn tools':SB.on?`Sandbox · bots ${SB.bots==='on'?'fighting':SB.bots} · T opens the dev overlay`:`Practice · ${modeName(S.mode,S.size)} · you and ${S.players.length-1} bot${S.players.length>2?'s':''}`;
   else{const humans=S.players.filter(p=>!p.bot).length;np=`Online · match ${net.code} · ${humans} player${humans===1?'':'s'}, ${S.players.length-humans} bot${S.players.length-humans===1?'':'s'}`+(net.host?' · you are hosting':'')+(s<0?' · spectating (match full)':'');}
-  $('netpill').textContent=np;
+  $('netpill').textContent=np;$('netpill').style.visibility=S.phase==='live'&&!SB.on&&s>=0?'hidden':'';
   drawMini(P,myTeam,role);
 }
 function esc(t){return String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
