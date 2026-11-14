@@ -1242,17 +1242,17 @@ const keys={};let mouseDown=false,adsDown=false,locked=false,dragMode=false;
 const TOUCH={on:false,mx:0,my:0,run:false};
 
 /* ---------- settings (graphics, sound, controls), saved per browser ---------- */
-const OPT0={preset:'high',res:1,autoRes:true,shadows:2,bloom:1,fxaa:true,film:0.6,rain:true,tod:'night',particles:1,marks:true,crowd:1,fog:1,bright:1,fov:78,shake:1,fps:false,lights:true,beatLights:false,ao:false,refl:false,beams:false,smaa:false,aniso:false,
+const OPT0={preset:'high',res:1,autoRes:true,shadows:2,bloom:1,fxaa:true,film:0.6,rain:true,tod:'night',particles:1,marks:true,crowd:1,fog:1,bright:1,fov:78,shake:1,fps:false,lights:true,beatLights:false,mblur:0.35,ao:false,refl:false,beams:false,smaa:false,aniso:false,
   vMaster:0.8,vWeapons:0.9,vFx:0.9,vSteps:0.8,vUi:0.8,vAmb:0.6,vRain:0,vMusic:0.6,vMatch:0.5,reverb:0.4,sens:1,adsSens:1,invertY:false,touch:'auto',tSens:1,tAdsSens:1,tSize:1,tFire2:true,tAutoRun:true,dmgDir:'arc'};
-const PRESETS={low:{res:0.75,shadows:0,bloom:0,fxaa:false,film:0,rain:false,particles:0.5,marks:false,crowd:0.35,ao:false,refl:false,beams:false,smaa:false,aniso:false},
-  medium:{res:1,shadows:1,bloom:1,fxaa:true,film:0.4,rain:true,particles:1,marks:true,crowd:0.7,ao:false,refl:false,beams:false,smaa:false,aniso:false},
-  high:{res:1,shadows:2,bloom:1,fxaa:true,film:0.6,rain:true,particles:1,marks:true,crowd:1,ao:false,refl:false,beams:false,smaa:false,aniso:false},
-  ultra:{res:1.25,shadows:3,bloom:1,fxaa:true,film:0.6,rain:true,particles:2,marks:true,crowd:1,ao:false,refl:false,beams:false,smaa:false,aniso:false},
+const PRESETS={low:{mblur:0,res:0.75,shadows:0,bloom:0,fxaa:false,film:0,rain:false,particles:0.5,marks:false,crowd:0.35,ao:false,refl:false,beams:false,smaa:false,aniso:false},
+  medium:{mblur:0.35,res:1,shadows:1,bloom:1,fxaa:true,film:0.4,rain:true,particles:1,marks:true,crowd:0.7,ao:false,refl:false,beams:false,smaa:false,aniso:false},
+  high:{mblur:0.35,res:1,shadows:2,bloom:1,fxaa:true,film:0.6,rain:true,particles:1,marks:true,crowd:1,ao:false,refl:false,beams:false,smaa:false,aniso:false},
+  ultra:{mblur:0.35,res:1.25,shadows:3,bloom:1,fxaa:true,film:0.6,rain:true,particles:2,marks:true,crowd:1,ao:false,refl:false,beams:false,smaa:false,aniso:false},
   // Max is for high-end GPUs only; nothing below it pays for these effects (each is off and costs nothing when off)
-  max:{res:1.25,shadows:4,bloom:1,fxaa:true,film:0.6,rain:true,particles:2,marks:true,crowd:1,ao:true,refl:true,beams:true,smaa:true,aniso:true}};
+  max:{mblur:0.35,res:1.25,shadows:4,bloom:1,fxaa:true,film:0.6,rain:true,particles:2,marks:true,crowd:1,ao:true,refl:true,beams:true,smaa:true,aniso:true}};
 const OPT=Object.assign({},OPT0);
 (function(){try{const d=JSON.parse(localStorage.getItem('za-opt')||'null');
-  if(d){for(const k in OPT0)if(typeof d[k]===typeof OPT0[k])OPT[k]=d[k];}
+  if(d){for(const k in OPT0)if(typeof d[k]===typeof OPT0[k])OPT[k]=d[k];if(d.mblur===undefined&&d.preset==='low')OPT.mblur=0;}
   else{if(localStorage.getItem('za-gfx')==='0')Object.assign(OPT,PRESETS.low,{preset:'low'});const sv=parseFloat(localStorage.getItem('za-sens'));if(sv>=0.3&&sv<=3)OPT.sens=sv;}}catch(e){}})();
 function saveOpt(){try{localStorage.setItem('za-opt',JSON.stringify(OPT));}catch(e){}}
 
@@ -1757,20 +1757,63 @@ const FilmShader={uniforms:{tDiffuse:{value:null},amt:{value:0.6},time:{value:0}
     'col*=1.0-amt*0.6*smoothstep(0.12,0.5,r2);',
     'float n=fract(sin(dot(vUv*vec2(1361.0,977.0)+fract(time)*37.0,vec2(12.9898,78.233)))*43758.5453)-0.5;col+=n*0.03*amt;',
     'gl_FragColor=vec4(col,1.0);}'].join('\n')};
+/* camera motion blur: one full-screen pass after the glow. The scene depth is reprojected with last frame's camera, so turning
+   and strafing smear along the true screen motion. Kept subtle for aiming: nothing nearer than ~1 m (the gun in your hands) blurs,
+   the middle of the screen blurs much less than the edges, aiming down sights damps it, and it is normalised to a 60 fps
+   shutter so a low frame rate doesn't smear more. Touch screens take 4 samples instead of 7. Off (and skipped entirely) at 0
+   or while the camera is still. */
+const MB=(function(){
+  const taps=matchMedia('(pointer:coarse)').matches?4:7;
+  const shader={uniforms:{tDiffuse:{value:null},tDepth:{value:null},uInvVP:{value:new THREE.Matrix4()},uPrevVP:{value:new THREE.Matrix4()},
+      uAmt:{value:0},uMax:{value:0.035},uNear:{value:0.03},uFar:{value:500},uAsp:{value:1},uT:{value:0}},
+    vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+    fragmentShader:`#define TAPS ${taps}
+uniform sampler2D tDiffuse,tDepth;uniform mat4 uInvVP,uPrevVP;uniform float uAmt,uMax,uNear,uFar,uAsp,uT;varying vec2 vUv;
+void main(){float d=texture2D(tDepth,vUv).x;vec4 w=uInvVP*vec4(vUv*2.0-1.0,d*2.0-1.0,1.0);w/=w.w;vec4 p=uPrevVP*w;
+  vec2 vel=(vUv-(p.xy/p.w*0.5+0.5))*uAmt;
+  float dist=uNear*uFar/(uFar-d*(uFar-uNear));
+  float k=smoothstep(0.9,1.6,dist)*mix(0.3,1.0,smoothstep(0.04,0.33,length((vUv-0.5)*vec2(uAsp,1.0))));
+  vel*=k;float l=length(vel);if(l>uMax)vel*=uMax/l;
+  vec4 c=texture2D(tDiffuse,vUv);if(l*k<0.0006){gl_FragColor=c;return;}
+  float j=fract(sin(dot(vUv+uT,vec2(12.9898,78.233)))*43758.5453)-0.5;vec3 s=c.rgb;
+  for(int i=0;i<TAPS;i++){float t=(float(i)+0.5+j)/float(TAPS)-0.5;s+=texture2D(tDiffuse,clamp(vUv+vel*t,0.001,0.999)).rgb;}
+  gl_FragColor=vec4(s/float(TAPS+1),c.a);}`};
+  const U=shader.uniforms,cur=new THREE.Matrix4(),prev=new THREE.Matrix4(),pp=new THREE.Vector3(),v=new THREE.Vector3(),q=new THREE.Vector3();
+  let pass=null,depth=null,have=false,lastT=0;
+  // the scene depth lives in whichever composer target the RenderPass drew into this frame
+  function hook(rp){const r=rp.render;rp.render=function(ren,wb,rb){depth=rb.depthTexture;return r.apply(this,arguments);};}
+  function make(){pass=new ShaderPass(shader);pass.material.depthTest=pass.material.depthWrite=false;pass.enabled=false;return pass;}
+  /* called every frame before rendering: decides whether the pass runs and sets its matrices */
+  function pre(){const now=performance.now(),dt=(now-lastT)/1000;lastT=now;
+    camera.updateMatrixWorld();cur.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);
+    let on=false;
+    if(pass&&OPT.mblur>0.01&&S&&!DIO.on&&have&&dt>0&&dt<0.1&&camera.position.distanceToSquared(pp)<1){
+      // how far the screen centre and a corner 10 m out moved on screen since last frame
+      U.uInvVP.value.copy(cur).invert();let mv=0;for(const [x,y] of [[0,0],[0.9,0.9]]){v.set(x,y,0.98).applyMatrix4(U.uInvVP.value);q.copy(v).applyMatrix4(prev);mv=Math.max(mv,Math.hypot(q.x-x,q.y-y));}
+      if(mv>0.002){on=true;const ads=typeof me.ads==='number'?me.ads:0;
+        U.uAmt.value=OPT.mblur*Math.min(2,Math.max(0.4,(1/60)/dt))*(1-0.75*ads);
+        U.uPrevVP.value.copy(prev);U.uNear.value=camera.near;U.uFar.value=camera.far;U.uAsp.value=camera.aspect;U.uT.value=(now/1000)%10;}}
+    if(pass)pass.enabled=on;
+    prev.copy(cur);pp.copy(camera.position);have=true;return on;}
+  function render(){if(pass&&pass.enabled)U.tDepth.value=depth;}
+  return{make,hook,pre,render,get pass(){return pass;},taps};
+})();
 (function(){
   try{composer=new EffectComposer(renderer,new THREE.WebGLRenderTarget(innerWidth,innerHeight,{type:THREE.HalfFloatType,stencilBuffer:true}));
     // Since r153 materials only tone-map when drawing to the screen, so toneMapped:false neon would be tone-mapped by an
     // OutputPass. Flagging the composer targets like WebXR's makes materials tone-map into them, as r128 did.
-    for(const rt of [composer.renderTarget1,composer.renderTarget2]){rt.isXRRenderTarget=true;rt.texture.colorSpace=THREE.LinearSRGBColorSpace;}
-    composer.addPass(new RenderPass(scene,camera));bloomPass=new UnrealBloomPass(new THREE.Vector2(innerWidth/2,innerHeight/2),0.4125,0.55,0.8);composer.addPass(bloomPass);
+    for(const rt of [composer.renderTarget1,composer.renderTarget2]){rt.isXRRenderTarget=true;rt.texture.colorSpace=THREE.LinearSRGBColorSpace;
+      rt.depthTexture=new THREE.DepthTexture(innerWidth,innerHeight,THREE.UnsignedInt248Type);rt.depthTexture.format=THREE.DepthStencilFormat;}
+    {const rp=new RenderPass(scene,camera);MB.hook(rp);composer.addPass(rp);}bloomPass=new UnrealBloomPass(new THREE.Vector2(innerWidth/2,innerHeight/2),0.4125,0.55,0.8);composer.addPass(bloomPass);
     {const hp=bloomPass.materialHighPassFilter;hp.fragmentShader=hp.fragmentShader.replace('gl_FragColor = mix( outputColor, texel, alpha );','gl_FragColor = mix( outputColor, texel, alpha ); gl_FragColor.rgb *= clamp( texel.a, 0.0, 1.0 );');hp.needsUpdate=true;}
     // The film pass also encodes sRGB, so it always runs (at amt 0 it is a plain sRGB pass); FXAA then works on the sRGB image.
+    try{composer.addPass(MB.make());}catch(e){}
     filmPass=new ShaderPass(FilmShader);composer.addPass(filmPass);
     fxaaPass=new FXAAPass();composer.addPass(fxaaPass);}catch(e){composer=null;bloomPass=fxaaPass=filmPass=gtaoPass=smaaPass=null;}})();
 function resize(){const w=window.innerWidth,h=window.innerHeight;renderer.setSize(w,h,false);if(composer)composer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();}
 window.addEventListener('resize',resize);resize();
-function usePost(){return composer&&(OPT.bloom>0.01||(OPT.fxaa&&fxaaPass)||OPT.film>0.01||(OPT.ao&&gtaoPass)||(OPT.smaa&&smaaPass));}
-function renderScene(){OUTLINE_U.uK.value=2.2*2*Math.tan(camera.fov*Math.PI/360)/Math.max(1,innerHeight);if(OPT.refl)FREF.render();if(usePost()){filmPass.uniforms.time.value=(performance.now()/1000)%100;composer.render();}else renderer.render(scene,camera);}
+function usePost(){return composer&&((OPT.mblur>0.01&&MB.pass&&MB.pass.enabled)||OPT.bloom>0.01||(OPT.fxaa&&fxaaPass)||OPT.film>0.01||(OPT.ao&&gtaoPass)||(OPT.smaa&&smaaPass));}
+function renderScene(){OUTLINE_U.uK.value=2.2*2*Math.tan(camera.fov*Math.PI/360)/Math.max(1,innerHeight);if(OPT.refl)FREF.render();const mb=MB.pre();if(mb)MB.render();if(usePost()||mb){filmPass.uniforms.time.value=(performance.now()/1000)%100;composer.render();}else renderer.render(scene,camera);}
 
 /* ---------- atmosphere: rain, hologram signs, glowing bullet marks ---------- */
 const RAIN_N=1600,rainPos=new Float32Array(RAIN_N*6),rainSeed=new Float32Array(RAIN_N*3);
@@ -4392,6 +4435,7 @@ const SET=[
   ['g','bright','Brightness','rng',0.6,1.6,0.05,pct],
   ['g','fov','Field of view','rng',60,100,1,v=>v+'°'],
   ['g','shake','Screen shake','rng',0,1.5,0.05,pct],
+  ['g','mblur','Motion blur (when you turn or move fast)','rng',0,1,0.05,pct],
   ['g','tod','Time of day','sel',[['night','Night (neon)'],['day','Day']]],
   ['g','rain','Rain (visual)','chk'],
   ['g','lights','Reactive arena lights (flash on match events)','chk'],
@@ -5378,6 +5422,6 @@ mergeChildren(scene);
 refreshZoneLook('atk');
 // Compile every material's shader up front (in parallel where the browser supports it) so nothing compiles on the first shot or spawn.
 renderer.compileAsync(scene,camera).catch(()=>{}).finally(()=>requestAnimationFrame(frame));
-window.__za={dio:DIO,beat:BEAT,lx:LX,opt:OPT,zr:{ZB,ZR,ZCARDS,zrCardSend:c=>zrCardSend(c),zrCardAct:(p,c)=>zrCardAct(p,c),zrSeg:n=>zrSeg(n),zrInter:()=>zrInter(),zAoe:(...a)=>zAoe(...a),zSpawn:(t,x,z,y,e)=>zSpawn(t,x,z,y,e),zTick:dt=>zTick(dt),zRender:dt=>zRender(dt),zClear:()=>zClear(),zRay:(...a)=>zRay(...a),zHorde:()=>zHorde(),rgOn:()=>rgOn(),zBurst:(z,b)=>zBurst(z,b),zPack:()=>zPack(),zApplyT:(z,e,b)=>zApply(z,e,b),zSync:(a,b)=>zSync(a,b),zrWave:n=>zrWave(n),zKill:(z,h,b)=>zKill(z,h,b),zHitAt:(...a)=>zHitAt(...a),zDeliver:()=>zDeliver(),ZD},sim:{hostTick:dt=>hostTick(dt),coverTick:dt=>coverTick(dt),newMatch:()=>newMatch(),MATCH,dmSpawnSpot:p=>dmSpawnSpot(p),findPath:(a,b,c,d)=>findPath(a,b,c,d),freeAt:(x,z)=>freeAt(x,z),losPts:(...a)=>losPts(...a),DM_PTS,BOXES},BL,fire:()=>{const s=mySlot();if(s>=0)fire(s);},damage:(t,d,a,h)=>damage(t,d,a,h),prog:{PROG,PARTS,myW,modW,progSave,progLoad,rebuildVW,lvlOf,XPR},LX,MU,MM,WM,VB,OPT,AU,dev:{DEV,TUNE,GUN,W,COVER0,TWIN,STEP_MODE,devCollect,devApply},damageCover,COVER,coverVis,WH,openWheel:m=>openWheel(m),closeWheel:c=>closeWheel(c),wheelMove:(x,y)=>wheelMove(x,y),gfx:{renderer,scene,camera,applyGfx,DR,render:()=>renderScene(),FREF,BEAMS,get gtao(){return gtaoPass;}},openPause:()=>openPause(),closePause:()=>closePause(),leaveMatch:()=>leaveMatch(),get S(){return S;},me,net,DMGDIR,rg:{RG,rgAdd,rgRemove,rgClear,BOXES},maps:{MAPS,MAP,MATCH,setMap,SITES,DM_PTS,findPath,freeAt,simTick:dt=>netTick(dt),SHOW,showCut:i=>showCut(i),TOD,ISO},botMem,CFG,SB,OPT,AU,get actx(){return actx;},mySlot:()=>mySlot(),sfx:{hitCue,HITX,footstep,slideSound,shotSound,stepSound,get stepBufs(){return stepBufs;},get slideBuf(){return slideBuf;},get gunBufs(){return gunBufs;}}};
+window.__za={dio:DIO,beat:BEAT,lx:LX,opt:OPT,zr:{ZB,ZR,ZCARDS,zrCardSend:c=>zrCardSend(c),zrCardAct:(p,c)=>zrCardAct(p,c),zrSeg:n=>zrSeg(n),zrInter:()=>zrInter(),zAoe:(...a)=>zAoe(...a),zSpawn:(t,x,z,y,e)=>zSpawn(t,x,z,y,e),zTick:dt=>zTick(dt),zRender:dt=>zRender(dt),zClear:()=>zClear(),zRay:(...a)=>zRay(...a),zHorde:()=>zHorde(),rgOn:()=>rgOn(),zBurst:(z,b)=>zBurst(z,b),zPack:()=>zPack(),zApplyT:(z,e,b)=>zApply(z,e,b),zSync:(a,b)=>zSync(a,b),zrWave:n=>zrWave(n),zKill:(z,h,b)=>zKill(z,h,b),zHitAt:(...a)=>zHitAt(...a),zDeliver:()=>zDeliver(),ZD},sim:{hostTick:dt=>hostTick(dt),coverTick:dt=>coverTick(dt),newMatch:()=>newMatch(),MATCH,dmSpawnSpot:p=>dmSpawnSpot(p),findPath:(a,b,c,d)=>findPath(a,b,c,d),freeAt:(x,z)=>freeAt(x,z),losPts:(...a)=>losPts(...a),DM_PTS,BOXES},BL,fire:()=>{const s=mySlot();if(s>=0)fire(s);},damage:(t,d,a,h)=>damage(t,d,a,h),prog:{PROG,PARTS,myW,modW,progSave,progLoad,rebuildVW,lvlOf,XPR},LX,MU,MM,WM,VB,OPT,AU,dev:{DEV,TUNE,GUN,W,COVER0,TWIN,STEP_MODE,devCollect,devApply},damageCover,COVER,coverVis,WH,openWheel:m=>openWheel(m),closeWheel:c=>closeWheel(c),wheelMove:(x,y)=>wheelMove(x,y),gfx:{renderer,scene,camera,applyGfx,DR,render:()=>renderScene(),FREF,BEAMS,MB,me,get gtao(){return gtaoPass;}},openPause:()=>openPause(),closePause:()=>closePause(),leaveMatch:()=>leaveMatch(),get S(){return S;},me,net,DMGDIR,rg:{RG,rgAdd,rgRemove,rgClear,BOXES},maps:{MAPS,MAP,MATCH,setMap,SITES,DM_PTS,findPath,freeAt,simTick:dt=>netTick(dt),SHOW,showCut:i=>showCut(i),TOD,ISO},botMem,CFG,SB,OPT,AU,get actx(){return actx;},mySlot:()=>mySlot(),sfx:{hitCue,HITX,footstep,slideSound,shotSound,stepSound,get stepBufs(){return stepBufs;},get slideBuf(){return slideBuf;},get gunBufs(){return gunBufs;}}};
 })();
 </script>
