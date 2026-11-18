@@ -57,6 +57,16 @@ Pick the mode on the main menu. It applies to Practice and to online matches (ea
 | Time limit | 10 min (`CFG.dmTime`) |
 | Respawn delay | 3 s (`CFG.dmRespawn`) |
 
+## Maps
+
+Each map has its own mechanic, light and sound, on top of its layout. Everything timed runs on the round clock (`S.mft`), so it starts over each round and every player online sees the same thing.
+
+- **Yard:** a bridge crane carries one shipping container between three slots across the middle (north lane, center, south lane). It sits for 23 s, then lifts, travels and lowers into a different slot (30 s cycle, `craneAt`). A horn plays and the next slot is marked on the floor before it lands. While it's down you can climb on it; while it's in the air nothing blocks that slot. Anyone under it when it lands is pushed out.
+- **Foundry:** the center channel between the steel walls floods with molten metal. 29 s quiet, 3 s warning (alarm and flashing banks), then 8 s molten (40 s cycle, `pourAt`). Standing on the channel floor while it's molten burns 45 HP/s; standing on cover inside it is safe. In Zone you go down (and finish if you stay), in deathmatch you die, in Zombie Rumble you go down.
+- **Atrium:** six tall glass panes stop bullets but not sight. Each takes 150 damage, cracks at half, shatters, and rebuilds after 9 s. Bots can see you through glass but their shots hit the glass.
+- **Warren:** much darker light and nearer haze, lamps that flicker, acid puddles that glow, and a big flare at the muzzle whenever someone fires, so shooting gives you away. Other players' footsteps carry further.
+- **Ambience:** each map has its own recorded background (city hum, machinery, air handling, dripping basement) and its own reverb. The **Map ambience** slider in Settings sets its volume.
+
 ## Rules
 
 - Two teams of two. Attackers arm a charge at site A or B; defenders stop them or defuse it.
@@ -174,6 +184,14 @@ Settings live in this browser (`localStorage` keys `za-sb` and `za-dev`). **Copy
 | Main menu music (menu only; matches have no music) | "Neon futuristic music" (Pixabay 614622), supplied by Joe, re-encoded to 128 kbps. | ikoliks_aj (Pixabay) | [Pixabay Content License](https://pixabay.com/service/license-summary/) |
 | Match music (fades in from 0:33 after the first "Fight", then loops from 0:37) | "Evasion (dark cyberpunk action)" (Pixabay 123274), supplied by Joe; 0:33 to the end, re-encoded to 112 kbps. | Evgeny Bardyuzha (Pixabay) | [Pixabay Content License](https://pixabay.com/service/license-summary/) |
 | Revenant groans, calls, snarls and death cries | [Zombies sound pack](https://opengameart.org/content/zombies-sound-pack) (`zombie-1` to `zombie-23`, 20 of the 24 clips): 60 Hz high-passed, 50 ms fade, loudness-normalized, mono 22 kHz MP3. | artisticdude (OpenGameArt.org) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| Yard ambience | [Sci-fi city ambient loop](https://opengameart.org/content/scifi-city-ambient-loop) (`busy_cyberworld.ogg`), loudness-normalized, mono MP3. | TinyWorlds (OpenGameArt.org) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| Foundry ambience | [12 ambient machine sounds](https://opengameart.org/content/12-ambient-machine-sounds) (`ambient_machine2.wav`, first 24 s), loudness-normalized, mono MP3. | Michael Brigida and students (OpenGameArt.org) | [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/) |
+| Atrium ambience | [12 ambient machine sounds](https://opengameart.org/content/12-ambient-machine-sounds) (`fan_1.wav`, first 20 s), loudness-normalized, mono MP3. | Michael Brigida and students (OpenGameArt.org) | [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/) |
+| Warren ambience | [Dripping water loop](https://opengameart.org/content/dripping-water-loop) (`atmosbasement`), loudness-normalized MP3. | Johannes Pinter (OpenGameArt.org) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| Molten metal in the Foundry pour | [Lava loop](https://opengameart.org/content/lava-loop) (`LavaLoop.wav`, first 10 s), loudness-normalized MP3. | Blender Foundation (OpenGameArt.org) | [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/) |
+| Glass panes shattering and taking hits | [Glass break](https://opengameart.org/content/glass-break) (`glass_breaking.wav`); [75 CC0 breaking/falling/hit sfx](https://opengameart.org/content/75-cc0-breaking-falling-hit-sfx) (`glass_breaking_06`, `glass_hit_01`/`02`). | Till Behrend; rubberduck (OpenGameArt.org) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| Foundry pour alarm | [Alarm](https://opengameart.org/content/alarm-1) (`alarm_2.ogg`). | EZduzziteh (OpenGameArt.org) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| Yard crane horn, travel and landing | [30 CC0 SFX loops](https://opengameart.org/content/30-cc0-sfx-loops) (`alarm_03`, `rolling`); [75 CC0 breaking/falling/hit sfx](https://opengameart.org/content/75-cc0-breaking-falling-hit-sfx) (`metal_falling_01`). | rubberduck (OpenGameArt.org) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | Announcer: 3, 2, 1, Fight, Round won, Round lost, Switching sides, Offense, Defense, The bomb has been planted, Double kill, Triple kill | Joe's own voice recordings, processed with a light vocoder layer and a stadium PA effect (speaker tone, slap-back echoes, long reverb tail). | Joe | Original recording |
 - For headless testing the page exposes `window.__za` (state, player, `CFG`, sandbox settings).
 
