@@ -191,6 +191,7 @@ body.prematch #topbar,body.prematch #mini,body.prematch #feed,body.prematch #vit
 #zrwcard .zwh span{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--hc);font-weight:700}#zrwcard .zwh b{display:block;font-size:19px;margin:1px 0 2px}#zrwcard .zwh i{display:block;font-style:normal;font-size:12px;color:var(--hc);margin-bottom:6px}
 #zrwcard table{width:100%;border-collapse:collapse;font-family:var(--mono)}#zrwcard th{font:600 10px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;text-align:right;padding:0 0 3px 6px}#zrwcard th:first-child{text-align:left;padding-left:0}
 #zrwcard td{padding:2px 0 2px 6px;text-align:right;white-space:nowrap}#zrwcard td:first-child{text-align:left;padding-left:0;font-family:var(--ui,inherit);color:var(--muted)}#zrwcard td.up{color:#4dff8a}#zrwcard td.dn{color:#ff6a5c}#zrwcard td.cur{color:var(--muted)}
+#zrwcard.tc{width:auto;max-width:200px;padding:6px 9px;font-size:12px}#zrwcard.tc .zwh b{font-size:15px}#zrwcard.tc .zwh span{font-size:9px}#zrwcard.tc .zwh i{font-size:12px;margin-bottom:0;line-height:1.35}#zrwcard.tc .zwp{margin-top:4px;font-size:12px}
 #zrwcard .zwp{margin-top:7px;font-size:13px;color:var(--fg)}#zrwcard .zwp.far{color:var(--muted)}#zrwcard kbd{font:700 12px var(--mono);border:1px solid var(--line);border-radius:3px;padding:0 4px}
 #zrboss{left:50%;top:150px;transform:translateX(-50%);width:min(520px,calc(100vw - 32px));text-align:center;display:flex;flex-direction:column;gap:3px}
 #zrboss b{font-family:var(--display);font-size:20px;letter-spacing:.1em;text-transform:uppercase;color:#ff5a4a;text-shadow:0 1px 2px #000}
@@ -4147,11 +4148,12 @@ function zrWCard(P){const el=$('zrwcard'),L=S.zr.drops||[];let best=null,bd=6;
   if(key!==ZWC.k){ZWC.k=key;const sp=best.sw,mk=(t,c,x)=>{const n=document.createElement(t);if(c)n.className=c;if(x!=null)n.textContent=x;return n;};
     const nw=swApply(zrWMod(modW(sp.k,effParts(sp.k)),null),sp),cw=myW(me.w),A=swStats(nw),B=swStats(cw);
     el.style.setProperty('--hc',ZSWC[sp.r]);const h=mk('div','zwh');const sm=swMods(sp),bo=[['dmg','damage'],['rate','fire rate'],['mag','magazine'],['reload','reload time'],['spread','spread'],['range','range']].filter(([k])=>sm[k]!==1).map(([k,n])=>`${sm[k]>1?'+':'−'}${Math.round(Math.abs(sm[k]-1)*100)}% ${n}`).join(' · ');
-    h.append(mk('span','',`${ZSW[sp.r]} · special weapon`),mk('b','',swName(sp)),mk('i','',bo));
+    const tc=TOUCH.on;el.classList.toggle('tc',tc);/* touch: a compact card with just the boosts (Joe, on the Fold) */
+    h.append(mk('span','',`${ZSW[sp.r]} · special`),mk('b','',swName(sp)));if(tc){for(const l of bo.split(' · '))if(l)h.append(mk('i','',l));}else h.append(mk('i','',bo));
     const tb=mk('table'),hr=mk('tr');hr.append(mk('th','',''),mk('th','','This'),mk('th','',cw.name.length>14?'Yours':cw.name));tb.append(hr);
-    for(const [k,n] of SWROW){const tr=mk('tr'),a=A[k],b=B[k],df=(a.v-b.v)/Math.max(1e-6,Math.abs(b.v));tr.append(mk('td','',n),mk('td',df>0.005?'up':df<-0.005?'dn':'',(df>0.005?'▲ ':df<-0.005?'▼ ':'')+a.t),mk('td','cur',b.t));tb.append(tr);}
-    const ft=mk('div','zwp'+(near?'':' far'));if(near){ft.append(TOUCH.on?'Tap ':'Press ',mk('kbd','',TOUCH.on?'Use':'F'),` to take it. It replaces your ${W[me.w]?W[me.w].name:'gun'} for the rest of the run`);}else ft.textContent='Walk up to it to take it';
-    el.replaceChildren(h,tb,ft);}
+    if(!tc)for(const [k,n] of SWROW){const tr=mk('tr'),a=A[k],b=B[k],df=(a.v-b.v)/Math.max(1e-6,Math.abs(b.v));tr.append(mk('td','',n),mk('td',df>0.005?'up':df<-0.005?'dn':'',(df>0.005?'▲ ':df<-0.005?'▼ ':'')+a.t),mk('td','cur',b.t));tb.append(tr);}
+    const ft=mk('div','zwp'+(near?'':' far'));if(near&&tc){ft.append('Tap ',mk('kbd','','Use'),' to take it');}else if(tc)ft.textContent='Walk up to take it';else if(near){ft.append(TOUCH.on?'Tap ':'Press ',mk('kbd','',TOUCH.on?'Use':'F'),` to take it. It replaces your ${W[me.w]?W[me.w].name:'gun'} for the rest of the run`);}else ft.textContent='Walk up to it to take it';
+    el.replaceChildren(...(tc?[h,ft]:[h,tb,ft]));}
   const W0=innerWidth,H0=innerHeight,x=(v.x*0.5+0.5)*W0,y=(-v.y*0.5+0.5)*H0,w=el.offsetWidth,hh=el.offsetHeight;
   el.style.transform=`translate(${Math.round(clamp(x-w/2,8,W0-w-8))}px,${Math.round(clamp(y-hh-10,Math.min(84,H0-hh-8),H0-hh-8))}px)`;}
 /* both start in the west base, in the same alcove (on any map) */
