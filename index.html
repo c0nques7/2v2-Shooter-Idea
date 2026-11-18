@@ -191,10 +191,19 @@ body.prematch #topbar,body.prematch #mini,body.prematch #feed,body.prematch #vit
 #zrboss b{font-family:var(--display);font-size:20px;letter-spacing:.1em;text-transform:uppercase;color:#ff5a4a;text-shadow:0 1px 2px #000}
 #zrboss .zbb{height:12px;border:1px solid rgba(255,90,74,.6);border-radius:3px;background:rgba(0,0,0,.55);overflow:hidden}#zrboss .zbb i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#ff3030,#ff8a5c);transition:width .2s}
 #zrboss span{font-size:13px;color:var(--muted);text-shadow:0 1px 2px #000}
+#zrlocker{z-index:15;background:rgba(5,4,12,.7)}
+.zlpanel{width:min(680px,100%);max-height:100%;overflow:auto;background:var(--panel-solid);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.zlhd{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.zlhd div{display:flex;flex-direction:column;gap:2px}.zlhd b{font-family:var(--display);font-size:30px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.zlhd div span{font-size:14px;color:var(--muted)}#zrlockcr{font-size:22px;color:var(--warn);white-space:nowrap}
+#zrlocklist{display:flex;flex-direction:column;gap:6px}.zlrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:rgba(255,255,255,.03)}
+.zlinfo{display:flex;flex-direction:column;gap:2px;min-width:0}.zlinfo b{font-size:18px}.zlinfo>span{font-size:14px;color:var(--muted)}
+.zlpips{display:flex;gap:4px;margin-top:3px}.zlpips i{width:22px;height:6px;border-radius:2px;background:rgba(255,255,255,.12)}.zlpips i.on{background:var(--accent);box-shadow:0 0 6px rgba(95,242,255,.6)}
+.zlrow .btn{min-height:44px;min-width:150px;flex:none}.zlft{display:flex;justify-content:flex-end}.zlft .btn{min-height:44px}
 #zrint{left:50%;top:50%;transform:translate(-50%,-50%);width:min(860px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto;pointer-events:auto;z-index:8;background:var(--panel-solid);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:10px;box-shadow:0 0 40px rgba(0,0,0,.6)}
 #zrint .zih{display:flex;justify-content:space-between;align-items:baseline}#zrint .zih b{font-family:var(--display);font-size:30px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}#zrint .zih span{font-size:22px;color:var(--warn)}
 #zrint p{margin:0;color:var(--muted);font-size:15px}
 #zrcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+#zrcards:has(>:nth-child(5)){grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
 .zcard{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;gap:5px;min-height:150px;padding:12px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.14);border-top:4px solid var(--hc);background:rgba(255,255,255,.04);color:var(--fg)}
 .zcard:hover:not([aria-disabled=true]),.zcard:focus-visible{background:rgba(255,255,255,.09);outline:2px solid var(--hc);outline-offset:1px}
 .zcard[aria-disabled=true]{opacity:.45;cursor:default}
@@ -483,6 +492,7 @@ body.touch .chip{min-height:44px}
 <canvas class="hud" id="dmgdir" aria-hidden="true"></canvas><div class="hud" id="flash"></div><div class="hud" id="blastfl"></div>
 <div class="hud" id="zrcap" aria-live="polite"></div>
 <div class="hud" id="zrboss" hidden><b>The Juggernaut</b><div class="zbb"><i id="zrbossF"></i></div><span>Plating turns bullets from the front. Hit it in the back</span></div>
+<div class="overlay" id="zrlocker" hidden role="dialog" aria-label="Locker"><div class="zlpanel"><div class="zlhd"><div><b>Locker</b><span>Permanent upgrades for Zombie Rumble, bought with Credits from runs. They never apply in PvP.</span></div><span id="zrlockcr" class="num"></span></div><div id="zrlocklist"></div><div class="zlft"><button class="btn" type="button" id="zrlockx">Close</button></div></div></div>
 <div class="hud" id="zrint" hidden role="dialog" aria-label="Intermission"><div class="zih"><b>Intermission</b><span id="zrintT" class="num"></span></div><p id="zrintS"></p><div id="zrcards"></div><div id="zrdir" hidden><div><span class="zdh">Broadcast directive · next segment pays double Favor</span><b id="zrdirN"></b><span id="zrdirD"></span></div><button class="btn" type="button" id="zrdirB"></button></div><div class="zib"><button class="btn" type="button" id="zrfor" hidden></button><button class="btn" type="button" id="zrreroll"></button><button class="btn primary" type="button" id="zrready">Ready</button></div><p id="zrintP"></p></div>
 <div class="hud" id="banner" hidden><h2 id="bannerT"></h2><p id="bannerS"></p></div>
 <div class="hud" id="xpsum" hidden aria-live="polite"></div>
@@ -547,6 +557,7 @@ body.touch .chip{min-height:44px}
       <button class="mi" type="button" data-p="play"><span>Play</span></button>
       <button class="mi" type="button" data-p="online"><span>Play online</span></button>
       <button class="mi" type="button" id="shopbtn"><span>Workshop</span></button>
+      <button class="mi" type="button" id="lockbtn"><span>Locker</span></button>
       <button class="mi" type="button" id="sandboxbtn"><span>Sandbox</span></button>
       <button class="mi" type="button" id="setbtn"><span>Settings</span></button>
       <button class="mi" type="button" id="fullbtn"><span>Full screen</span></button>
@@ -942,7 +953,7 @@ function botPick(p,role){const c=role==='atk'?(Math.random()<.5?[1,2,0]:[2,1,0])
 
 function hostTick(dt){
   S.clock+=dt;if(!S.cover)S.cover=COVER.map(b=>b.max);
-  if(S.phase==='buy'){S.t-=dt;if(S.t<=0){S.phase='live';S.t=0;}}
+  if(S.phase==='buy'){S.t-=dt;if(S.t<=0){S.phase='live';S.t=0;/* Sponsor deal: starting Favor, once the humans are seated */if(S.mode==='zr')for(const p of S.players)p.fv=(p.fv|0)+30*zlv(p,'f');}}
   else if(S.phase==='live'){if(S.mode==='dm'){dmTick(dt);if(S.range)rgSiteTick(dt);}else if(S.mode==='zr')zrTick(dt);else liveTick(dt);if(S.phase==='live')regenTick(dt);}
   else if(S.phase==='post'){S.t-=dt;if(S.t<=0){if(!SB.on&&(S.score[0]>=CFG.winScore||S.score[1]>=CFG.winScore)){S.phase='over';S.t=CFG.overT;feed(`${TEAMN[S.score[0]>S.score[1]?0:1]} wins the match`);}else{S.round++;startRound();}}}
   else if(S.phase==='over'){if(net.mode!=='solo'||SB.on)S.t-=dt;const hum=S.players.filter(p=>!p.bot);if(S.t<=0||(hum.length&&S.again&&hum.every(p=>S.again.includes(p.s))))newMatch();}
@@ -994,7 +1005,7 @@ function actions(p,dt,role){
   }
   if(!k){p.ak=null;p.at=-1;p.ap=0;return;}
   if(p.ak!==k||p.at!==tg){p.ak=k;p.at=tg;p.ap=0;}
-  p.ap+=dt/(k==='rev'?CFG.revive*(S.mode==='zr'&&zrHas(p,'fm')?0.6:1):k==='arm'?CFG.arm:CFG.defuse);
+  p.ap+=dt/(k==='rev'?CFG.revive*(S.mode==='zr'?(zrHas(p,'fm')?0.6:1)*(1-0.12*zlv(p,'r')):1):k==='arm'?CFG.arm:CFG.defuse);
   if(p.ap>=1){
     p.ak=null;p.ap=0;p.at=-1;
     if(k==='rev'){xsAdd(p,'rv');const d=S.players[tg];d.st='alive';d.hp=S.mode==='zr'?CFG.zrRevHP:retHP(d.team,roleOf(d.team,S.round),zoneOf(d.x));feed(`${p.name} revived ${d.name} at ${d.hp} HP`);
@@ -1127,7 +1138,7 @@ const notes=$('netstatus');
   else notes.textContent='Online play works when this page is opened on claude.ai. Play works anywhere.';
 })();
 
-function myPresence(){return{n:me.name,p:[+me.x.toFixed(2),+me.y.toFixed(2),+me.z.toFixed(2)],yw:+viewYaw().toFixed(3),pt:+viewPitch().toFixed(3),c:me.crouch||me.slideT>0?1:0,l:+((me.leanOff||0)/0.55).toFixed(2),wr:me.wr,u:me.use,k:me.pick,g:me.give,sh:me.sh,tm:me.teamPref,w:me.w,r:me.reloadT>0?1:0,sx:myW(me.w).supp?1:0,ds:(me.dashSeq|0)%1000,h:net.host&&net.mode==='online'?net.hostSince:0};}
+function myPresence(){return{n:me.name,p:[+me.x.toFixed(2),+me.y.toFixed(2),+me.z.toFixed(2)],yw:+viewYaw().toFixed(3),pt:+viewPitch().toFixed(3),c:me.crouch||me.slideT>0?1:0,l:+((me.leanOff||0)/0.55).toFixed(2),wr:me.wr,u:me.use,k:me.pick,g:me.give,sh:me.sh,tm:me.teamPref,w:me.w,r:me.reloadT>0?1:0,sx:myW(me.w).supp?1:0,ds:(me.dashSeq|0)%1000,lk:lkMine(),h:net.host&&net.mode==='online'?net.hostSince:0};}
 function peerList(){
   if(net.mode==='solo')return[{peer:'local',presence:myPresence(),isMe:true}];
   if(!net.room)return[];
@@ -3494,11 +3505,11 @@ function zSpawn(t,x,z,yaw,elite){if(ZB.list.length>=ZB.cap){const old=ZB.list.fi
 function zRemove(z){const i=ZB.list.indexOf(z);if(i>=0)ZB.list.splice(i,1);}
 function zClear(){ZB.list.length=0;ZB.acc=null;}
 function zHurt(p,dmg,z,burst){if(!p||p.st!=='alive')return;if(SB.on&&SB.god&&!p.bot)return;if(p.prot>0)return;
-  if(S.mode==='zr'){if(zrHas(p,'ts'))dmg*=0.8;if(zrAct('glass'))dmg*=1.25;if(zrSet(p,'med'))dmg*=0.9;if(burst&&zrHas(p,'bp'))dmg*=0.4;if(burst&&zrSet(p,'ark'))dmg*=0.75;dmg=Math.round(dmg);}
+  if(S.mode==='zr'){if(zrHas(p,'ts'))dmg*=0.8;dmg*=1-0.04*zlv(p,'t');if(zrAct('glass'))dmg*=1.25;if(zrSet(p,'med'))dmg*=0.9;if(burst&&zrHas(p,'bp'))dmg*=0.4;if(burst&&zrSet(p,'ark'))dmg*=0.75;dmg=Math.round(dmg);}
   p.hp-=dmg;p.ak=null;p.ap=0;
   // the red damage arcs point at the Revenant that hit you (they only know players, so add it here)
   if(!p.bot&&p.s===mySlot()&&OPT.dmgDir!=='off'){const L=DMGDIR.list,old=L.find(e=>e.s==='z'+z.id);if(old){old.t=DMGDIR.LIFE;old.x=z.x;old.z=z.z;}else{L.push({s:'z'+z.id,x:z.x,z:z.z,t:DMGDIR.LIFE,k:0.9});if(L.length>6)L.shift();}}
-  if(p.hp<=0&&S.mode==='zr'){p.hp=0;p.st='down';p.dhp=CFG.downHP;p.downT=CFG.zrBleed+(zrSet(p,'med')>1?10:0);p.ak=null;p.ap=0;p.d=(p.d|0)+1;feed(`${p.name} is down, dragged under by ${zA(z)}`);}
+  if(p.hp<=0&&S.mode==='zr'){p.hp=0;p.st='down';p.dhp=CFG.downHP;p.downT=CFG.zrBleed+(zrSet(p,'med')>1?10:0)+4*zlv(p,'b');p.ak=null;p.ap=0;p.d=(p.d|0)+1;feed(`${p.name} is down, dragged under by ${zA(z)}`);}
   else if(p.hp<=0){p.hp=0;p.st='dead';p.deadT=S.mode==='dm'?CFG.dmRespawn:CFG.respawn;p.d=(p.d|0)+1;feed(`${p.name} was overrun by ${zA(z)}`);}}
 function zTick(dt){if(!S||S.phase!=='live')return;
   const T=zTargets();ZB.distT-=dt;if(ZB.distT<=0||ZB.grid!==ZB.gridSeen){ZB.distT=0.25;ZB.gridSeen=ZB.grid;zField(T);}
@@ -3752,7 +3763,33 @@ function zcOpen(n){return n===1||!!(ZCAMP.w[n-1]&&ZCAMP.w[n-1].c);}
 function zcPlayable(n){return zcOpen(n)&&!!(ZWEEKS[n]&&ZWEEKS[n].built);}
 function zcSel(){return zcPlayable(ZCAMP.sel)?ZCAMP.sel:1;}
 /* a run ended: every client that played it records it */
-function zcRecord(Z,secs){const w=zcWeek(Z.week||1),was=!!w.c;w.runs=(w.runs|0)+1;if(Z.won){w.c=1;const k=Z.len==='short'?'short':'full';if(!(w.best[k]>0)||secs<w.best[k])w.best[k]=Math.round(secs);}zcSave();zcUI();return Z.won&&!was;}
+function zcRecord(Z,secs){const w=zcWeek(Z.week||1),was=!!w.c;w.runs=(w.runs|0)+1;if(Z.won){w.c=1;const k=Z.len==='short'?'short':'full';if(!(w.best[k]>0)||secs<w.best[k])w.best[k]=Math.round(secs);}
+  // Credits: 12 per wave or surge cleared, 1 per 4 Revenants you dropped, and a bonus for the week (Full 250, Short 120)
+  const s=mySlot(),P=s>=0&&S?S.players[s]:null;ZW.cr=Math.round((Z.cleared|0)*12+((P&&P.k)|0)/4+(Z.won?(Z.len==='short'?120:250):0));ZCAMP.cr=(ZCAMP.cr|0)+ZW.cr;
+  zcSave();zcUI();lockUI();return Z.won&&!was;}
+/* the Locker: Credits buy permanent upgrades for Zombie Rumble only (never PvP). Levels live in ZCAMP.lk; the host reads each
+   human's levels from their presence ('lk', one digit per upgrade in ZLOCKK order), so a guest's upgrades work online too. */
+const ZLOCK={t:{n:'Riot padding',d:'Take 4% less damage from Revenants per level',cost:[150,300,500]},
+  f:{n:'Sponsor deal',d:'Start each run with 30 Favor per level',cost:[120,240,400]},
+  r:{n:'Medic training',d:'Revive your partner 12% faster per level',cost:[100,220,380]},
+  b:{n:'Iron lungs',d:'Bleed out 4 s slower per level while down',cost:[100,220,380]},
+  p:{n:'Patron contacts',d:'Rerolls at the intermission cost 10 Favor less per level',cost:[150,350]},
+  d:{n:'Front row seats',d:'A fourth card on offer at every intermission',cost:[600]}};
+const ZLOCKK=Object.keys(ZLOCK);
+function lkMine(){const o=(ZCAMP.lk&&typeof ZCAMP.lk==='object')?ZCAMP.lk:(ZCAMP.lk={});return ZLOCKK.map(k=>Math.min(ZLOCK[k].cost.length,o[k]|0)).join('');}
+const LKC={};
+function zlv(p,k){if(!p||p.bot||!S||S.mode!=='zr')return 0;const pr=presenceOf(p.peer),code=pr&&typeof pr.lk==='string'?pr.lk:p.s===mySlot()?lkMine():'';
+  const i=ZLOCKK.indexOf(k);return Math.min(ZLOCK[k].cost.length,Math.max(0,+code[i]||0));}
+function zrRerollCost(p){return Math.max(0,ZREROLL-10*zlv(p,'p'));}
+function lockUI(){const el=$('zrlocklist');if(!el)return;const mk=(t,c,x)=>{const n=document.createElement(t);if(c)n.className=c;if(x!=null)n.textContent=x;return n;};const cr=ZCAMP.cr|0,o=ZCAMP.lk||{};
+  $('zrlockcr').textContent=cr.toLocaleString('en-US')+' Credits';$('lockbtn').querySelector('span').textContent='Locker';
+  el.replaceChildren(...ZLOCKK.map(k=>{const L=ZLOCK[k],lv=Math.min(L.cost.length,o[k]|0),max=lv>=L.cost.length,cost=max?0:L.cost[lv],row=mk('div','zlrow');
+    const pips=mk('span','zlpips');for(let i=0;i<L.cost.length;i++)pips.append(mk('i',i<lv?'on':''));
+    const info=mk('div','zlinfo');info.append(mk('b','',L.n),mk('span','',L.d),pips);
+    const b=mk('button','btn'+(max?'':' primary'),max?'Maxed':`Upgrade · ${cost}`);b.type='button';b.disabled=max||cr<cost;
+    b.addEventListener('click',()=>{if(b.disabled)return;ZCAMP.cr=(ZCAMP.cr|0)-cost;ZCAMP.lk=ZCAMP.lk||{};ZCAMP.lk[k]=lv+1;zcSave();lockUI();blip(980,0.04,0.02,false,'ui');});
+    row.append(info,b);return row;}));}
+function lockOpen(on){const el=$('zrlocker');el.hidden=!on;if(on){lockUI();const b=el.querySelector('.zlrow .btn:not(:disabled)')||$('zrlockx');b.focus();blip(660,0.05,0.03,false,'ui');}}
 function zcUI(){const el=$('zrweeks');if(!el)return;const mk=(t,c,x)=>{const n=document.createElement(t);if(c)n.className=c;if(x!=null)n.textContent=x;return n;};const sel=zcSel();
   el.replaceChildren(...[1,2,3,4].map(n=>{const W0=ZWEEKS[n],w=ZCAMP.w[n]||{},open=zcOpen(n),play=zcPlayable(n),b=mk('button','zwk'+(n===sel?' on':''));b.type='button';
     b.setAttribute('role','radio');b.setAttribute('aria-checked',n===sel);b.disabled=!play;
@@ -3884,7 +3921,7 @@ function zrTick(dt){const Z=S.zr;if(!Z)return;S.timer+=dt;const short=Z.len==='s
 /* the intermission: everyone healed and up, three cards each (bots pick one at once) */
 function zrInter(){const Z=S.zr;Z.ph='inter';Z.t=30;zClear();zrRegroup();Z.offers={};Z.picked={};Z.ready={};Z.gun={};{const ks=Object.keys(ZDIR).filter(k=>k!==Z.act);Z.dir=ks[(Math.random()*ks.length)|0];Z.dirOn=0;}
   for(const p of S.players)if(!p.bot){const cur=p.dropW||p.w,ks=WKEYS.filter(k=>k!==cur);Z.gun[p.s]=ks[(Math.random()*ks.length)|0];}/* a gun from the drop pool, for the next segment */
-  for(const p of S.players){Z.offers[p.s]=zrRoll(p,3);if(p.bot){const o=Z.offers[p.s];zrCardAct(p,{a:'pick',id:o[(Math.random()*o.length)|0]});Z.ready[p.s]=1;}}
+  for(const p of S.players){Z.offers[p.s]=zrRoll(p,3+(zlv(p,'d')?1:0));if(p.bot){const o=Z.offers[p.s];zrCardAct(p,{a:'pick',id:o[(Math.random()*o.length)|0]});Z.ready[p.s]=1;}}
   feed(`Intermission · segment ${Z.seg+1} next`);}
 function zrRoll(p,n){const own=new Set([...(p.cards||[]),...((S.zr.offers&&S.zr.offers[p.s])||[])]),pool=[];
   for(const id in ZCARDS){if(own.has(id))continue;const r=ZCARDS[id].r;for(let i=0;i<(r===1?6:r===2?3:1);i++)pool.push(id);}
@@ -3898,7 +3935,7 @@ function zrCardAct(p,c){const Z=S&&S.zr;if(!Z||Z.ph!=='inter'||!p||!c)return;con
     p.fv-=cost;to.cards.push(c.id);of.splice(of.indexOf(c.id),1);feed(to===p?`${p.name} buys ${ZCARDS[c.id].n}`:`${p.name} buys ${ZCARDS[c.id].n} for ${to.name}`);}
   else if(c.a==='dir'&&Z.dir){Z.dirOn=Z.dirOn?0:1;feed(Z.dirOn?`${p.name} takes the directive: ${ZDIR[Z.dir].n}`:`${p.name} turns the directive down`);}
   else if(c.a==='gun'&&Z.picked[s]&&Z.gun&&Z.gun[s]&&(p.fv|0)>=ZGUN){p.fv-=ZGUN;p.dropW=Z.gun[s];Z.gun[s]=null;feed(`${p.name} takes the ${W[p.dropW].name} drop`);}
-  else if(c.a==='reroll'&&of.length&&(p.fv|0)>=ZREROLL){p.fv-=ZREROLL;Z.offers[s]=[];Z.offers[s]=zrRoll(p,of.length);}
+  else if(c.a==='reroll'&&of.length&&(p.fv|0)>=zrRerollCost(p)){p.fv-=zrRerollCost(p);Z.offers[s]=[];Z.offers[s]=zrRoll(p,of.length);}
   else if(c.a==='ready'&&Z.picked[s])Z.ready[s]=1;}
 function zrCardSend(c){const s=mySlot();if(s<0||!S)return;if(net.mode!=='online'||net.host)zrCardAct(S.players[s],c);else if(net.room)net.room.emit('hit',{zc:c}).catch(()=>{});}
 function zrEnd(won,why){const Z=S.zr;Z.won=won;Z.why=why;S.phase='over';S.t=Math.max(CFG.overT,16);S.last={team:won?0:1,why};
@@ -4044,7 +4081,7 @@ function zrBanner(){const Z=S.zr,bn=$('banner');bn.hidden=false;
   if(S.phase==='buy'){$('bannerT').textContent='Monday Night Zombie Rumble';
     $('bannerS').textContent=`You wake in a tunnel under the ${(MAPS[Z.home]||MAPS.yard).name}. A voice on the PA reads the rules: survive the week and you are retained. The host world is watching. · ${Z.segs} segments, about ${Z.len==='short'?10:25} min · Weapon: ${myW(me.w).name}`;return;}
   $('bannerT').textContent=Z.won?'Week complete':'Broadcast terminated';
-  $('bannerS').textContent=(Z.won?'You have been retained'+(ZW.unl&&ZWEEKS[ZW.unl]?` · Week ${ZW.unl}: ${ZWEEKS[ZW.unl].n} unlocked${ZWEEKS[ZW.unl].built?'':' (coming soon)'}`:''):`${Z.why} in segment ${Z.seg}${Z.ph==='boss'?', against the Juggernaut':Z.w?', wave '+Z.w:''}`)+` · ${Z.kills|0} Revenants dropped · ${fmt(S.timer)}${overIn('run')}`;}
+  $('bannerS').textContent=(Z.won?'You have been retained'+(ZW.unl&&ZWEEKS[ZW.unl]?` · Week ${ZW.unl}: ${ZWEEKS[ZW.unl].n} unlocked${ZWEEKS[ZW.unl].built?'':' (coming soon)'}`:''):`${Z.why} in segment ${Z.seg}${Z.ph==='boss'?', against the Juggernaut':Z.w?', wave '+Z.w:''}`)+` · ${Z.kills|0} Revenants dropped · ${fmt(S.timer)}`+(ZW.cr?` · +${ZW.cr} Credits for the Locker`:'')+`${overIn('run')}`;}
 /* the Circuit's announcer, as captions until the lines are recorded, and the crowd (on every client, from the shared state) */
 const ZW={k:'',st:{},fv:0,fvK:-1};
 function zrCap(t,sub){const el=$('zrcap'),d=document.createElement('div');d.textContent=t;if(sub){const s=document.createElement('small');s.textContent=sub;d.append(s);}
@@ -4055,7 +4092,7 @@ function zrWatch(){const Z=S.zr,k=S.mid+':'+Z.seg+':'+Z.w+':'+Z.ph+':'+S.phase,w
     if(o==='alive'&&p.st==='down')zrCap('Warrior down',p.name);else if(o==='down'&&p.st==='alive'&&Z.ph!=='inter')zrCap('Warrior revived',p.name);}
   if(k===was)return;ZW.k=k;
   if(fresh)return;
-  if(S.phase==='over'){crowdCheer(Z.won?'win':'knock',1);sting(Z.won?'win':'lose');ZW.unl=zcRecord(Z,S.timer)?(Z.week||1)+1:0;zrCap(Z.won?'Week complete':'Broadcast terminated',Z.won?'You have been retained':Z.why);}
+  if(S.phase==='over'){crowdCheer(Z.won?'win':'knock',1);sting(Z.won?'win':'lose');ZW.cr=0;ZW.unl=zcRecord(Z,S.timer)?(Z.week||1)+1:0;zrCap(Z.won?'Week complete':'Broadcast terminated',Z.won?'You have been retained':Z.why);}
   else if(S.phase!=='live')return;
   else if(Z.ph==='pre')zrCap(`Segment ${Z.seg}`,Z.act&&ZDIR[Z.act]?`Directive: ${ZDIR[Z.act].n}. ${ZDIR[Z.act].d}. Double Favor`:Z.seg===Z.awaySeg?`Away broadcast from the ${MAPS[MAP.id].name}`:'The host world is watching');
   else if(Z.ph==='wave'){if(Z.w>1)sting('armed',0,0.04);if(Z.seg===1&&Z.w===1)zrCap('The Circuit presents',`Week ${Z.week||1}: ${ZWEEKS[Z.week||1].n} · the host world is watching`);else zrCap(Z.w===Z.nw?'Final wave':`Wave ${Z.w}`,`Segment ${Z.seg}`);}
@@ -4088,14 +4125,14 @@ function zrInterUI(P){const Z=S.zr,el=$('zrint'),on=S.phase==='live'&&Z.ph==='in
     b.textContent=Z.dirOn?`Taken${TOUCH.on?'':' (D to drop it)'}`:`Take it${TOUCH.on?'':' (D)'}`;}}
   const gf=$('zrfor');gf.hidden=!mate||!pk||rd;gf.textContent=`Buying for: ${gift?mate.name:'you'}`;
   if(!of.length&&!gun)$('zrcards').append(mk('p','',pk?'You took every card on offer.':''));
-  const rr=$('zrreroll');rr.textContent=`Reroll${TOUCH.on?'':' (R)'} · ${ZREROLL} Favor`;rr.disabled=rd||!of.length||fv<ZREROLL;
+  const rr=$('zrreroll');{const rc=zrRerollCost(P);rr.textContent=`Reroll${TOUCH.on?'':' (R)'} · ${rc} Favor`;rr.disabled=rd||!of.length||fv<rc;}
   const go=$('zrready');go.textContent=rd?'Waiting for your partner':!pk?'Pick a card first':`Ready${TOUCH.on?'':' (Enter)'}`;go.disabled=rd||!pk;}
 $('zrdirB').addEventListener('click',()=>{if(!$('zrdirB').disabled){blip(980,0.022,0.012,false,'ui');zrCardSend({a:'dir'});}});
 $('zrfor').addEventListener('click',()=>{ZI.gift=!ZI.gift;ZI.k='';blip(760,0.022,0.012,false,'ui');});
 $('zrreroll').addEventListener('click',()=>{if(!$('zrreroll').disabled){blip(760,0.022,0.012,false,'ui');zrCardSend({a:'reroll'});}});
 $('zrready').addEventListener('click',()=>{if(!$('zrready').disabled){blip(980,0.022,0.012,false,'ui');zrCardSend({a:'ready'});}});
 window.addEventListener('keydown',e=>{if($('zrint').hidden)return;const c=e.code;let used=true;
-  if(/^Digit[1-4]$/.test(c)){const b=$('zrcards').children[+c.slice(5)-1];if(b&&b.tagName==='BUTTON')b.click();}
+  if(/^Digit[1-5]$/.test(c)){const b=$('zrcards').children[+c.slice(5)-1];if(b&&b.tagName==='BUTTON')b.click();}
   else if(c==='KeyR')$('zrreroll').click();else if(c==='KeyD'){if(!$('zrdir').hidden)$('zrdirB').click();}else if(c==='Enter'||c==='NumpadEnter'||c==='Space')$('zrready').click();else used=false;
   if(used){e.preventDefault();e.stopImmediatePropagation();}},true);
 
@@ -4330,7 +4367,10 @@ try{const mv=localStorage.getItem('za-mode');if(mv&&MODECAP[mv])$('modesel').val
 /* Zombie Rumble length: Short by default on touch devices, Full otherwise; remembered once picked */
 {let v=null;try{v=localStorage.getItem('za-zrlen');}catch(e){}$('zrlen').value=v==='0'||v==='1'?v:matchMedia('(pointer:coarse)').matches?'0':'1';
   $('zrlen').addEventListener('change',()=>{modeCap();try{localStorage.setItem('za-zrlen',$('zrlen').value);}catch(e){}});}
-zcUI();modeCap();segSync();$('modesel').addEventListener('change',()=>{modeCap();try{localStorage.setItem('za-mode',$('modesel').value);}catch(e){}});
+zcUI();modeCap();segSync();
+$('lockbtn').addEventListener('click',()=>lockOpen(true));$('zrlockx').addEventListener('click',()=>{lockOpen(false);$('lockbtn').focus();});
+window.addEventListener('keydown',e=>{if($('zrlocker').hidden)return;if(e.code==='Escape'||e.code==='Backspace'){e.preventDefault();e.stopImmediatePropagation();lockOpen(false);$('lockbtn').focus();}},true);
+lockUI();$('modesel').addEventListener('change',()=>{modeCap();try{localStorage.setItem('za-mode',$('modesel').value);}catch(e){}});
 /* map picker: a tile per map with a top-down thumbnail. In the menu the arena behind it switches too, so the flyover shows the map. */
 function mapPreview(id){const kb=BOXES.slice(),kc=COVER.slice(),km=MAP.id,ka={...SITES.A},kbb={...SITES.B},kt={...THEME};buildBoxes(id);Object.assign(THEME,kt);
   const out={boxes:BOXES.map(b=>({...b})),sites:[{...SITES.A},{...SITES.B}]};BOXES.length=0;BOXES.push(...kb);COVER.length=0;COVER.push(...kc);MAP.id=km;Object.assign(SITES.A,ka);Object.assign(SITES.B,kbb);return out;}
