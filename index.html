@@ -1333,7 +1333,7 @@ const TOUCH={on:false,mx:0,my:0,run:false};
 
 /* ---------- settings (graphics, sound, controls), saved per browser ---------- */
 const OPT0={preset:'high',res:1,autoRes:true,shadows:2,bloom:1,fxaa:true,film:0.6,rain:true,tod:'night',particles:1,marks:true,crowd:1,fog:1,bright:1,fov:78,shake:1,fps:false,lights:true,beatLights:false,mblur:0.35,ao:false,refl:false,beams:false,smaa:false,aniso:false,
-  vMaster:0.8,vWeapons:0.9,vFx:0.9,vSteps:0.8,vUi:0.8,vAmb:0.6,vMap:0.6,vRain:0,vMusic:0.6,vMatch:0.5,reverb:0.4,sens:1,adsSens:1,invertY:false,touch:'auto',tSens:1,tAdsSens:1,tSize:1,tFire2:true,tAutoRun:true,dmgDir:'arc'};
+  vMaster:0.8,vWeapons:0.9,vFx:0.9,vSteps:0.8,vUi:0.8,vAmb:0.6,vMap:0.6,vRain:0,vMusic:0.6,vMatch:0.5,reverb:0.4,sens:1,adsSens:1,invertY:false,touch:'auto',tSens:1,tAdsSens:1,tSize:1,tFire2:true,tDblFire:true,tAutoRun:true,dmgDir:'arc'};
 const PRESETS={low:{mblur:0,res:0.75,shadows:0,bloom:0,fxaa:false,film:0,rain:false,particles:0.5,marks:false,crowd:0.35,ao:false,refl:false,beams:false,smaa:false,aniso:false},
   medium:{mblur:0.35,res:1,shadows:1,bloom:1,fxaa:true,film:0.4,rain:true,particles:1,marks:true,crowd:0.7,ao:false,refl:false,beams:false,smaa:false,aniso:false},
   high:{mblur:0.35,res:1,shadows:2,bloom:1,fxaa:true,film:0.6,rain:true,particles:1,marks:true,crowd:1,ao:false,refl:false,beams:false,smaa:false,aniso:false},
@@ -4848,7 +4848,8 @@ const SET=[
   ['c','tAdsSens','Touch sensitivity while aiming','rng',0.4,1.5,0.05,pct],
   ['c','tSize','Touch button size','rng',0.7,1.5,0.05,pct],
   ['c','tFire2','Touch: second fire button above the stick','chk'],
-  ['c','tAutoRun','Touch: sprint when the stick is pushed to the edge','chk']];
+  ['c','tAutoRun','Touch: sprint when the stick is pushed to the edge','chk'],
+  ['c','tDblFire','Touch: double-tap the look area to shoot (hold the second tap to keep firing)','chk']];
 const setEls={};
 function applyOpt(){applyGfx();audioApply();saveOpt();touchApply();}
 function syncSettings(){for(const d of SET){const el=setEls[d[1]];if(!el)continue;const v=OPT[d[1]];if(d[3]==='chk')el.inp.checked=!!v;else{el.inp.value=String(v);if(el.out)el.out.textContent=d[7](v);}}}
@@ -4974,12 +4975,12 @@ document.addEventListener('pointerlockchange',()=>{if(WH.open){$('wheel').classL
    a finger on the left part of the screen grabs a floating move stick, and any other finger looks around (the big Fire
    button looks too, so you can fire and aim with one thumb). Pointer lock is skipped; Fire works without it. */
 const TL=$('touch'),TSTICK=$('tStick'),TKNOB=TSTICK.firstElementChild;
-const tFingers=new Map();let tStickId=null,tStick0={x:0,y:0},tShown=false;
+const tFingers=new Map();let tLookTap=null;let tStickId=null,tStick0={x:0,y:0},tShown=false;
 function touchWanted(){return OPT.touch==='on'||(OPT.touch==='auto'&&(matchMedia('(pointer:coarse)').matches||TOUCH.seen));}
 function touchApply(){const on=touchWanted();if(on!==TOUCH.on){TOUCH.on=on;if(on&&locked)document.exitPointerLock();if(!on)touchRelease();}
   document.body.classList.toggle('touch',on);TL.style.setProperty('--tsz',OPT.tSize);document.body.style.setProperty('--tsz',OPT.tSize);$('tFire2').hidden=!OPT.tFire2;
   $('touchnote').hidden=!on;$('fullbtn').classList.toggle('ok',!!(document.fullscreenEnabled||document.webkitFullscreenEnabled));}
-function touchRelease(){for(const f of tFingers.values())if(f.el)f.el.classList.remove('dn');tFingers.clear();tStickId=null;TOUCH.mx=TOUCH.my=0;TOUCH.run=false;
+function touchRelease(){for(const f of tFingers.values())if(f.el)f.el.classList.remove('dn');tFingers.clear();tLookTap=null;tStickId=null;TOUCH.mx=TOUCH.my=0;TOUCH.run=false;
   mouseDown=false;keys.KeyC=keys.KeyF=keys.KeyG=false;TSTICK.classList.add('idle');TKNOB.style.transform='';stickHome();}
 function stickHome(){const r=TL.getBoundingClientRect(),u=parseFloat(getComputedStyle(TL).getPropertyValue('--u'))||60;
   TSTICK.style.left=(Math.max(u*1.7,r.width*0.16))+'px';TSTICK.style.top=(r.height-u*2.1)+'px';}
@@ -4994,8 +4995,11 @@ function tStickMove(x,y){const u=parseFloat(getComputedStyle(TL).getPropertyValu
   TKNOB.style.transform=`translate(${(nx*c*R).toFixed(1)}px,${(ny*c*R).toFixed(1)}px)`;
   const m=c<0.14?0:(c-0.14)/0.86;TOUCH.mx=nx*m;TOUCH.my=ny*m;
   TOUCH.run=OPT.tAutoRun&&L2>R*0.95&&ny<-0.6;TSTICK.classList.toggle('run',TOUCH.run);}
+/* double-tap to shoot: a quick tap on the look area, then a second touch close by within 0.3 s, fires and keeps firing while
+   that second finger is held. The held finger still looks, so you can drag to track a target. A plain drag never fires. */
+function tFireHeld(){for(const f of tFingers.values())if((f.k==='btn'&&f.a==='fire')||f.fire)return true;return false;}
 function tPress(a,el,down){
-  if(a==='fire'){mouseDown=down;return;}
+  if(a==='fire'){mouseDown=down||tFireHeld();return;}
   if(a==='crouch'){keys.KeyC=down;return;}
   if(a==='use'){const s=mySlot(),P=s>=0&&S?S.players[s]:null;if(!down){keys.KeyF=keys.KeyG=false;return;}if(P&&P.st==='down')keys.KeyG=true;else keys.KeyF=true;return;}
   if(!down)return;
@@ -5011,7 +5015,8 @@ function tStart(e){TOUCH.seen=true;if(!TOUCH.on)touchApply();e.preventDefault();
   for(const t of e.changedTouches){const x=t.clientX-r.left,y=t.clientY-r.top;const el=t.target&&t.target.closest?t.target.closest('.tb'):null;
     if(el&&!el.hidden){const a=el.dataset.a;el.classList.add('dn');tFingers.set(t.identifier,{k:'btn',a,el,x:t.clientX,y:t.clientY,look:el.id==='tFire'});tPress(a,el,true);continue;}
     if(tStickId===null&&x<r.width*0.45&&y>r.height*0.3){tStickId=t.identifier;tStick0={x,y};TSTICK.style.left=x+'px';TSTICK.style.top=y+'px';TSTICK.classList.remove('idle');tFingers.set(t.identifier,{k:'stick'});tStickMove(x,y);continue;}
-    tFingers.set(t.identifier,{k:'look',x:t.clientX,y:t.clientY});}}
+    const n=e.timeStamp||performance.now(),lt=tLookTap,dbl=OPT.tDblFire&&lt&&n-lt.t<300&&Math.hypot(t.clientX-lt.x,t.clientY-lt.y)<90;tLookTap=null;
+    tFingers.set(t.identifier,{k:'look',x:t.clientX,y:t.clientY,x0:t.clientX,y0:t.clientY,t0:n,fire:!!dbl});if(dbl)mouseDown=true;}}
 function tMove(e){e.preventDefault();const r=TL.getBoundingClientRect();
   for(const t of e.changedTouches){const f=tFingers.get(t.identifier);if(!f)continue;
     if(f.k==='stick'){tStickMove(t.clientX-r.left,t.clientY-r.top);continue;}
@@ -5019,6 +5024,10 @@ function tMove(e){e.preventDefault();const r=TL.getBoundingClientRect();
 function tEnd(e){e.preventDefault();
   for(const t of e.changedTouches){const f=tFingers.get(t.identifier);if(!f)continue;tFingers.delete(t.identifier);
     if(f.k==='btn'){f.el.classList.remove('dn');if(![...tFingers.values()].some(o=>o.k==='btn'&&o.a===f.a))tPress(f.a,f.el,false);}
+    else if(f.k==='look'){const n=e.timeStamp||performance.now();
+      if(f.fire)mouseDown=tFireHeld();
+      // a short, still touch counts as the first tap of a double-tap
+      else if(n-f.t0<250&&Math.hypot(t.clientX-f.x0,t.clientY-f.y0)<24)tLookTap={t:n,x:t.clientX,y:t.clientY};}
     else if(f.k==='stick'){tStickId=null;TOUCH.mx=TOUCH.my=0;TOUCH.run=false;TKNOB.style.transform='';TSTICK.classList.add('idle');TSTICK.classList.remove('run');stickHome();}}}
 TL.addEventListener('touchstart',tStart,{passive:false});TL.addEventListener('touchmove',tMove,{passive:false});
 TL.addEventListener('touchend',tEnd,{passive:false});TL.addEventListener('touchcancel',tEnd,{passive:false});
