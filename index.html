@@ -224,6 +224,13 @@ body.prematch #topbar,body.prematch #mini,body.prematch #feed,body.prematch #vit
 #rgread{left:50%;bottom:calc(44px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);font-size:14px;color:var(--fg);background:var(--panel);padding:3px 12px;border-radius:8px;border:1px solid var(--line);white-space:nowrap;max-width:calc(100vw - 24px);overflow:hidden;text-overflow:ellipsis}
 #sbpanel .rglist{display:flex;flex-direction:column;gap:4px}#sbpanel .rgrow{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px}#sbpanel .rgrow .btn{padding:2px 8px}
 #netpill{left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);font-size:13px;color:var(--muted);background:var(--panel);padding:2px 10px;border-radius:10px;border:1px solid var(--line)}
+#lobby{z-index:12;background:rgba(5,4,12,.5)}
+.lobcard{width:min(520px,100%)}.lobcard .hd span{font-family:var(--mono)}
+.lobstat{margin:0;font-size:16px;color:var(--fg);line-height:1.35}
+.loblist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:min(320px,40vh);overflow:auto}
+.loblist li{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:8px 12px;border:1px solid var(--line);border-radius:6px;background:rgba(255,255,255,.04)}
+.loblist b{font-size:20px;letter-spacing:.03em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.loblist span{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap}
+.lobcard .btns .btn{min-height:48px;flex:1 1 140px;font-size:18px}
 #pause{z-index:13;background:rgba(5,4,12,.62);flex-direction:column}
 #pause .setcard{width:min(520px,100%)}
 #pause .pbtns{display:flex;flex-direction:column;gap:8px}
@@ -533,6 +540,14 @@ body.touch .chip{min-height:44px}
 <div id="wheel" hidden role="dialog" aria-label="Weapon wheel"><h2 id="wheelT">Pick your weapon</h2><div id="wheelHost"></div><div class="keys" id="wheelK"></div></div>
 <div id="sbpanel" hidden aria-label="Sandbox tuning panel"></div>
 <div class="hud" id="fps" hidden></div>
+<div class="overlay" id="lobby" hidden role="dialog" aria-label="Online lobby">
+  <div class="setcard lobcard">
+    <div class="hd"><b>Online lobby</b><span id="lobMode"></span></div>
+    <p id="lobStat" class="lobstat" aria-live="polite"></p>
+    <ul id="lobList" class="loblist"></ul>
+    <div class="btns"><button class="btn" type="button" id="lobLeave">Leave</button><button class="btn primary" type="button" id="lobStart">Start match</button></div>
+  </div>
+</div>
 <div class="overlay" id="pause" hidden role="dialog" aria-label="Menu">
   <div class="setcard">
     <div class="hd"><b>Menu</b><span><kbd>Esc</kbd> closes</span></div>
@@ -1171,7 +1186,7 @@ function botStuck(b,m,step,ux,uz){m.sExp+=step;if(m.sExp<3)return;
   if(best)m.esc={x:best.x,z:best.z,t:1.2};}
 
 /* ---------- networking ---------- */
-const net={mode:'none',room:null,lobby:null,myPeer:null,host:false,hostPeer:null,lastState:0,code:'',hitLog:{}};
+const net={mode:'none',room:null,lobby:null,inLobby:false,myPeer:null,host:false,hostPeer:null,lastState:0,code:'',hitLog:{}};
 let roomNS=null;
 const notes=$('netstatus');
 (async()=>{
@@ -1180,12 +1195,22 @@ const notes=$('netstatus');
   else notes.textContent='Online play works when this page is opened on claude.ai. Play works anywhere.';
 })();
 
-function myPresence(){return{n:me.name,p:[+me.x.toFixed(2),+me.y.toFixed(2),+me.z.toFixed(2)],yw:+viewYaw().toFixed(3),pt:+viewPitch().toFixed(3),c:me.crouch||me.slideT>0?1:0,l:+((me.leanOff||0)/0.55).toFixed(2),wr:me.wr,u:me.use,k:me.pick,g:me.give,sh:me.sh,tm:me.teamPref,w:me.w,r:me.reloadT>0?1:0,sx:myW(me.w).supp?1:0,ds:(me.dashSeq|0)%1000,lk:lkMine(),h:net.host&&net.mode==='online'?net.hostSince:0};}
+function myPresence(){return{n:me.name,p:[+me.x.toFixed(2),+me.y.toFixed(2),+me.z.toFixed(2)],yw:+viewYaw().toFixed(3),pt:+viewPitch().toFixed(3),c:me.crouch||me.slideT>0?1:0,l:+((me.leanOff||0)/0.55).toFixed(2),wr:me.wr,u:me.use,k:me.pick,g:me.give,sh:me.sh,tm:me.teamPref,w:me.w,r:me.reloadT>0?1:0,sx:myW(me.w).supp?1:0,ds:(me.dashSeq|0)%1000,lk:lkMine(),h:net.host&&net.mode==='online'?net.hostSince:0,hb:Math.floor(performance.now()/1000)%100,lb:net.inLobby?1:0};}
 function peerList(){
   if(net.mode==='solo')return[{peer:'local',presence:myPresence(),isMe:true}];
   if(!net.room)return[];
-  return net.room.peers().filter(p=>p.kind==='viewer');
+  /* a page that is still in the room but no longer running (a backgrounded or sleeping tab, a phone with the screen off) keeps its
+     presence there; it used to look like a live host, so newcomers waited for state that never came and the game sat frozen.
+     Everyone's presence carries a heartbeat (hb, ticks each second while the page runs); a peer whose heartbeat stops for 8 s is
+     left out of hosting, the roster and the lobby until it ticks again. */
+  const now=performance.now(),out=[];
+  for(const p of net.room.peers()){if(p.kind!=='viewer')continue;
+    if(p.peer===net.myPeer||p.isMe&&p.sameTab){out.push(p);continue;}
+    const hb=p.presence?p.presence.hb:undefined;let L=PLIVE[p.peer];if(!L)L=PLIVE[p.peer]={hb,t:hb===undefined?now:now-5000};/* first sight: a heartbeat must tick within 3 s */else if(L.hb!==hb){L.hb=hb;L.t=now;}
+    if(now-L.t<8000)out.push(p);}
+  return out;
 }
+const PLIVE={};
 function presenceOf(peer){
   if(peer===net.myPeer)return myPresence();
   for(const p of peerList())if(p.peer===peer)return p.presence||null;
@@ -1193,16 +1218,17 @@ function presenceOf(peer){
 }
 function electHost(){
   if(net.mode==='solo'){net.hostPeer='local';net.host=true;return;}
-  const ps=peerList().map(p=>p.peer).sort();
   if(!net.myPeer){const mine=net.room.peers().find(p=>p.isMe&&p.sameTab);if(mine)net.myPeer=mine.peer;}
-  if(net.myPeer&&!ps.includes(net.myPeer))ps.push(net.myPeer),ps.sort();
   /* whoever is already running the match keeps it: hosts say since when in presence (h), the longest-running one wins (then the
-     lowest label), so a newcomer whose label sorts first doesn't restart it. With no host yet, the newcomer waits a moment
-     (the room lists the others over the first second or two after joining), then the lowest label hosts. */
-  const hs=peerList().filter(p=>p.peer!==net.myPeer&&p.presence&&+p.presence.h>0).map(p=>[+p.presence.h,p.peer]);
+     lowest label), so a newcomer whose label sorts first doesn't restart it. Pages in the lobby never start a match on their own:
+     they wait until someone presses Start (that page then hosts) or join the match a live host is already running. With no host
+     left mid-match (the host quit), the lowest label among the players still in the match takes over. */
+  const live=peerList();
+  const hs=live.filter(p=>p.peer!==net.myPeer&&p.presence&&+p.presence.h>0).map(p=>[+p.presence.h,p.peer]);
   if(net.host&&net.myPeer)hs.push([net.hostSince,net.myPeer]);hs.sort((a,b)=>a[0]-b[0]||(a[1]<b[1]?-1:1));
-  net.hostPeer=hs.length?hs[0][1]:ps[0]||null;
-  if(!hs.length&&!net.lastState&&performance.now()-net.joinT<1800)net.hostPeer=null;
+  if(hs.length)net.hostPeer=hs[0][1];
+  else if(net.inLobby)net.hostPeer=null;
+  else{const ps=live.filter(p=>p.peer!==net.myPeer&&!(p.presence&&p.presence.lb)).map(p=>p.peer);if(net.myPeer)ps.push(net.myPeer);ps.sort();net.hostPeer=ps[0]||null;}
   const was=net.host;net.host=!!net.myPeer&&net.hostPeer===net.myPeer;
   if(was&&!net.host){me.sp=-1;S=null;}/* someone else's match replaces the one you ran: drop yours and take your spawn from theirs */
   if(net.host&&!was){net.hostSince=Date.now();if(!S)newMatch();S.diff=diffMul;for(const k in botMem)delete botMem[k];}
@@ -1246,8 +1272,11 @@ function packState(){
   return o;
 }
 function onRemoteState(msg){
+  if(PLIVE[msg.peer])PLIVE[msg.peer].t=performance.now();/* a state packet is proof the sender's page is running */
   if(net.host||msg.peer!==net.hostPeer||!msg.data||!Array.isArray(msg.data.players))return;
-  S=msg.data;net.lastState=performance.now();if(S.map&&S.map!==MAP.id)setMap(S.map);
+  /* the guest changes its copy of the match (Zombie Rumble queue, predictions), so never keep the room's own message object:
+     the platform may hand it over frozen, and writing to it throws */
+  S=structuredClone(msg.data);net.lastState=performance.now();if(S.map&&S.map!==MAP.id)setMap(S.map);
   if(S.mode==='zr'&&S.zr){S.zr.q=String(S.zr.qs||'').split('').map(i=>ZTK[+i]).filter(Boolean);zSync(S.zv,S.zh);for(const z of ZB.list)ZB.id=Math.max(ZB.id,z.id);}/* the host picks the map */if(S.tn){tuneFromHost(S.tn);}
 }
 function onRemoteHit(msg){
@@ -4630,11 +4659,42 @@ function enterGame(){dioHide();if(MS.open){MS.open=false;isoScene(false);TOD.cur
 function startSolo(){readMenu();net.mode='solo';net.myPeer='local';net.host=true;net.hostPeer='local';S=null;newMatch();S.diff=diffMul;
   const p=S.players[me.teamPref===1?1:0];p.bot=false;p.peer='local';p.name=me.name;
   if(S.range)rgHome(p);else if(S.mode==='zr')zrHome(p);else if(S.mode==='dm')dmHome(p);else{const role=roleOf(p.team,S.round);spawnAt(p,homeZ(role),role);p.hp=100;}enterGame();}
+/* ---------- online lobby ----------
+   Joining a code opens the lobby instead of dropping straight into the arena: it lists who is in the room (live pages only),
+   says whether a match is already running (then it joins that match as soon as the host's state arrives), and anyone can press
+   Start match to host one (bots fill empty slots). If the room can't be reached from this device it says so and offers bots. */
+const LOB={t:0,tick:0};
+function lobbyOpen(){net.inLobby=true;LOB.t=performance.now();LOB.tick=0;dioHide();if(MS.open){MS.open=false;isoScene(false);TOD.cur='';}
+  $('mapscr').hidden=true;$('menu').classList.remove('mapon');$('menu').hidden=true;
+  $('lobMode').textContent=modeName(MATCH.mode,MATCH.size)+' · code '+net.code;$('lobby').hidden=false;lobbyTick(1);$('lobStart').focus({preventScroll:true});}
+function lobbyGone(){return !net.room||(typeof net.room.connected==='function'&&!net.room.connected())||!net.myPeer;}
+function lobbyTick(dt){
+  if(S){net.inLobby=false;$('lobby').hidden=true;enterGame();return;}/* our match started, or the host's first packet arrived */
+  LOB.tick-=dt;if(LOB.tick>0)return;LOB.tick=0.25;
+  const waited=performance.now()-LOB.t,gone=lobbyGone(),live=peerList(),st=$('lobStat'),bt=$('lobStart');
+  if(gone&&waited>7000){st.textContent="Can't reach the online room from this device right now. You can play this mode with bots, or leave and try again.";bt.textContent='Play with bots';bt.dataset.k='bots';bt.disabled=false;}
+  else if(gone){st.textContent='Connecting to the online room…';bt.textContent='Start match';bt.dataset.k='';bt.disabled=true;}
+  else if(net.hostPeer&&net.hostPeer!==net.myPeer){st.textContent='A match is already running here. Joining it…';bt.textContent='Start match';bt.dataset.k='';bt.disabled=true;}
+  else{const n=live.length;st.textContent=(n<=1?'Only you so far. Share the code ':n+' players here. Same code ')+'“'+net.code+'”'+(n<=1?' so friends can join, or start now.':'; anyone can start.')+' Bots fill empty slots.';bt.textContent='Start match';bt.dataset.k='';bt.disabled=false;}
+  const ul=$('lobList'),rows=[];
+  for(const p of live){const pr=p.presence||{},mine=p.peer===net.myPeer;const li=document.createElement('li');
+    const b=document.createElement('b');b.textContent=String(mine?me.name:pr.n||'Player').slice(0,24);li.appendChild(b);
+    const tags=[];if(mine)tags.push('you');if(+pr.h>0)tags.push('host');tags.push(pr.hb===undefined?'joining':pr.lb?'in lobby':'in match');
+    if(MATCH.mode!=='zr'){const tm=mine?me.teamPref:pr.tm;if(tm===0||tm===1)tags.push(tm===0?'blue':'orange');}
+    const sp=document.createElement('span');sp.textContent=tags.join(' · ');li.appendChild(sp);rows.push(li);}
+  ul.hidden=!rows.length;ul.replaceChildren(...rows);
+}
+$('lobStart').addEventListener('click',()=>{const b=$('lobStart');if(b.disabled)return;
+  if(b.dataset.k==='bots'){if(net.room){try{net.room.leave().catch(()=>{});}catch(e){}}net.room=null;net.inLobby=false;$('lobby').hidden=true;startSolo();return;}
+  net.inLobby=false;b.disabled=true;$('lobStat').textContent='Starting…';blip(660,0.05,0.03,false,'ui');});
+$('lobLeave').addEventListener('click',()=>{leaveMatch();blip(520,0.05,0.03,false,'ui');});
+window.addEventListener('keydown',e=>{if($('lobby').hidden)return;if(e.code==='Escape'||e.code==='Backspace'){e.preventDefault();e.stopImmediatePropagation();$('lobLeave').click();}
+  else if(e.code==='Enter'||e.code==='NumpadEnter'){e.preventDefault();e.stopImmediatePropagation();$('lobStart').click();}},true);
 tuneApply();
 $('practice').addEventListener('click',()=>{tuneApply();SB.on=false;startSolo();});
 $('sandboxbtn').addEventListener('click',()=>{SB.on=true;SB.mode='range';SB.tab='range';sbLoad();devLoad();buildSB();startSolo();});
 $('joinbtn').addEventListener('click',async()=>{tuneApply();SB.on=false;readMenu();const code=($('code').value||'arena-1').toLowerCase().replace(/[^a-z0-9_.-]/g,'').slice(0,40)||'arena-1';$('code').value=code;$('joinbtn').disabled=true;
-  if(await joinOnline(code))enterGame();else $('joinbtn').disabled=false;});
+  if(await joinOnline(code))lobbyOpen();else $('joinbtn').disabled=false;});
 /* classic menu navigation: hover or arrow keys move the highlight, Enter picks, Esc closes the Play / Play online panel */
 const MI=[...document.querySelectorAll('#mlist .mi')];let miOn=null;
 const miVis=()=>MI.filter(b=>b.offsetParent!==null&&!b.disabled);
@@ -4817,7 +4877,7 @@ function endPad(){const r=endPadRead();if(!r)return;const o=END.pad||{};
   if(r.a&&!o.a){const b=$('endbtns').children[END.padI];if(b&&!b.disabled)b.click();}
   END.pad=r;}
 function closePause(){if($('pause').hidden)return;$('pause').hidden=true;toggleSettings(false);autoLock();blip(660,0.05,0.03,false,'ui');}
-function leaveMatch(){endHide();xpFlush();bigCountOff();closeWheel(false);WH.auto=false;$('pause').hidden=true;toggleSettings(false);toggleSB(false);
+function leaveMatch(){endHide();net.inLobby=false;$('lobby').hidden=true;xpFlush();bigCountOff();closeWheel(false);WH.auto=false;$('pause').hidden=true;toggleSettings(false);toggleSB(false);
   if(net.room){try{net.room.leave().catch(()=>{});}catch(e){}}
   net.mode='none';net.room=null;net.host=false;net.hostPeer=null;net.myPeer=null;rgClear();RG.init=false;RG.shots=RG.hits=0;RG.read='';S=null;zrHide();rgSync();setMap(MATCH.map);tuneApply();SB.on=false;me.sp=-1;me.round=0;me.mid=0;coverTick();
   for(const id of ['topbar','mini','vitals','ammo','cross','netpill','banner','prompt','ring','lockhint','down','dead','fps'])$(id).hidden=true;
@@ -5634,7 +5694,19 @@ function dioView(dt){const u=CALM?1:sstep((performance.now()-DIO.t0)/900);
 
 /* ---------- loop ---------- */
 let last=performance.now();
+/* a thrown error used to stop the loop for good (the game froze: "crash"); now the next frame is always queued first,
+   the error is logged, and a small line on screen names it so it can be reported */
+const ERR={n:0,el:null,last:''};
+function errShow(e,where){ERR.n++;const m=String(e&&(e.stack||e.message)||e).split('\n').slice(0,2).join(' ').slice(0,220);console.error('[za]',where,e);
+  if(m===ERR.last)return;ERR.last=m;if(!ERR.el){const d=document.createElement('div');d.id='errline';d.style.cssText='position:fixed;left:8px;bottom:8px;z-index:40;max-width:min(560px,calc(100vw - 16px));font:12px/1.3 ui-monospace,monospace;color:#ffd0d6;background:rgba(40,6,14,.88);border:1px solid #ff4d6a;border-radius:5px;padding:4px 8px;pointer-events:auto;user-select:text;-webkit-user-select:text';d.title='Tap to hide';d.onclick=()=>{d.hidden=true;};document.body.appendChild(d);ERR.el=d;}
+  ERR.el.hidden=false;ERR.el.textContent='Error ('+where+', '+(net.mode||'')+(net.host?' host':net.mode==='online'?' guest':'')+'): '+m;}
+addEventListener('error',e=>errShow(e.error||e.message,'page'));
+addEventListener('unhandledrejection',e=>{const r=e.reason;if(r&&typeof r==='object'&&'code' in r&&!(r instanceof Error))return;/* room calls reject with {code}; those are handled where they happen */errShow(r,'async');});
 function frame(now){
+  requestAnimationFrame(frame);
+  try{frameBody(now);}catch(e){errShow(e,'frame');}
+}
+function frameBody(now){
   const raw=(now-last)/1000,dt=Math.min(0.05,raw);last=now;dynResTick(raw);
   const paused=!$('pause').hidden&&net.mode==='solo';
   if(paused){}
@@ -5643,9 +5715,9 @@ function frame(now){
   else if(S){if(DIO.on)dioHide();coverTick(dt);rgTick(dt);zRender(dt);debrisTick(dt);localTick(dt);renderOthers(dt);siteFx();hud(dt);audioTick(dt);}
   else flyover(dt);
   if((S||$('menu').hidden)&&(TOD.force||SHOW.fade)){TOD.force='';SHOW.fade=0;SHOW.want=-1;$('flyfade').style.opacity=0;applyGfx();}/* leaving the menu: the player's time of day again */
+  if(!$('lobby').hidden)lobbyTick(dt);
   fxTick(dt,now);touchTick();
   renderScene();
-  requestAnimationFrame(frame);
 }
 /* Draw-call merging: under every node, plain sibling meshes that share a material and shadow/visibility flags become one mesh.
    Animated groups (soldier joints, guns, cover rubble) keep their transforms, and anything changed individually at runtime
