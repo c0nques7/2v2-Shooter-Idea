@@ -187,6 +187,11 @@ body.prematch #topbar,body.prematch #mini,body.prematch #feed,body.prematch #vit
 #zrcap div{font-size:30px;font-weight:700;color:var(--fg);text-shadow:0 0 18px rgba(255,43,214,.5),0 2px 3px #000;animation:zrc 3.2s ease-out forwards}
 #zrcap div small{display:block;font-size:17px;font-weight:600;color:var(--warn);letter-spacing:.12em}
 @keyframes zrc{0%{opacity:0;transform:scale(1.08)}10%{opacity:1;transform:none}78%{opacity:1}100%{opacity:0}}
+#zrwcard{left:0;top:0;width:272px;z-index:6;background:rgba(14,12,26,.92);border:1px solid var(--hc);border-top:4px solid var(--hc);border-radius:8px;padding:9px 11px;box-shadow:0 0 24px rgba(0,0,0,.6),0 0 14px color-mix(in srgb,var(--hc) 35%,transparent);font-size:13px;will-change:transform}
+#zrwcard .zwh span{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--hc);font-weight:700}#zrwcard .zwh b{display:block;font-size:19px;margin:1px 0 2px}#zrwcard .zwh i{display:block;font-style:normal;font-size:12px;color:var(--hc);margin-bottom:6px}
+#zrwcard table{width:100%;border-collapse:collapse;font-family:var(--mono)}#zrwcard th{font:600 10px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;text-align:right;padding:0 0 3px 6px}#zrwcard th:first-child{text-align:left;padding-left:0}
+#zrwcard td{padding:2px 0 2px 6px;text-align:right;white-space:nowrap}#zrwcard td:first-child{text-align:left;padding-left:0;font-family:var(--ui,inherit);color:var(--muted)}#zrwcard td.up{color:#4dff8a}#zrwcard td.dn{color:#ff6a5c}#zrwcard td.cur{color:var(--muted)}
+#zrwcard .zwp{margin-top:7px;font-size:13px;color:var(--fg)}#zrwcard .zwp.far{color:var(--muted)}#zrwcard kbd{font:700 12px var(--mono);border:1px solid var(--line);border-radius:3px;padding:0 4px}
 #zrboss{left:50%;top:150px;transform:translateX(-50%);width:min(520px,calc(100vw - 32px));text-align:center;display:flex;flex-direction:column;gap:3px}
 #zrboss b{font-family:var(--display);font-size:20px;letter-spacing:.1em;text-transform:uppercase;color:#ff5a4a;text-shadow:0 1px 2px #000}
 #zrboss .zbb{height:12px;border:1px solid rgba(255,90,74,.6);border-radius:3px;background:rgba(0,0,0,.55);overflow:hidden}#zrboss .zbb i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#ff3030,#ff8a5c);transition:width .2s}
@@ -498,6 +503,7 @@ body.touch .chip{min-height:44px}
 <div class="hud" id="prompt" hidden></div>
 <canvas class="hud" id="dmgdir" aria-hidden="true"></canvas><div class="hud" id="flash"></div><div class="hud" id="blastfl"></div>
 <div class="hud" id="zrcap" aria-live="polite"></div>
+<div class="hud" id="zrwcard" hidden></div>
 <div class="hud" id="zrboss" hidden><b>The Juggernaut</b><div class="zbb"><i id="zrbossF"></i></div><span>Plating turns bullets from the front. Hit it in the back</span></div>
 <div class="overlay" id="zrlocker" hidden role="dialog" aria-label="Locker"><div class="zlpanel"><div class="zlhd"><div><b>Locker</b><span>Permanent upgrades for Zombie Rumble, bought with Credits from runs. They never apply in PvP.</span></div><span id="zrlockcr" class="num"></span></div><div id="zrlocklist"></div><div class="zlft"><button class="btn" type="button" id="zrlockx">Close</button></div></div></div>
 <div class="hud" id="zrint" hidden role="dialog" aria-label="Intermission"><div class="zih"><b>Intermission</b><span id="zrintT" class="num"></span></div><p id="zrintS"></p><div id="zrcards"></div><div id="zrdir" hidden><div><span class="zdh">Broadcast directive · next segment pays double Favor</span><b id="zrdirN"></b><span id="zrdirD"></span></div><button class="btn" type="button" id="zrdirB"></button></div><div class="zib"><button class="btn" type="button" id="zrfor" hidden></button><button class="btn" type="button" id="zrreroll"></button><button class="btn primary" type="button" id="zrready">Ready</button></div><p id="zrintP"></p></div>
@@ -1261,7 +1267,7 @@ function packState(){
   const xsPack=x=>{if(!x)return null;const o={w:{}};for(const f in x)if(f!=='w'&&x[f])o[f]=x[f];for(const k in x.w||{})if(x.w[k])o.w[k]=x.w[k];return o;};
   const pl=(p,xs)=>{const o={s:p.s,team:p.team,bot:p.bot?1:0,name:p.name,hp:r(p.hp),st:p.st,x:r(p.x),y:r(p.y),z:r(p.z),yaw:r(p.yaw),pitch:r(p.pitch),w:p.w,sp:p.sp,spx:p.spx,spz:p.spz,spyaw:r(p.spyaw),sh:p.sh};
     if(!p.bot)o.peer=p.peer;if(!dm)o.lastZ=p.lastZ;if(p.st==='down'){o.dhp=r(p.dhp);o.downT=r(p.downT);}if(p.st==='dead')o.deadT=r(p.deadT);
-    if(p.ak){o.ak=p.ak;o.at=p.at;o.ap=r(p.ap);}if(p.wr)o.wr=p.wr|0;if(p.prot>0)o.prot=r(p.prot);if(dm){o.k=p.k|0;o.d=p.d|0;}if(p.sx)o.sx=1;if(p.ds)o.ds=p.ds|0;if(zr){o.fv=p.fv|0;if(p.dropW)o.dropW=p.dropW;if(p.cards&&p.cards.length)o.cards=p.cards;}{const hf=dmgFrom(p);if(hf.length)o.hf=hf;}
+    if(p.ak){o.ak=p.ak;o.at=p.at;o.ap=r(p.ap);}if(p.wr)o.wr=p.wr|0;if(p.prot>0)o.prot=r(p.prot);if(dm){o.k=p.k|0;o.d=p.d|0;}if(p.sx)o.sx=1;if(p.ds)o.ds=p.ds|0;if(zr){o.fv=p.fv|0;if(p.dropW)o.dropW=p.dropW;if(p.sw)o.sw=p.sw;if(p.cards&&p.cards.length)o.cards=p.cards;}{const hf=dmgFrom(p);if(hf.length)o.hf=hf;}
     if(xs(p)&&!p.bot)o.xs=xsPack(p.xs);return o;};
   const mk=(tn,xs)=>{const o={...S,t:r(S.t),timer:r(S.timer),clock:r(S.clock),mft:r(S.mft||0),paneR:S.paneR?S.paneR.map(v=>v>0?r(v):0):undefined,armed:S.armed?{site:S.armed.site,t:r(S.armed.t)}:null,regen:(S.regen||[]).map(v=>v>0?r(v):0),
     players:S.players.map(p=>pl(p,xs))};delete o.tn;if(tn)o.tn=tunePack();
@@ -3860,13 +3866,13 @@ function zSever(z,reg,dx,dz){const R=z.reg[reg];if(R.gone)return;R.gone=true;R.h
   const jx=e[o+4]*0.5+e[o+12],jy=e[o+5]*0.5+e[o+13],jz=e[o+6]*0.5+e[o+14];ZICHOR.set(ZTYPES[z.t].eye).multiplyScalar(0.75);
   const col=z.col[tgt];for(let i=0;i<ZR.parts[tgt].n;i++){if(!z.vox[tgt][i])continue;zVoxW(z,tgt,i,W);if(Math.hypot(W.x-jx,W.y-jy,W.z-jz)<0.13){col[i*3]=ZICHOR.r;col[i*3+1]=ZICHOR.g;col[i*3+2]=ZICHOR.b;}}}
 function zKill(z,head,by,remote){z.hp=0;z.st='dead';z.deadT=0;z.wind=0;z.fallDir=(Math.random()<0.5?-1:1);if(!remote)z.fallBack=head||Math.random()<0.5;z.headKill=!!head;z.ks=by?by.s:-1;ZB.kills++;
-  if(!remote){if(S&&S.zr&&S.mode==='zr')S.zr.kills++;if(by&&S&&S.mode==='zr'){by.k=(by.k|0)+1;xsAdd(by,'zk',by.w);zrOnKill(z,head,by);}}
+  if(!remote){if(S&&S.zr&&S.mode==='zr')S.zr.kills++;if(S&&S.mode==='zr'&&S.zr)zrDrop(z);if(by&&S&&S.mode==='zr'){by.k=(by.k|0)+1;xsAdd(by,'zk',by.w);zrOnKill(z,head,by);}}
   else if(by&&by.s===mySlot())setTimeout(()=>{hitCue('kill');killMark();},0);
   if(ZTYPES[z.t].bloat)zBurst(z,by);else if(head)zHeadPop(z);else zVoice(z,'zDie',0.9);}/* no "X down" text for Revenants (Joe): the kill cue and hitmarker say it */
 /* one shooter's hits on one Revenant this shot (by: the player who fired; numbers and the kill call only show for your own) */
 function zApply(z,e,by,pred){if(z.st==='dead')return false;const boss=!!ZTYPES[z.t].boss,l=Math.hypot(e.dx,e.dz)||1,ux=e.dx/l,uz=e.dz/l;
     // run cards (Heavy Rounds, Hollow Points) and the Juggernaut's plating: 30% from the front, 160% in the back
-    if(S&&S.mode==='zr'){const hv=(zrHas(by,'hv')?1.12:1)*[1,1.05,1.15][zrSet(by,'arm')],hp=zrHas(by,'hp')?1.25:1;let pl=1;
+    if(S&&S.mode==='zr'){const hv=(zrHas(by,'hv')?1.12:1)*[1,1.05,1.15][zrSet(by,'arm')]*zrSwDmg(by),hp=zrHas(by,'hp')?1.25:1;let pl=1;
       if(boss){const f=ux*-Math.sin(z.yaw)+uz*-Math.cos(z.yaw);pl=f<-0.2?0.3:f>0.35?1.6:0.7;e.plate=pl;}
       if(hv!==1||hp!==1||pl!==1){e.dmg=0;for(const h of e.hits){h.dmg*=hv*pl*(ZR.parts[h.p].reg==='head'?hp:1);e.dmg+=h.dmg;}}}
     const mine=by&&by.s===mySlot();if(mine)dmgNum(e.x,e.y,e.z,e.dmg,e.head);
@@ -4071,11 +4077,83 @@ function zrHas(p,k){return !!(p&&p.cards&&p.cards.includes(k));}
 function zrAny(k){return !!S&&S.players.some(p=>zrHas(p,k));}
 /* the local player's own cards, for what only their game can apply (reload, magazine, spread, movement, dash, wallrun) */
 function zrMine(k){if(!S||S.mode!=='zr')return false;const s=mySlot();return s>=0&&zrHas(S.players[s],k);}
-function zrWMod(w){if(!S||S.mode!=='zr')return w;const o={...w};if(zrMySet('kin'))o.move*=1.05;if(zrMine('qh'))o.reload*=0.7;if(zrMine('dm'))o.mag=Math.round(o.mag*1.35);
+function zrWMod(w,k){if(!S||S.mode!=='zr')return w;const o={...w};{const sw=zrMySw();if(k&&sw&&sw.k===k)swApply(o,sw);}if(zrMySet('kin'))o.move*=1.05;if(zrMine('qh'))o.reload*=0.7;if(zrMine('dm'))o.mag=Math.round(o.mag*1.35);
   if(zrMine('sa')){o.spread*=0.7;o.recoil*=0.7;o.cone*=0.7;}if(zrMine('fl'))o.move*=1.1;return o;}
 function myDashN(){return Math.max(1,CFG.dashN|0)+(zrMine('tc')?1:0);}
 function myDashCd(){return CFG.dashCd*(zrMine('ad')?0.6:1)*(zrMySet('kin')>1?0.8:1);}
 function zrFavor(p,n,why){if(!p||!S||S.mode!=='zr'||!(n>0))return;p.fv=(p.fv|0)+Math.round(n*[1,1.25,1.5][zrSet(p,'brd')]*(S.zr&&S.zr.act?2:1));}
+/* ---------- Revenant drops: Credits piles and special weapons ----------
+   The host rolls drops on a kill and keeps them in S.zr.drops ({i,t:'c'|'w',x,z,e: expiry on S.timer, v: Credits, sw: {k,r,s}}), so they ride
+   in the state packet. Credits are shared: anyone walking over a pile adds it to S.zr.crT, and every client banks the rise in its own Locker.
+   A special weapon is a gun from the pool with tier r (1 Rare, 2 Epic, 3 Legendary) and r+1 boosts rolled from seed s: press Use on it to
+   swap guns for the rest of the run (your old special drops where you stand). Damage is applied by the host in zApply; the rest in myW. */
+const ZSW=['','Rare','Epic','Legendary'],ZSWC=['','#5ff2ff','#c77dff','#ffc23d'],ZSWH=[0,0x5ff2ff,0xc77dff,0xffc23d];
+const ZSWF={dmg:[.10,.16,.24],rate:[.10,.15,.22],mag:[.25,.40,.60],reload:[.15,.22,.30],spread:[.15,.22,.30],range:[.15,.25,.35]};
+const SWM=new Map();
+function swMods(sp){const m={dmg:1,rate:1,mag:1,reload:1,spread:1,range:1};if(!sp||!ZSW[sp.r])return m;const key=sp.k+sp.r+':'+sp.s;if(SWM.has(key))return SWM.get(key);
+  let x=(sp.s|0)||7;const R=()=>{x^=x<<13;x^=x>>>17;x^=x<<5;return((x>>>0)%10007)/10007;};const ks=Object.keys(ZSWF),pick=sp.r===3?['dmg']:[];
+  for(let g=0;pick.length<sp.r+1&&g<50;g++){const k=ks[(R()*ks.length)|0];if(!pick.includes(k))pick.push(k);}
+  for(const k of pick){const a=ZSWF[k][sp.r-1]*(0.8+0.4*R());m[k]=k==='reload'||k==='spread'?1-a:1+a;}SWM.set(key,m);return m;}
+function swApply(o,sp){const m=swMods(sp);o.dmgM=m.dmg;o.cd/=m.rate;o.mag=Math.max(1,Math.round(o.mag*m.mag));o.reload*=m.reload;o.spread*=m.spread;o.cone=(o.cone||0)*m.spread;
+  o.near*=m.range;o.far*=m.range;o.name=`${ZSW[sp.r]} ${o.name}`;o.swr=sp.r;return o;}
+const swName=sp=>`${ZSW[sp.r]} ${W[sp.k].name}`;
+function zrMySw(){if(!S||S.mode!=='zr')return null;const s=mySlot();return s>=0&&S.players[s]&&S.players[s].sw||null;}
+const zrSwDmg=p=>p&&p.sw&&p.w===p.sw.k?swMods(p.sw).dmg:1;
+function zrSwRoll(r){return{k:WKEYS[(Math.random()*WKEYS.length)|0],r,s:1+((Math.random()*999999)|0)};}
+function zrDrop(z){const Z=S.zr;if(!Z||!Z.drops)return;const boss=!!ZTYPES[z.t].boss,el=!!z.elite;
+  const add=(o,sp)=>{let x=z.x+(Math.random()-0.5)*sp,q=z.z+(Math.random()-0.5)*sp;if(!freeAt(x,q)){x=z.x;q=z.z;}o.i=++Z.di;o.x=+x.toFixed(2);o.z=+q.toFixed(2);o.e=Math.round(S.timer+o.e);Z.drops.push(o);};
+  if(boss){Z.crT=(Z.crT|0)+75;return;}/* the run ends with the headliner, so its 75 Credits go straight to everyone */
+  else{if(Math.random()<(el?1:0.3))add({t:'c',v:el?8+((Math.random()*5)|0):2+((Math.random()*3)|0),e:25},0.8);
+    if(Math.random()<(el?0.15:0.015)){const u=Math.random();add({t:'w',sw:zrSwRoll(el?(u<0.2?3:u<0.75?2:1):(u<0.05?3:u<0.3?2:1)),e:45},0.8);}}
+  // keep the state packet small: at most 10 Credits piles and 3 weapons on the floor (the oldest go first)
+  for(const [t,n] of [['c',10],['w',3]]){let c=Z.drops.filter(d=>d.t===t);while(c.length>n){Z.drops.splice(Z.drops.indexOf(c[0]),1);c.shift();}}}
+function zrDropTick(){const Z=S.zr;if(!Z.drops)Z.drops=[];
+  if(Z.drops.length){Z.drops=Z.drops.filter(d=>S.timer<d.e);
+    for(const p of S.players){if(p.st!=='alive'){p._u=p.use;continue;}const press=p.use&&!p._u;
+      for(let i=Z.drops.length-1;i>=0;i--){const d=Z.drops[i],dd=hyp(d.x,d.z,p.x,p.z);
+        if(d.t==='c'&&dd<1.3){Z.crT=(Z.crT|0)+d.v;Z.drops.splice(i,1);}
+        else if(d.t==='w'&&press&&!p.bot&&!p.ak&&dd<1.8){const old=p.sw;p.sw=d.sw;p.dropW=d.sw.k;Z.drops.splice(i,1);
+          if(old)Z.drops.push({t:'w',sw:old,i:++Z.di,x:+p.x.toFixed(2),z:+p.z.toFixed(2),e:Math.round(S.timer+45)});
+          feed(`${p.name} takes the ${swName(d.sw)}`);break;}}}}
+  for(const p of S.players)p._u=p.use;}
+/* the drops in the world: spinning Credits chips, and special guns floating in a beam of their tier's colour */
+const ZDM={m:new Map(),t:0};
+function zrDropMesh(d){const g=new THREE.Group(),sp=new THREE.Group();g.add(sp);g.userData.spin=sp;
+  const glow=(hex,op)=>new THREE.MeshBasicMaterial({color:lin(hex),toneMapped:false,transparent:op<1,opacity:op,depthWrite:op>=1,blending:op<1?THREE.AdditiveBlending:THREE.NormalBlending});
+  if(d.t==='c'){const n=d.v>=20?3:d.v>=8?2:1;for(let k=0;k<n;k++){const c=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.15,0.035,18),glow(0xffc23d,1));c.rotation.x=Math.PI/2;c.position.set((k-(n-1)/2)*0.12,k*0.06,0);sp.add(c);
+      const r=new THREE.Mesh(new THREE.TorusGeometry(0.15,0.012,6,18),glow(0xfff1b0,1));r.position.copy(c.position);sp.add(r);}}
+  else{const hex=ZSWH[d.sw.r]||0xffffff,gun=new THREE.Group();sp.add(gun);buildGun(gun,false,d.sw.k,null,hex);gun.scale.setScalar(1.5);gun.rotation.y=Math.PI/2;
+    const b=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.11,3.2,10,1,true),glow(hex,0.16));b.position.y=1.6;g.add(b);
+    const r=new THREE.Mesh(new THREE.RingGeometry(0.42,0.55,32),glow(hex,0.55));r.rotation.x=-Math.PI/2;r.position.y=0.03;g.add(r);}
+  scene.add(g);return g;}
+function zrDropRender(dt){ZDM.t+=dt;const L=S&&S.mode==='zr'&&S.zr&&S.zr.drops||[],seen=new Set();
+  for(const d of L){seen.add(d.i);let g=ZDM.m.get(d.i);if(!g){g=zrDropMesh(d);ZDM.m.set(d.i,g);}
+    g.position.set(d.x,0,d.z);const sp=g.userData.spin;sp.rotation.y=ZDM.t*1.5+d.i;sp.position.y=(d.t==='w'?1.0:0.42)+Math.sin(ZDM.t*2.4+d.i)*0.07;
+    g.visible=d.e-S.timer>5||Math.sin(ZDM.t*16)>-0.3;}/* blinks in its last 5 s */
+  for(const [i,g] of ZDM.m)if(!seen.has(i)){scene.remove(g);g.traverse(n=>{if(n.geometry)n.geometry.dispose();if(n.material&&!n.material.isShared)n.material.dispose&&n.material.dispose();});ZDM.m.delete(i);}}
+/* Credits picked up (by anyone) go into this browser's Locker */
+function zrCredT(Z){const t=Z.crT|0;if(ZW.crK!==S.mid){ZW.crK=S.mid;ZW.crT=t;return;}if(t>ZW.crT){const d=t-ZW.crT;ZW.crT=t;ZCAMP.cr=(ZCAMP.cr|0)+d;zcSave();lockUI();xpToast(`+${d} Credits`);blip(1560,0.05,0.02,false,'ui');}}
+/* the hovering card over the nearest special weapon: its stats against the gun in your hands */
+const ZWC={k:'',near:null};
+function swStats(w){const pel=w.pel||0,dm=w.dmg*(w.dmgM||1);return{dmg:{v:dm*(pel||1),t:pel?`${Math.round(dm)}×${pel}`:String(Math.round(dm))},rate:{v:60/w.cd,t:Math.round(60/w.cd)+' rpm'},mag:{v:w.mag,t:String(w.mag)},
+  reload:{v:-w.reload,t:w.reload.toFixed(1)+' s'},spread:{v:1/w.spread,t:String(Math.round(100/w.spread))},range:{v:w.far,t:Math.round(w.far)+' m'}};}
+const SWROW=[['dmg','Damage'],['rate','Fire rate'],['mag','Magazine'],['reload','Reload'],['spread','Accuracy'],['range','Range']];
+function zrWCard(P){const el=$('zrwcard'),L=S.zr.drops||[];let best=null,bd=6;
+  if(P&&P.st==='alive'&&S.phase==='live')for(const d of L){if(d.t!=='w')continue;const dd=hyp(d.x,d.z,me.x,me.z);if(dd<bd){bd=dd;best=d;}}
+  const v=best?ZWC.v||(ZWC.v=new THREE.Vector3()):null;if(v){v.set(best.x,1.55,best.z).project(camera);}
+  if(!best||v.z>1||Math.abs(v.x)>1.1||Math.abs(v.y)>1.1){if(!el.hidden)el.hidden=true;ZWC.near=null;return;}
+  const near=bd<1.8;ZWC.near=near?best:null;el.hidden=false;
+  const key=[best.i,me.w,P.sw?P.sw.s:0,(P.cards||[]).join(','),near,TOUCH.on].join('|');
+  if(key!==ZWC.k){ZWC.k=key;const sp=best.sw,mk=(t,c,x)=>{const n=document.createElement(t);if(c)n.className=c;if(x!=null)n.textContent=x;return n;};
+    const nw=swApply(zrWMod(modW(sp.k,effParts(sp.k)),null),sp),cw=myW(me.w),A=swStats(nw),B=swStats(cw);
+    el.style.setProperty('--hc',ZSWC[sp.r]);const h=mk('div','zwh');const sm=swMods(sp),bo=[['dmg','damage'],['rate','fire rate'],['mag','magazine'],['reload','reload time'],['spread','spread'],['range','range']].filter(([k])=>sm[k]!==1).map(([k,n])=>`${sm[k]>1?'+':'−'}${Math.round(Math.abs(sm[k]-1)*100)}% ${n}`).join(' · ');
+    h.append(mk('span','',`${ZSW[sp.r]} · special weapon`),mk('b','',swName(sp)),mk('i','',bo));
+    const tb=mk('table'),hr=mk('tr');hr.append(mk('th','',''),mk('th','','This'),mk('th','',cw.name.length>14?'Yours':cw.name));tb.append(hr);
+    for(const [k,n] of SWROW){const tr=mk('tr'),a=A[k],b=B[k],df=(a.v-b.v)/Math.max(1e-6,Math.abs(b.v));tr.append(mk('td','',n),mk('td',df>0.005?'up':df<-0.005?'dn':'',(df>0.005?'▲ ':df<-0.005?'▼ ':'')+a.t),mk('td','cur',b.t));tb.append(tr);}
+    const ft=mk('div','zwp'+(near?'':' far'));if(near){ft.append(TOUCH.on?'Tap ':'Press ',mk('kbd','',TOUCH.on?'Use':'F'),` to take it. It replaces your ${W[me.w]?W[me.w].name:'gun'} for the rest of the run`);}else ft.textContent='Walk up to it to take it';
+    el.replaceChildren(h,tb,ft);}
+  const W0=innerWidth,H0=innerHeight,x=(v.x*0.5+0.5)*W0,y=(-v.y*0.5+0.5)*H0,w=el.offsetWidth,hh=el.offsetHeight;
+  el.style.transform=`translate(${Math.round(clamp(x-w/2,8,W0-w-8))}px,${Math.round(clamp(y-hh-10,Math.min(84,H0-hh-8),H0-hh-8))}px)`;}
 /* both start in the west base, in the same alcove (on any map) */
 function zrHome(p){const h=DM_HOME[p.s?2:0];let x=-h[0],z=-h[1];if(!freeAt(x,z)){const c=nearestFree(...cellOf(x,z));x=c[0]-50+0.5;z=c[1]-20+0.5;}
   dmPlace(p,x,z,Math.atan2(-(Math.sign(x)*48.5-x),-(Math.sign(z)*9-z)));}
@@ -4083,11 +4161,11 @@ function zrStart(){S.center={own:-1,cap:-1,p:0};S.armed=null;S.tickets=[0,0];S.s
   S.timer=0;S.phase='buy';S.t=Math.max(CFG.buy,CFG.buy1);S.last=null;
   const short=MATCH.zrLen==='short',home=MAP.id,others=MAP_IDS.filter(m=>m!==home);
   S.zr={len:short?'short':'full',week:MATCH.zrWeek||1,seg:0,segs:short?3:4,awaySeg:short?2:3,home,away:others[(Math.random()*others.length)|0]||home,
-    w:0,nw:0,ph:'pre',t:0,q:[],sp:0,left:0,kills:0,cleared:0,won:false,why:'',boss:null,offers:{},picked:{},ready:{},mine:{A:0,B:0}};
-  zClear();ZB.kills=0;ZB.hunt=true;ZB.endless=false;for(const p of S.players){p.team=0;p.k=0;p.d=0;p.fv=0;p.cards=[];p.dropW=null;}
+    w:0,nw:0,ph:'pre',t:0,q:[],sp:0,left:0,kills:0,cleared:0,won:false,why:'',boss:null,offers:{},picked:{},ready:{},mine:{A:0,B:0},drops:[],di:0,crT:0};
+  zClear();ZB.kills=0;ZB.hunt=true;ZB.endless=false;for(const p of S.players){p.team=0;p.k=0;p.d=0;p.fv=0;p.cards=[];p.dropW=null;p.sw=null;}
   zrSeg(1);}
 /* a segment starts: its map (switching for the away broadcast), everyone up, healed and home */
-function zrSeg(n){const Z=S.zr;Z.act=n>1&&Z.dirOn&&Z.dir?Z.dir:null;Z.dir=null;Z.dirOn=0;Z.seg=n;Z.w=0;Z.nw=Z.len==='short'?2:3;Z.ph='pre';Z.t=S.phase==='buy'?0:5;Z.q=[];Z.boss=null;Z.offers={};Z.picked={};Z.ready={};Z.mine={A:0,B:0};
+function zrSeg(n){const Z=S.zr;Z.act=n>1&&Z.dirOn&&Z.dir?Z.dir:null;Z.dir=null;Z.dirOn=0;Z.seg=n;Z.w=0;Z.nw=Z.len==='short'?2:3;Z.ph='pre';Z.t=S.phase==='buy'?0:5;Z.q=[];Z.boss=null;Z.offers={};Z.picked={};Z.ready={};Z.mine={A:0,B:0};Z.drops=[];
   const id=n===Z.awaySeg?Z.away:Z.home;if(id!==MAP.id){zClear();setMap(id);}S.map=MAP.id;
   S.cover=COVER.map(b=>b.max);S.regen=COVER.map(()=>0);
   for(const p of S.players){p.swUsed=0;p.ak=null;p.ap=0;zrHome(p);}
@@ -4117,7 +4195,7 @@ function zrRegroup(){const up=S.players.find(p=>p.st==='alive');
     if(p.st==='down'){p.st='alive';p.hp=100;p.ak=null;p.ap=0;feed(`${p.name} is back on their feet`);continue;}
     if(!up)continue;let x=up.x,z=up.z;for(let i=0;i<16;i++){const a=i/16*Math.PI*2,ex=up.x+Math.cos(a)*1.6,ez=up.z+Math.sin(a)*1.6;if(freeAt(ex,ez)&&segClear(up.x,up.z,ex,ez)){x=ex;z=ez;break;}}
     dmPlace(p,x,z,dmFace(x,z,ZB.list.filter(o=>o.st!=='dead')));feed(`${p.name} is back in`);}}
-function zrTick(dt){const Z=S.zr;if(!Z)return;S.timer+=dt;const short=Z.len==='short';
+function zrTick(dt){const Z=S.zr;if(!Z)return;S.timer+=dt;zrDropTick();const short=Z.len==='short';
   for(const p of S.players){if(p.prot>0)p.prot=Math.max(0,p.prot-dt);
     if(p.st==='down'){const helped=S.players.some(r=>r.ak==='rev'&&r.at===p.s);if(!helped)p.downT-=dt;
       if(zrHas(p,'sw')&&!p.swUsed){p.swT=(p.swT||0)+dt;if(p.swT>=3){p.swUsed=1;p.swT=0;p.st='alive';p.hp=40;feed(`${p.name} gets up on their own (Second Wind)`);continue;}}
@@ -4164,7 +4242,7 @@ function zrCardAct(p,c){const Z=S&&S.zr;if(!Z||Z.ph!=='inter'||!p||!c)return;con
     const to=c.to?S.players.find(q=>q!==p):p;if(!to||(to.cards||[]).includes(c.id))return;to.cards=to.cards||[];
     p.fv-=cost;to.cards.push(c.id);of.splice(of.indexOf(c.id),1);feed(to===p?`${p.name} buys ${ZCARDS[c.id].n}`:`${p.name} buys ${ZCARDS[c.id].n} for ${to.name}`);}
   else if(c.a==='dir'&&Z.dir){Z.dirOn=Z.dirOn?0:1;feed(Z.dirOn?`${p.name} takes the directive: ${ZDIR[Z.dir].n}`:`${p.name} turns the directive down`);}
-  else if(c.a==='gun'&&Z.picked[s]&&Z.gun&&Z.gun[s]&&(p.fv|0)>=ZGUN){p.fv-=ZGUN;p.dropW=Z.gun[s];Z.gun[s]=null;feed(`${p.name} takes the ${W[p.dropW].name} drop`);}
+  else if(c.a==='gun'&&Z.picked[s]&&Z.gun&&Z.gun[s]&&(p.fv|0)>=ZGUN){p.fv-=ZGUN;p.dropW=Z.gun[s];p.sw=null;Z.gun[s]=null;feed(`${p.name} takes the ${W[p.dropW].name} drop`);}
   else if(c.a==='reroll'&&of.length&&(p.fv|0)>=zrRerollCost(p)){p.fv-=zrRerollCost(p);Z.offers[s]=[];Z.offers[s]=zrRoll(p,of.length);}
   else if(c.a==='ready'&&Z.picked[s])Z.ready[s]=1;}
 function zrCardSend(c){const s=mySlot();if(s<0||!S)return;if(net.mode!=='online'||net.host)zrCardAct(S.players[s],c);else if(net.room)net.room.emit('hit',{zc:c}).catch(()=>{});}
@@ -4299,10 +4377,11 @@ function zrHud(P){const Z=S.zr;if(!Z)return;const L=Z.left|0;
     if(on){$('zrbossF').style.width=(100*clamp(Z.boss.hp/(Z.boss.max||1),0,1)).toFixed(1)+'%';bb.style.top=(tb+6)+'px';}
     $('zrcap').style.top=Math.max(innerHeight*0.28,(on?bb.getBoundingClientRect().bottom:tb)+12)+'px';}/* below everything up top */
   // Favor the audience paid you, as toasts
+  zrCredT(Z);zrWCard(P);
   if(P){if(ZW.fvK===S.mid&&(P.fv|0)>ZW.fv)xpToast(`+${(P.fv|0)-ZW.fv} Favor`);ZW.fvK=S.mid;ZW.fv=P.fv|0;}
   zrCardsLine(P);zrInterUI(P);zrWatch();}
 /* the cards you hold, under your health */
-function zrHide(){for(const id of ['zrheld','zrboss','zrint'])if(!$(id).hidden)$(id).hidden=true;$('zrcap').replaceChildren();}
+function zrHide(){for(const id of ['zrheld','zrboss','zrint','zrwcard'])if(!$(id).hidden)$(id).hidden=true;$('zrcap').replaceChildren();}
 function zrCardsLine(P){const el=$('zrheld'),cs=(P&&P.cards)||[],k=cs.join(',');el.hidden=!cs.length;if(el.dataset.k===k)return;el.dataset.k=k;
   const chip=(h,t,d,set)=>{const sp=document.createElement('span');sp.className='zrcd'+(set?' set':'');sp.style.setProperty('--hc',ZHOUSE[h][1]);sp.textContent=t;sp.title=d;return sp;};
   el.replaceChildren(...Object.keys(ZHOUSE).filter(h=>zrSet(P,h)).map(h=>{const n=zrSet(P,h);return chip(h,`${ZHOUSE[h][0]} set ${n>1?'III':'II'}: ${ZSET[h][n-1]}`,ZSET[h][n-1],true);}),
@@ -4311,7 +4390,7 @@ function zrBanner(){const Z=S.zr,bn=$('banner');bn.hidden=false;
   if(S.phase==='buy'){$('bannerT').textContent='Monday Night Zombie Rumble';
     $('bannerS').textContent=`You wake in a tunnel under the ${(MAPS[Z.home]||MAPS.yard).name}. A voice on the PA reads the rules: survive the week and you are retained. The host world is watching. · ${Z.segs} segments, about ${Z.len==='short'?10:25} min · Weapon: ${myW(me.w).name}`;return;}
   $('bannerT').textContent=Z.won?'Week complete':'Broadcast terminated';
-  $('bannerS').textContent=(Z.won?'You have been retained'+(ZW.unl&&ZWEEKS[ZW.unl]?` · Week ${ZW.unl}: ${ZWEEKS[ZW.unl].n} unlocked${ZWEEKS[ZW.unl].built?'':' (coming soon)'}`:''):`${Z.why} in segment ${Z.seg}${Z.ph==='boss'?', against the Juggernaut':Z.w?', wave '+Z.w:''}`)+` · ${Z.kills|0} Revenants dropped · ${fmt(S.timer)}`+(ZW.cr?` · +${ZW.cr} Credits for the Locker`:'')+`${overIn('run')}`;}
+  $('bannerS').textContent=(Z.won?'You have been retained'+(ZW.unl&&ZWEEKS[ZW.unl]?` · Week ${ZW.unl}: ${ZWEEKS[ZW.unl].n} unlocked${ZWEEKS[ZW.unl].built?'':' (coming soon)'}`:''):`${Z.why} in segment ${Z.seg}${Z.ph==='boss'?', against the Juggernaut':Z.w?', wave '+Z.w:''}`)+` · ${Z.kills|0} Revenants dropped · ${fmt(S.timer)}`+((ZW.cr|0)+(Z.crT|0)?` · +${(ZW.cr|0)+(Z.crT|0)} Credits for the Locker`:'')+`${overIn('run')}`;}
 /* the Circuit's announcer, as captions until the lines are recorded, and the crowd (on every client, from the shared state) */
 const ZW={k:'',st:{},fv:0,fvK:-1};
 function zrCap(t,sub){const el=$('zrcap'),d=document.createElement('div');d.textContent=t;if(sub){const s=document.createElement('small');s.textContent=sub;d.append(s);}
@@ -4425,7 +4504,7 @@ function modW(k,parts){const w=wOf(k);const m={move:1,recoil:1,spread:1,ads:1,ra
   return{name:w.name,key:w.key,dmg:w.dmg,head:w.head,cd:w.cd,fall:w.fall,mag:Math.max(5,Math.round(w.mag*m.mag)),reload:w.reload*m.reload,spread:w.spread*m.spread,
     recoil:w.recoil*m.recoil,move:w.move*m.move,near:w.near*m.range,far:w.far*m.range,ads:m.ads*(w.ads||1),zoom:m.zoom,supp,pel:w.pel||0,cone:(w.cone||0)*m.spread,hip:w.hip||1,bolt:!!w.bolt};}
 /* the local player's gun with its equipped build */
-function myW(k){if(!W[k])k='rifle';return zrWMod(modW(k,effParts(k)));}
+function myW(k){if(!W[k])k='rifle';return zrWMod(modW(k,effParts(k)),k);}
 function freeTree(o){o.traverse(n=>{if(n.geometry)n.geometry.dispose();});}
 function gunModel(parent,k,parts,glowId,shadow){const gl=GLOWS.find(q=>q.id===glowId);
   const r=buildGun(parent,shadow,k,parts,gl&&gl.hex!=null?gl.hex:GUNGLOW[k]);r.sightY=r.g.userData.sightY;return r;}
@@ -4988,6 +5067,7 @@ function localTick(dt){
   const s=mySlot();const P=s>=0?S.players[s]:null;
   if(!P){camera.position.set(0,45,34);camera.rotation.set(-0.95,0,0);vm.visible=false;return;}
   if(P.sp!==me.sp){if(me.sp>=0&&!locked)me.wantLock=true;me.sp=P.sp;me.x=P.spx;me.z=P.spz;me.y=0;me.vy=0;me.yaw=P.spyaw;me.pitch=0;me.w=S.mode==='zr'&&P.dropW&&W[P.dropW]?P.dropW:me.wPref;showWeapon(me.w);me.ammo=myW(me.w).mag;me.reloadT=0;me.pick=-1;me.give=false;me.vx=me.vz=0;me.rcP=me.rcY=me.bloom=0;me.slideT=0;me.wr=0;me.wrLast=null;me.kicked=false;me.mantle=null;me.dashN=myDashN();me.dashR=0;me.dashT=0;me.drawT=0.42;me.kP=me.kV=me.kUp=me.kYaw=me.kRoll=me.boltT=0;}
+  if(S.mode==='zr'){const k=P.sw?P.sw.k+P.sw.s:'';if(k!==me.swk){const had=me.swk!==undefined;me.swk=k;if(had&&P.sw&&W[P.sw.k]&&P.st==='alive'){me.w=P.sw.k;showWeapon(me.w);me.ammo=myW(me.w).mag;me.reloadT=0;blip(980,0.05,0.03,false,'ui');}}}
   if(S.mid!==me.mid){me.mid=S.mid;newMatchLocal();}
   if(S.round!==me.round){me.round=S.round;me.w=me.wPref;showWeapon(me.w);me.ammo=myW(me.w).mag;}
   const alive=P.st==='alive',downed=P.st==='down';
@@ -5712,7 +5792,7 @@ function frameBody(now){
   if(paused){}
   else if(S||net.mode!=='none'){netTick(dt);}
   if(paused){}
-  else if(S){if(DIO.on)dioHide();coverTick(dt);rgTick(dt);zRender(dt);debrisTick(dt);localTick(dt);renderOthers(dt);siteFx();hud(dt);audioTick(dt);}
+  else if(S){if(DIO.on)dioHide();coverTick(dt);rgTick(dt);zRender(dt);zrDropRender(dt);debrisTick(dt);localTick(dt);renderOthers(dt);siteFx();hud(dt);audioTick(dt);}
   else flyover(dt);
   if((S||$('menu').hidden)&&(TOD.force||SHOW.fade)){TOD.force='';SHOW.fade=0;SHOW.want=-1;$('flyfade').style.opacity=0;applyGfx();}/* leaving the menu: the player's time of day again */
   if(!$('lobby').hidden)lobbyTick(dt);
