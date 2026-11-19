@@ -224,6 +224,52 @@ body.prematch #topbar,body.prematch #mini,body.prematch #feed,body.prematch #vit
 .zrcd.set{font-weight:700;background:rgba(0,0,0,.6)}
 .zrcd{display:inline-block;background:rgba(0,0,0,.45);text-shadow:0 1px 2px #000;margin:0;padding:0 6px;border-radius:3px;font-size:12px;border:1px solid var(--hc);color:var(--hc)}
 @media (prefers-reduced-motion:reduce){#zrcap div{animation:none}}
+/* campaign intro: crawl, static cut, then the broadcast framed as live TV (see introStart) */
+#intro{position:fixed;inset:0;z-index:16;overflow:hidden;color:#f2eefc;font-family:var(--display);cursor:default;user-select:none;-webkit-user-select:none}
+#intro.crawl,#intro.final,#intro.static{background:#020105}
+#intro .icrawl{position:absolute;inset:0;display:none;-webkit-mask-image:linear-gradient(transparent 0,#000 22%,#000 78%,transparent 100%);mask-image:linear-gradient(transparent 0,#000 22%,#000 78%,transparent 100%)}
+#intro.crawl .icrawl{display:block}
+#intro .icin{position:absolute;left:50%;top:100%;width:min(680px,calc(100vw - 48px));transform:translateX(-50%);text-align:center}
+#intro .icin p{margin:0 0 1.6em;font-size:clamp(20px,3.4vmin,32px);font-weight:500;line-height:1.35;letter-spacing:.03em;text-wrap:balance}
+#intro .icin p:first-child{font-size:clamp(28px,5.4vmin,52px);font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+@keyframes icrawl{from{transform:translate(-50%,0)}to{transform:translate(-50%,calc(-100vh - 100%))}}
+#intro .ifinal{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:none;font-size:clamp(30px,6vmin,58px);font-weight:700;letter-spacing:.14em;text-transform:uppercase;text-align:center;width:calc(100vw - 32px);animation:ifade 3s ease-out both}
+#intro.final .ifinal{display:block}
+@keyframes ifade{0%{opacity:0}25%{opacity:1}100%{opacity:1}}
+#intro .istatic{position:absolute;inset:0;width:100%;height:100%;display:none;image-rendering:pixelated}
+#intro.static .istatic{display:block}
+#intro .ibc{position:absolute;inset:0;display:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.12) 0 1px,transparent 1px 3px)}
+#intro.bc .ibc{display:block}
+#intro .ibc::before,#intro .ibc::after{content:'';position:absolute;left:0;right:0;height:7vh;background:#000}
+#intro .ibc::before{top:0}#intro .ibc::after{bottom:0}
+#intro .ishade{position:absolute;inset:0;background:#000;opacity:0;transition:opacity .9s}
+#intro.dark .ishade{opacity:.84}#intro.out .ishade{opacity:1;transition-duration:1.2s}
+#intro .ilive{position:absolute;left:max(16px,3vw);top:calc(7vh + 14px);display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+#intro .ilive i{width:11px;height:11px;border-radius:50%;background:#ff3b3b;box-shadow:0 0 10px #ff3b3b;animation:ilive 1.2s steps(2) infinite}
+#intro .ilive b{background:#ff3b3b;color:#fff;padding:1px 7px;border-radius:3px}
+@keyframes ilive{50%{opacity:.25}}
+#intro .ibrand{position:absolute;right:max(16px,3vw);top:calc(7vh + 12px);text-align:right;line-height:.9;text-transform:uppercase;text-shadow:0 2px 4px #000}
+#intro .ibrand small{display:block;font-size:11px;letter-spacing:.2em;color:var(--muted)}#intro .ibrand b{font-size:20px;letter-spacing:.06em;color:var(--accent)}
+#intro .isig{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);display:none;flex-direction:column;align-items:center;gap:10px;text-align:center;animation:ifade 2.4s ease-out both}
+#intro.sigil .isig{display:flex}
+#intro .isr{width:clamp(70px,14vmin,130px);aspect-ratio:1;border-radius:50%;border:3px solid var(--accent);box-shadow:0 0 24px var(--accent),inset 0 0 0 10px rgba(0,0,0,.4),inset 0 0 0 13px var(--accent)}
+#intro .isig b{font-size:clamp(22px,4.4vmin,40px);letter-spacing:.3em;text-transform:uppercase;text-shadow:0 2px 8px #000}
+#intro .isig small{font-size:14px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted)}
+#intro .il3{position:absolute;left:max(16px,6vw);bottom:calc(7vh + 92px);display:none;flex-direction:column;border-left:5px solid var(--accent);background:linear-gradient(90deg,rgba(10,7,20,.9),rgba(10,7,20,.6) 70%,transparent);padding:6px 40px 6px 14px;text-transform:uppercase;animation:il3 .5s ease-out both}
+#intro.l3 .il3{display:flex}
+#intro .il3 b{font-size:clamp(24px,4.6vmin,42px);letter-spacing:.06em;line-height:1}#intro .il3 span{font-size:15px;letter-spacing:.18em;color:var(--warn)}
+@keyframes il3{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:none}}
+#intro .ibump{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);display:none;flex-direction:column;align-items:center;gap:10px;width:min(640px,calc(100vw - 32px));animation:ifade 1.2s ease-out both}
+#intro.bump .ibump{display:flex}#intro.bump .ishade{opacity:.55}
+#intro .ibump small{font-size:15px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted)}
+#intro .ibump canvas{width:100%;height:auto;border-radius:4px;box-shadow:0 0 40px rgba(39,230,255,.35)}
+#intro .ieyes{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);display:none;gap:clamp(18px,4vmin,40px)}
+#intro.dark .ieyes{display:flex}
+#intro .ieyes i{width:clamp(16px,3vmin,28px);height:clamp(7px,1.2vmin,12px);border-radius:50%;background:#ff3030;box-shadow:0 0 18px 6px rgba(255,48,48,.7);opacity:0;animation:ieyes 4s 1.4s ease-in forwards}
+@keyframes ieyes{0%{opacity:0}30%{opacity:1}36%{opacity:.2}42%{opacity:1}100%{opacity:1}}
+#intro .isub{position:absolute;left:50%;bottom:calc(7vh + 18px);transform:translateX(-50%);width:min(860px,calc(100vw - 32px));text-align:center;font-family:system-ui,sans-serif;font-size:clamp(16px,2.6vmin,22px);font-weight:500;line-height:1.35;text-wrap:balance;text-shadow:0 0 4px #000,0 2px 3px #000;animation:ifade .5s ease-out both}
+#intro .iskip{position:absolute;right:max(16px,3vw);bottom:12px;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);opacity:0;transition:opacity .6s}
+#intro.armed .iskip{opacity:.8}
 #banner{left:50%;top:26%;transform:translateX(-50%);text-align:center;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 26px}
 #banner h2{margin:0;font-size:34px;letter-spacing:.04em;text-wrap:balance}
 #banner p{margin:4px 0 0;color:var(--muted);font-size:17px}
@@ -343,6 +389,7 @@ body.ended #touch,body.ended #zrcap,body.ended #down,body.ended #lockhint,body.e
 #zrweeks{display:grid;grid-template-columns:1fr 1fr;gap:6px}#zrweeks .zwh{grid-column:1/-1;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
 .zwk{font:inherit;text-align:left;display:flex;flex-direction:column;gap:0;padding:4px 9px;min-height:40px;min-width:0;border-radius:6px;border:1px solid var(--line);background:rgba(20,15,36,.85);color:var(--fg);cursor:pointer}
 .zwk b,.zwk span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.zwk b{font-size:14px;letter-spacing:.04em;text-transform:uppercase}.zwk span{font-size:12px;color:var(--muted)}
+.zwk.zwintro{grid-column:1/-1;min-height:34px;flex-direction:row;align-items:baseline;gap:10px}.zwk.zwintro b{font-size:13px}
 .zwk.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}.zwk.on b{color:var(--accent)}.zwk:disabled{opacity:.5;cursor:default}
 .mseg{display:flex;align-items:center;gap:0}.mseg>span,.mcode>span{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);width:5.4em;flex:none}
 .mseg button{flex:1;font:inherit;font-size:14px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);background:rgba(20,15,36,.85);border:1px solid var(--line);padding:7px 8px;min-height:38px;cursor:pointer;margin-left:-1px}
@@ -508,6 +555,7 @@ body.touch .chip{min-height:44px}
 <div class="hud" id="zrboss" hidden><b>The Juggernaut</b><div class="zbb"><i id="zrbossF"></i></div><span>Plating turns bullets from the front. Hit it in the back</span></div>
 <div class="overlay" id="zrlocker" hidden role="dialog" aria-label="Locker"><div class="zlpanel"><div class="zlhd"><div><b>Locker</b><span>Permanent upgrades for Zombie Rumble, bought with Credits from runs. They never apply in PvP.</span></div><span id="zrlockcr" class="num"></span></div><div id="zrlocklist"></div><div class="zlft"><button class="btn" type="button" id="zrlockx">Close</button></div></div></div>
 <div class="hud" id="zrint" hidden role="dialog" aria-label="Intermission"><div class="zih"><b>Intermission</b><span id="zrintT" class="num"></span></div><p id="zrintS"></p><div id="zrcards"></div><div id="zrdir" hidden><div><span class="zdh">Broadcast directive · next segment pays double Favor</span><b id="zrdirN"></b><span id="zrdirD"></span></div><button class="btn" type="button" id="zrdirB"></button></div><div class="zib"><button class="btn" type="button" id="zrfor" hidden></button><button class="btn" type="button" id="zrreroll"></button><button class="btn primary" type="button" id="zrready">Ready</button></div><p id="zrintP"></p></div>
+<div id="intro" hidden aria-label="Campaign intro"></div>
 <div class="hud" id="banner" hidden><h2 id="bannerT"></h2><p id="bannerS"></p></div>
 <div class="hud" id="xpsum" hidden aria-live="polite"></div>
 <div class="hud" id="xptoast" aria-live="polite"></div>
@@ -4032,7 +4080,8 @@ function zcUI(){const el=$('zrweeks');if(!el)return;const mk=(t,c,x)=>{const n=d
     b.setAttribute('role','radio');b.setAttribute('aria-checked',n===sel);b.disabled=!play;
     const mm=t=>Math.floor(t/60)+':'+String(Math.round(t)%60).padStart(2,'0')/* fmt is declared further down; this runs at startup */,st=!open?`Clear Week ${n-1} to unlock`:!W0.built?'Unlocked · coming soon':w.c?`Cleared${w.best.full?' · Full '+mm(w.best.full):''}${w.best.short?' · Short '+mm(w.best.short):''}`:w.runs?`${w.runs} run${w.runs>1?'s':''}, not cleared yet`:'Not played yet';
     b.title=`Week ${n}: ${W0.n} · ${st}`;b.append(mk('b','',`${n} · ${W0.n}`),mk('span','',st));
-    b.addEventListener('click',()=>{if(!play)return;ZCAMP.sel=n;zcSave();zcUI();modeCap();blip(980,0.022,0.012,false,'ui');});return b;}));}
+    b.addEventListener('click',()=>{if(!play)return;ZCAMP.sel=n;zcSave();zcUI();modeCap();blip(980,0.022,0.012,false,'ui');});return b;}),
+    (()=>{const b=mk('button','zwk zwintro');b.type='button';b.append(mk('b','','Watch the intro'),mk('span','','Draft Night · the broadcast opens'));b.addEventListener('click',()=>introStart(null));return b;})());}
 /* The run (phase 3: Week 1, Draft Night). A Full broadcast is four segments (home, home, away, home); a Short one is three
    (home, away, home). The away segment is on a random other map. Each segment is a few waves with 10 s breathers, then a finale:
    an elite surge you hold out against, or in the last segment the headliner, the Juggernaut. Between segments an intermission
@@ -4390,27 +4439,27 @@ function zrCardsLine(P){const el=$('zrheld'),cs=(P&&P.cards)||[],k=cs.join(',');
     ...cs.filter(id=>ZCARDS[id]).map(id=>{const c=ZCARDS[id];return chip(c.h,c.n,c.d);}));}
 function zrBanner(){const Z=S.zr,bn=$('banner');bn.hidden=false;
   if(S.phase==='buy'){$('bannerT').textContent='Monday Night Zombie Rumble';
-    $('bannerS').textContent=`You wake in a tunnel under the ${(MAPS[Z.home]||MAPS.yard).name}. A voice on the PA reads the rules: survive the week and you are retained. The host world is watching. · ${Z.segs} segments, about ${Z.len==='short'?10:25} min · Weapon: ${myW(me.w).name}`;return;}
+    $('bannerS').textContent=`Draftee. You are awake, in the tunnel under the ${(MAPS[Z.home]||MAPS.yard).name}. Survive the week and you will be retained. Fall and you will be reprinted. · ${Z.segs} segments, about ${Z.len==='short'?10:25} min · Weapon: ${myW(me.w).name}`;return;}
   $('bannerT').textContent=Z.won?'Week complete':'Broadcast terminated';
   $('bannerS').textContent=(Z.won?'You have been retained'+(ZW.unl&&ZWEEKS[ZW.unl]?` · Week ${ZW.unl}: ${ZWEEKS[ZW.unl].n} unlocked${ZWEEKS[ZW.unl].built?'':' (coming soon)'}`:''):`${Z.why} in segment ${Z.seg}${Z.ph==='boss'?', against the Juggernaut':Z.w?', wave '+Z.w:''}`)+` · ${Z.kills|0} Revenants dropped · ${fmt(S.timer)}`+((ZW.cr|0)+(Z.crT|0)?` · +${(ZW.cr|0)+(Z.crT|0)} Credits for the Locker`:'')+`${overIn('run')}`;}
 /* the Circuit's announcer, as captions until the lines are recorded, and the crowd (on every client, from the shared state) */
 const ZW={k:'',st:{},fv:0,fvK:-1};
-function zrCap(t,sub){const el=$('zrcap'),d=document.createElement('div');d.textContent=t;if(sub){const s=document.createElement('small');s.textContent=sub;d.append(s);}
+function zrCap(t,sub,v){if(v)announce(v);const el=$('zrcap'),d=document.createElement('div');d.textContent=t;if(sub){const s=document.createElement('small');s.textContent=sub;d.append(s);}
   el.replaceChildren(d);clearTimeout(ZW.capT);ZW.capT=setTimeout(()=>d.remove(),3300);}
 function zrWatch(){const Z=S.zr,k=S.mid+':'+Z.seg+':'+Z.w+':'+Z.ph+':'+S.phase,was=ZW.k,fresh=!was.startsWith(S.mid+':');
   // a partner going down or getting up
-  if(fresh)ZW.st={};for(const p of S.players){const o=ZW.st[p.s];ZW.st[p.s]=p.st;if(!o||S.phase!=='live')continue;
-    if(o==='alive'&&p.st==='down')zrCap('Warrior down',p.name);else if(o==='down'&&p.st==='alive'&&Z.ph!=='inter')zrCap('Warrior revived',p.name);}
+  if(fresh){ZW.st={};if(S.phase==='buy'&&Z.seg===1)introSay(['p1','p2','p3'],0.6);}for(const p of S.players){const o=ZW.st[p.s];ZW.st[p.s]=p.st;if(!o||S.phase!=='live')continue;
+    if(o==='alive'&&p.st==='down')zrCap('Warrior down',p.name,'r9');else if(o==='down'&&p.st==='alive'&&Z.ph!=='inter')zrCap('Warrior revived',p.name,'r10');}
   if(k===was)return;ZW.k=k;
   if(fresh)return;
-  if(S.phase==='over'){crowdCheer(Z.won?'win':'knock',1);sting(Z.won?'win':'lose');ZW.cr=0;ZW.unl=zcRecord(Z,S.timer)?(Z.week||1)+1:0;zrCap(Z.won?'Week complete':'Broadcast terminated',Z.won?'You have been retained':Z.why);}
+  if(S.phase==='over'){crowdCheer(Z.won?'win':'knock',1);sting(Z.won?'win':'lose');ZW.cr=0;ZW.unl=zcRecord(Z,S.timer)?(Z.week||1)+1:0;zrCap(Z.won?'Week complete':'Broadcast terminated',Z.won?'You have been retained':Z.why,Z.won?'e1':'e3');if(Z.won)setTimeout(()=>announce('e2'),1600);}
   else if(S.phase!=='live')return;
   else if(Z.ph==='pre')zrCap(`Segment ${Z.seg}`,Z.act&&ZDIR[Z.act]?`Directive: ${ZDIR[Z.act].n}. ${ZDIR[Z.act].d}. Double Favor`:Z.seg===Z.awaySeg?`Away broadcast from the ${MAPS[MAP.id].name}`:'The host world is watching');
-  else if(Z.ph==='wave'){if(Z.w>1)sting('armed',0,0.04);if(Z.seg===1&&Z.w===1)zrCap('The Circuit presents',`Week ${Z.week||1}: ${ZWEEKS[Z.week||1].n} · the host world is watching`);else zrCap(Z.w===Z.nw?'Final wave':`Wave ${Z.w}`,`Segment ${Z.seg}`);}
+  else if(Z.ph==='wave'){if(Z.w>1)sting('armed',0,0.04);if(Z.seg===1&&Z.w===1)zrCap('The Circuit presents',`Week ${Z.week||1}: ${ZWEEKS[Z.week||1].n} · the host world is watching`);else zrCap(Z.w===Z.nw?'Final wave':`Wave ${Z.w}`,`Segment ${Z.seg}`,Z.w===Z.nw?'r3':'r'+Z.w);}
   else if(Z.ph==='break'){crowdCheer('point',1);sting('win',0,0.04);}
-  else if(Z.ph==='surge'){sting('armed',0,0.05);zrCap('Surge','Elites incoming. Hold the floor');}
-  else if(Z.ph==='boss'){crowdCheer('point',1);sting('armed',0,0.06);zrCap('Headliner incoming','The Juggernaut');}
-  else if(Z.ph==='inter'){crowdCheer('win',0.8);zrCap('Intermission','The patrons are bidding');}}
+  else if(Z.ph==='surge'){sting('armed',0,0.05);zrCap('Surge','Elites incoming. Hold the floor','r4');}
+  else if(Z.ph==='boss'){crowdCheer('point',1);sting('armed',0,0.06);zrCap('Headliner incoming','The Juggernaut','r12');setTimeout(()=>announce('h1'),1500);}
+  else if(Z.ph==='inter'){crowdCheer('win',0.8);zrCap('Intermission','The patrons are bidding','r5');setTimeout(()=>announce('r6'),1300);}}
 /* the intermission: three patron cards. The first pick is free; then Favor buys the others or rerolls them. */
 const ZI={k:'',gift:false};
 function zrInterUI(P){const Z=S.zr,el=$('zrint'),on=S.phase==='live'&&Z.ph==='inter'&&!!P;
@@ -4772,7 +4821,7 @@ $('lobLeave').addEventListener('click',()=>{leaveMatch();blip(520,0.05,0.03,fals
 window.addEventListener('keydown',e=>{if($('lobby').hidden)return;if(e.code==='Escape'||e.code==='Backspace'){e.preventDefault();e.stopImmediatePropagation();$('lobLeave').click();}
   else if(e.code==='Enter'||e.code==='NumpadEnter'){e.preventDefault();e.stopImmediatePropagation();$('lobStart').click();}},true);
 tuneApply();
-$('practice').addEventListener('click',()=>{tuneApply();SB.on=false;startSolo();});
+$('practice').addEventListener('click',()=>{tuneApply();SB.on=false;if(introDue())introStart(startSolo);else startSolo();});
 $('sandboxbtn').addEventListener('click',()=>{SB.on=true;SB.mode='range';SB.tab='range';sbLoad();devLoad();buildSB();startSolo();});
 $('joinbtn').addEventListener('click',async()=>{tuneApply();SB.on=false;readMenu();const code=($('code').value||'arena-1').toLowerCase().replace(/[^a-z0-9_.-]/g,'').slice(0,40)||'arena-1';$('code').value=code;$('joinbtn').disabled=true;
   if(await joinOnline(code))lobbyOpen();else $('joinbtn').disabled=false;});
@@ -5689,10 +5738,80 @@ function isoView(dt){ISO.t+=dt;const port=camera.aspect<1.05,fov=port?60:50;if(c
   isoTgt.copy(dir).multiplyScalar(d/ISO.z);isoTgt.x+=lx;isoTgt.z+=lz;isoTgt.y+=ly2;const k=ISO.on?1-Math.exp(-dt*6):1;ISO.on=true;camera.position.lerp(isoTgt,k);isoLook.lerp(isoTmp.set(lx,ly2,lz),k);camera.lookAt(isoLook);
   scene.fog.near=d*1.6;scene.fog.far=d*3.5;vm.visible=false;
   const fe=$('flyfade');ISO.fade=Math.max(0,ISO.fade-dt*2.5);fe.style.opacity=(ISO.fade*0.85).toFixed(3);}
-function flyover(dt){if(MS.open){isoView(dt);return;}if(ISO.on){ISO.on=false;flyLs.copy(isoLook);$('flyfade').style.opacity=0;}if(DIO.on){if($('menu').hidden)dioHide();else{dioView(dt);return;}}const u0=flyU;flyU=(flyU+dt/FLY_LOOP)%1;showTick(dt,u0,flyU);FLY_POS.getPoint(flyU,flyP);FLY_LOOK.getPoint(flyU,flyL);
+function flyover(dt){if(INTRO.on){introView();return;}if(MS.open){isoView(dt);return;}if(ISO.on){ISO.on=false;flyLs.copy(isoLook);$('flyfade').style.opacity=0;}if(DIO.on){if($('menu').hidden)dioHide();else{dioView(dt);return;}}const u0=flyU;flyU=(flyU+dt/FLY_LOOP)%1;showTick(dt,u0,flyU);FLY_POS.getPoint(flyU,flyP);FLY_LOOK.getPoint(flyU,flyL);
   flyLs.lerp(flyL,1-Math.exp(-dt*1.5));camera.position.copy(flyP);camera.lookAt(flyLs);
   if(Math.abs(camera.fov-62)>0.05){camera.fov=62;camera.updateProjectionMatrix();}vm.visible=false;}
 
+/* ---------- campaign intro: a text crawl of the premise, a static cut to the live Draft Night broadcast, then the tunnel ----------
+   Plays before the first solo Week 1 run (introDue), and from "Watch the intro" on the week picker. Any key, click or tap skips it.
+   The camera rides stretches of the menu flyover splines, which already clear every map. Announcer lines play from VOICE_MP3 keys
+   i1..i7 once Joe records them (a shot stretches to fit its line); until then, and always, every line shows as a subtitle. */
+const INTRO_CRAWL=['The year is 2395.','Corporations, no longer bound by the laws of time, have developed a new form of entertainment.',
+  'The most elite warriors can be cloned and forced to fight in the arenas of host worlds.','There is no true death, no true reward, and no true end.',
+  'The creators of these arenas, The Benefactors, have hosted the live broadcast, Monday Night Zombie Rumble, for the last 100 years.',
+  'Tonight, Season 100 begins.'],INTRO_FINAL='Tonight, you are drafted.';
+const INTRO_SHOTS=[
+  {v:'i1',d:6,u:[0.015,0.1],sigil:1,line:'Live across the host worlds... this is Monday Night Zombie Rumble!'},
+  {v:'i2',d:6.5,u:[0.11,0.34],cheer:1,l3:'live',line:'Season one hundred. One hundred years of no true end.'},
+  {v:'i3',d:7.5,u:[0.55,0.74],l3:['Draft Night','Week 1 · Season 100'],line:'Tonight is Draft Night. New warriors, pulled from history and printed for your entertainment.'},
+  {v:'i4',d:6.5,u:[0.75,0.82],bump:1,line:'Draft Night is brought to you by VOLTEX. The official drink of Season one hundred.'},
+  {v:'i5',d:6.5,u:[0.36,0.43],dark:1,line:'And headlining tonight... the Juggernaut.'},
+  {v:'i6',d:5.5,u:[0.85,0.99],sigil:1,out:1,line:'The Benefactors thank you for watching.'}];
+const INTRO={on:false,ph:'',t:0,i:-1,shotT:0,dur:0,then:null,el:null,arm:0,crawlD:28,finalD:3.2,staticD:0.9,voice:[],drone:null,stc:null};
+function introDue(){if($('modesel').value!=='zr'||zcSel()!==1)return false;try{return localStorage.getItem('za-intro')!=='1';}catch(e){return true;}}
+function introBuild(){if(INTRO.el)return;const el=$('intro'),mk=(t,c,x)=>{const n=document.createElement(t);if(c)n.className=c;if(x!=null)n.textContent=x;return n;};
+  const cr=mk('div','icrawl'),cin=mk('div','icin');cin.append(...INTRO_CRAWL.map(t=>mk('p','',t)));cr.append(cin);
+  const st=mk('canvas','istatic');st.width=192;st.height=108;INTRO.stc=st;
+  const bc=mk('div','ibc'),live=mk('div','ilive'),brand=mk('div','ibrand'),sig=mk('div','isig'),l3=mk('div','il3'),bump=mk('div','ibump'),eyes=mk('div','ieyes');
+  live.append(mk('i'),mk('b','','Live'),mk('span','','Season 100'));brand.append(mk('small','','Monday Night'),mk('b','','Zombie Rumble'));
+  sig.append(mk('span','isr'),mk('b','','The Circuit'),mk('small','','A Benefactors broadcast'));l3.append(mk('b'),mk('span'));eyes.append(mk('i'),mk('i'));
+  const bcv=mk('canvas');bcv.width=512;bcv.height=82;try{const tt=sponsorTex(SPONSORS[0],512,82);bcv.getContext('2d').drawImage(tt.image,0,0);tt.dispose();}catch(e){}
+  bump.append(mk('small','','Draft Night is brought to you by'),bcv);
+  bc.append(mk('div','ishade'),live,brand,sig,l3,bump,eyes,mk('div','isub'));
+  el.append(cr,mk('div','ifinal',INTRO_FINAL),st,bc,mk('div','iskip',TOUCH.on?'Tap to skip':'Press any key to skip'));
+  el.addEventListener('pointerdown',e=>{e.preventDefault();introSkip();});INTRO.el=el;}
+/* play announcer lines one after another (skipping any not recorded yet); returns how long they run */
+function introSay(keys,at){if(!actx)return 0;voiceInit();let t=at||0;for(const k of keys){const b=VB[k];if(!b)continue;const n=playBuf(b,{bus:'ui',vol:0.55,tk:'announcer',wet:0.03,at:t});if(n)INTRO.voice.push(n);t+=b.duration+0.35;}return t-(at||0);}
+function introHush(){const now=actx?actx.currentTime:0;for(const n of INTRO.voice){try{n.g.gain.setTargetAtTime(0,now,0.05);n.s.stop(now+0.3);}catch(e){}}INTRO.voice=[];}
+function introDrone(on){if(!actx||!AU.bus)return;const now=actx.currentTime;
+  if(on){const g=actx.createGain(),lp=actx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=380;g.gain.setValueAtTime(0.0001,now);g.gain.exponentialRampToValueAtTime(0.09,now+4);lp.connect(g);g.connect(AU.bus.ui);
+    const os=[[55,'sawtooth',0.5],[82.4,'triangle',0.7],[110.3,'sine',0.4]].map(([f,w,v])=>{const o=actx.createOscillator(),og=actx.createGain();o.type=w;o.frequency.value=f;og.gain.value=v;o.connect(og);og.connect(lp);o.start(now);return o;});
+    const lfo=actx.createOscillator(),lg=actx.createGain();lfo.frequency.value=0.07;lg.gain.value=160;lfo.connect(lg);lg.connect(lp.frequency);lfo.start(now);os.push(lfo);INTRO.drone={g,os};return;}
+  const d=INTRO.drone;if(!d)return;INTRO.drone=null;d.g.gain.setTargetAtTime(0.0001,now,0.25);for(const o of d.os)try{o.stop(now+1.5);}catch(e){}}
+function introStart(then){if(INTRO.on||S)return;audioInit();introBuild();dioHide();
+  if(MS.open){MS.open=false;isoScene(false);TOD.cur='';}$('mapscr').hidden=true;$('menu').classList.remove('mapon');$('menu').hidden=true;
+  if(MATCH.map!==MAP.id&&setMap(MATCH.map))SHOW.map=MAP_IDS.indexOf(MAP.id);SHOW.want=-1;SHOW.fade=0;$('flyfade').style.opacity=0;
+  if(TOD.force!=='night'){TOD.force='night';applyGfx();}
+  Object.assign(INTRO,{on:true,ph:'crawl',t:0,i:-1,then,arm:performance.now()+900,last:performance.now()});const el=INTRO.el;el.hidden=false;el.className='crawl';
+  const c=el.querySelector('.icin');c.style.animation='none';void c.offsetWidth;c.style.animation=`icrawl ${INTRO.crawlD}s linear forwards`;
+  introDrone(true);introSay(['i7'],1);}
+function introShot(i){const s=INTRO_SHOTS[i],el=INTRO.el;INTRO.i=i;INTRO.shotT=0;const said=introSay([s.v],0.25);INTRO.dur=Math.max(s.d,said?said+1.2:0);
+  const l3=s.l3==='live'?[`Live from the ${MAPS[MAP.id].theme.title}`,'Monday Night Zombie Rumble']:s.l3;
+  el.className='bc'+(s.sigil?' sigil':'')+(s.bump?' bump':'')+(s.dark?' dark':'')+(l3?' l3':'')+(performance.now()>INTRO.arm?' armed':'');
+  if(l3){el.querySelector('.il3 b').textContent=l3[0];el.querySelector('.il3 span').textContent=l3[1];}
+  for(const q of el.querySelectorAll('.isub,.il3,.isig,.ibump,.ieyes i')){q.style.animation='none';void q.offsetWidth;q.style.animation='';}
+  el.querySelector('.isub').textContent=s.line;
+  if(s.cheer||i===2){cheer(0,null,1);cheer(1,null,1);crowdCheer(i===2?'point':'win',1);}
+  if(s.dark){CR.team=[0,0];sting('armed',0.5,0.05);}else if(i===0)sting('win',0.3,0.035);}
+function introTick(dt){const el=INTRO.el;INTRO.t+=dt;if(performance.now()>INTRO.arm)el.classList.add('armed');
+  if(INTRO.ph==='crawl'&&INTRO.t>=INTRO.crawlD){INTRO.ph='final';INTRO.t=0;el.className='final armed';}
+  else if(INTRO.ph==='final'&&INTRO.t>=INTRO.finalD){INTRO.ph='static';INTRO.t=0;el.className='static armed';introDrone(false);
+    snd({noise:true,f:2600,type:'bandpass',q:0.6,dur:INTRO.staticD,vol:0.14,bus:'ui'});}
+  else if(INTRO.ph==='static'){const c=INTRO.stc,g=c.getContext('2d'),im=g.createImageData(c.width,c.height),d=im.data;
+    for(let i=0;i<d.length;i+=4){const v=Math.random()*255|0;d[i]=d[i+1]=d[i+2]=v;d[i+3]=255;}g.putImageData(im,0,0);
+    if(INTRO.t>=INTRO.staticD){INTRO.ph='bc';introShot(0);}}
+  else if(INTRO.ph==='bc'){INTRO.shotT+=dt;const s=INTRO_SHOTS[INTRO.i];
+    if(s.out&&INTRO.shotT>INTRO.dur-1.3)el.classList.add('out');
+    if(INTRO.shotT>=INTRO.dur){if(INTRO.i+1<INTRO_SHOTS.length)introShot(INTRO.i+1);else introEnd();}}}
+function introView(){const now=performance.now(),dt=Math.min(0.25,(now-INTRO.last)/1000);INTRO.last=now;introTick(dt);if(!INTRO.on)return;const s=INTRO_SHOTS[Math.max(0,INTRO.i)],k=INTRO.ph==='bc'?clamp(INTRO.shotT/INTRO.dur,0,1):0;
+  const e=0.6*k+0.4*(k*k*(3-2*k)),u=(s.u[0]+(s.u[1]-s.u[0])*e)%1;FLY_POS.getPoint(u,flyP);FLY_LOOK.getPoint(u,flyL);
+  camera.position.copy(flyP);flyLs.copy(flyL);camera.lookAt(flyLs);if(Math.abs(camera.fov-62)>0.05){camera.fov=62;camera.updateProjectionMatrix();}vm.visible=false;}
+function introSkip(){if(INTRO.on&&performance.now()>INTRO.arm)introEnd();}
+function introEnd(){if(!INTRO.on)return;INTRO.on=false;INTRO.el.hidden=true;INTRO.el.className='';introHush();introDrone(false);
+  try{localStorage.setItem('za-intro','1');}catch(e){}
+  const f=INTRO.then;INTRO.then=null;if(f){TOD.force='';applyGfx();f();}
+  else{$('menu').hidden=false;if(!$('mpanel').hidden)dioShow($('modesel').value);}}
+window.addEventListener('keydown',e=>{if(!INTRO.on)return;e.preventDefault();e.stopImmediatePropagation();if(!e.repeat)introSkip();},true);
 /* ---------- mode screen diorama ----------
    While the mode screen is up, the menu camera stops flying and holds on a frozen moment of the picked mode in the picked map:
    both teams mid-fight (muzzle flashes and tracers hang in the air), or two players holding off Revenants for Zombie Rumble.
@@ -5805,7 +5924,7 @@ function frameBody(now){
   if(paused){}
   else if(S){if(DIO.on)dioHide();coverTick(dt);rgTick(dt);zRender(dt);zrDropRender(dt);debrisTick(dt);localTick(dt);renderOthers(dt);siteFx();hud(dt);audioTick(dt);}
   else flyover(dt);
-  if((S||$('menu').hidden)&&(TOD.force||SHOW.fade)){TOD.force='';SHOW.fade=0;SHOW.want=-1;$('flyfade').style.opacity=0;applyGfx();}/* leaving the menu: the player's time of day again */
+  if((S||($('menu').hidden&&!INTRO.on))&&(TOD.force||SHOW.fade)){TOD.force='';SHOW.fade=0;SHOW.want=-1;$('flyfade').style.opacity=0;applyGfx();}/* leaving the menu: the player's time of day again */
   if(!$('lobby').hidden)lobbyTick(dt);
   fxTick(dt,now);touchTick();
   renderScene();
@@ -5828,6 +5947,6 @@ mergeChildren(scene);
 refreshZoneLook('atk');
 // Compile every material's shader up front (in parallel where the browser supports it) so nothing compiles on the first shot or spawn.
 renderer.compileAsync(scene,camera).catch(()=>{}).finally(()=>requestAnimationFrame(frame));
-window.__za={mf:{MF,MFV,MFA,craneAt:t=>craneAt(t),pourAt:t=>pourAt(t),mfT:()=>mfT(),damagePane:(i,d)=>damagePane(i,d),setMap:id=>setMap(id),tick:dt=>mfTick(dt)},dio:DIO,beat:BEAT,lx:LX,opt:OPT,zr:{ZB,ZR,ZCARDS,zrCardSend:c=>zrCardSend(c),zrCardAct:(p,c)=>zrCardAct(p,c),zrSeg:n=>zrSeg(n),zrInter:()=>zrInter(),zAoe:(...a)=>zAoe(...a),zSpawn:(t,x,z,y,e)=>zSpawn(t,x,z,y,e),zTick:dt=>zTick(dt),zRender:dt=>zRender(dt),zClear:()=>zClear(),zRay:(...a)=>zRay(...a),zHorde:()=>zHorde(),rgOn:()=>rgOn(),zBurst:(z,b)=>zBurst(z,b),zPack:()=>zPack(),zApplyT:(z,e,b)=>zApply(z,e,b),zSync:(a,b)=>zSync(a,b),zrWave:n=>zrWave(n),zKill:(z,h,b)=>zKill(z,h,b),zHitAt:(...a)=>zHitAt(...a),zDeliver:()=>zDeliver(),ZD},sim:{hostTick:dt=>hostTick(dt),coverTick:dt=>coverTick(dt),newMatch:()=>newMatch(),MATCH,dmSpawnSpot:p=>dmSpawnSpot(p),findPath:(a,b,c,d)=>findPath(a,b,c,d),freeAt:(x,z)=>freeAt(x,z),losPts:(...a)=>losPts(...a),DM_PTS,BOXES},BL,fire:()=>{const s=mySlot();if(s>=0)fire(s);},damage:(t,d,a,h)=>damage(t,d,a,h),prog:{PROG,PARTS,myW,modW,progSave,progLoad,rebuildVW,lvlOf,XPR},LX,MU,MM,WM,VB,OPT,AU,dev:{DEV,TUNE,GUN,W,COVER0,TWIN,STEP_MODE,devCollect,devApply},damageCover,COVER,coverVis,WH,openWheel:m=>openWheel(m),closeWheel:c=>closeWheel(c),wheelMove:(x,y)=>wheelMove(x,y),gfx:{renderer,scene,camera,applyGfx,DR,render:()=>renderScene(),FREF,BEAMS,MB,me,get gtao(){return gtaoPass;}},openPause:()=>openPause(),closePause:()=>closePause(),leaveMatch:()=>leaveMatch(),get S(){return S;},me,net,DMGDIR,rg:{RG,rgAdd,rgRemove,rgClear,BOXES},maps:{MAPS,MAP,MATCH,setMap,SITES,DM_PTS,findPath,freeAt,simTick:dt=>netTick(dt),SHOW,showCut:i=>showCut(i),TOD,ISO},botMem,CFG,SB,OPT,AU,get actx(){return actx;},mySlot:()=>mySlot(),sfx:{hitCue,HITX,footstep,slideSound,shotSound,stepSound,get stepBufs(){return stepBufs;},get slideBuf(){return slideBuf;},get gunBufs(){return gunBufs;}}};
+window.__za={intro:INTRO,mf:{MF,MFV,MFA,craneAt:t=>craneAt(t),pourAt:t=>pourAt(t),mfT:()=>mfT(),damagePane:(i,d)=>damagePane(i,d),setMap:id=>setMap(id),tick:dt=>mfTick(dt)},dio:DIO,beat:BEAT,lx:LX,opt:OPT,zr:{ZB,ZR,ZCARDS,zrCardSend:c=>zrCardSend(c),zrCardAct:(p,c)=>zrCardAct(p,c),zrSeg:n=>zrSeg(n),zrInter:()=>zrInter(),zAoe:(...a)=>zAoe(...a),zSpawn:(t,x,z,y,e)=>zSpawn(t,x,z,y,e),zTick:dt=>zTick(dt),zRender:dt=>zRender(dt),zClear:()=>zClear(),zRay:(...a)=>zRay(...a),zHorde:()=>zHorde(),rgOn:()=>rgOn(),zBurst:(z,b)=>zBurst(z,b),zPack:()=>zPack(),zApplyT:(z,e,b)=>zApply(z,e,b),zSync:(a,b)=>zSync(a,b),zrWave:n=>zrWave(n),zKill:(z,h,b)=>zKill(z,h,b),zHitAt:(...a)=>zHitAt(...a),zDeliver:()=>zDeliver(),ZD},sim:{hostTick:dt=>hostTick(dt),coverTick:dt=>coverTick(dt),newMatch:()=>newMatch(),MATCH,dmSpawnSpot:p=>dmSpawnSpot(p),findPath:(a,b,c,d)=>findPath(a,b,c,d),freeAt:(x,z)=>freeAt(x,z),losPts:(...a)=>losPts(...a),DM_PTS,BOXES},BL,fire:()=>{const s=mySlot();if(s>=0)fire(s);},damage:(t,d,a,h)=>damage(t,d,a,h),prog:{PROG,PARTS,myW,modW,progSave,progLoad,rebuildVW,lvlOf,XPR},LX,MU,MM,WM,VB,OPT,AU,dev:{DEV,TUNE,GUN,W,COVER0,TWIN,STEP_MODE,devCollect,devApply},damageCover,COVER,coverVis,WH,openWheel:m=>openWheel(m),closeWheel:c=>closeWheel(c),wheelMove:(x,y)=>wheelMove(x,y),gfx:{renderer,scene,camera,applyGfx,DR,render:()=>renderScene(),FREF,BEAMS,MB,me,get gtao(){return gtaoPass;}},openPause:()=>openPause(),closePause:()=>closePause(),leaveMatch:()=>leaveMatch(),get S(){return S;},me,net,DMGDIR,rg:{RG,rgAdd,rgRemove,rgClear,BOXES},maps:{MAPS,MAP,MATCH,setMap,SITES,DM_PTS,findPath,freeAt,simTick:dt=>netTick(dt),SHOW,showCut:i=>showCut(i),TOD,ISO},botMem,CFG,SB,OPT,AU,get actx(){return actx;},mySlot:()=>mySlot(),sfx:{hitCue,HITX,footstep,slideSound,shotSound,stepSound,get stepBufs(){return stepBufs;},get slideBuf(){return slideBuf;},get gunBufs(){return gunBufs;}}};
 })();
 </script>
