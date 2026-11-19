@@ -1273,6 +1273,7 @@ function presenceOf(peer){
 }
 function electHost(){
   if(net.mode==='solo'){net.hostPeer='local';net.host=true;return;}
+  if(!net.room)return;
   if(!net.myPeer){const mine=net.room.peers().find(p=>p.isMe&&p.sameTab);if(mine)net.myPeer=mine.peer;}
   /* whoever is already running the match keeps it: hosts say since when in presence (h), the longest-running one wins (then the
      lowest label), so a newcomer whose label sorts first doesn't restart it. Pages in the lobby never start a match on their own:
@@ -1362,6 +1363,7 @@ async function joinOnline(code){
 let presT=0,stateT=0;
 function netTick(dt){
   if(net.mode==='online'){
+    if(!net.room)return;/* still joining (joinOnline sets the mode before the room answers) */
     electHost();
     presT-=dt;if(presT<=0&&net.room){presT=1/20;/* presence and emits share ~40 a second; the host also sends 10 state packets */net.room.presence(myPresence()).catch(()=>{});}
     if(net.host&&S){syncRoster();hostTick(dt);stateT-=dt;if(stateT<=0){stateT=0.1;net.room.emit('state',packState()).catch(()=>{});}}
