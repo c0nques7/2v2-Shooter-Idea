@@ -218,19 +218,27 @@ body.prematch #topbar,body.prematch #mini,body.prematch #feed,body.prematch #vit
 #zrint p{margin:0;color:var(--muted);font-size:15px}
 #zrcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
 #zrcards:has(>:nth-child(5)){grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
-.zcard{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;gap:5px;min-height:150px;padding:12px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.14);border-top:4px solid var(--hc);background:rgba(255,255,255,.04);color:var(--fg)}
-.zcard:hover:not([aria-disabled=true]),.zcard:focus-visible{background:rgba(255,255,255,.09);outline:2px solid var(--hc);outline-offset:1px}
+.zcard{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;gap:5px;min-height:150px;padding:12px 14px;border-radius:8px;border:1px solid color-mix(in srgb,var(--rc) 45%,transparent);border-top:4px solid var(--rc);background:linear-gradient(180deg,color-mix(in srgb,var(--rc) 10%,transparent),rgba(255,255,255,.03) 45%);color:var(--fg)}
+.zcard:hover:not([aria-disabled=true]),.zcard:focus-visible{background:rgba(255,255,255,.09);outline:2px solid var(--rc);outline-offset:1px}
+.zcard .ztop{display:flex;align-items:center;gap:8px;min-width:0}.zcard .ztop .zk{margin-left:auto}
+.zg{flex:none;display:inline-block;width:28px;height:28px;border-radius:6px;background:center/cover no-repeat var(--gl);box-shadow:0 0 0 1px rgba(255,255,255,.18)}
+.zcard .zsp{display:flex;flex-direction:column;min-width:0;line-height:1.1}.zcard .zsp b{font-family:var(--display);font-size:15px;letter-spacing:.06em;color:var(--fg)}.zcard .zsp span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.zcard .zr{font-size:12px;font-weight:700;color:var(--rc);text-transform:uppercase;letter-spacing:.1em}
+.zcard .zst{font-size:13px;color:var(--muted);border-top:1px solid rgba(255,255,255,.1);padding-top:5px}.zcard .zst.up{color:var(--fg)}.zcard .zst.up em{font-style:normal;color:var(--rc2,#ffc23d);font-weight:700}
+#zrint .zleg{font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center}#zrint .zleg i{font-style:normal;font-weight:700}
+#zrint .zleg>span{display:flex;flex-wrap:wrap;gap:4px 12px}#zrint .zleg .zg{width:18px;height:18px;border-radius:4px;vertical-align:-4px;margin-right:4px}
 .zcard[aria-disabled=true]{opacity:.45;cursor:default}
-.zcard .zk{font-family:var(--mono);font-size:12px;color:var(--muted)}.zcard .zh{font-size:13px;font-weight:600;color:var(--hc);text-transform:uppercase;letter-spacing:.08em}
+.zcard .zk{font-family:var(--mono);font-size:12px;color:var(--muted)}
 .zcard b{font-family:var(--display);font-size:24px;line-height:1.05}.zcard .zd{font-size:15px;flex:1}.zcard .zc{font-family:var(--mono);font-size:13px;color:var(--warn)}
-.zcard.r3{box-shadow:inset 0 0 22px rgba(255,194,61,.12)}
+.zcard.r3{box-shadow:inset 0 0 22px rgba(255,194,61,.14)}
 #zrdir{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 14px;border:1px dashed rgba(255,194,61,.55);border-radius:8px;background:rgba(255,194,61,.06)}
 #zrdir div{display:flex;flex-direction:column;gap:2px}#zrdir .zdh{font-size:12px;font-weight:600;color:var(--warn);text-transform:uppercase;letter-spacing:.08em}#zrdir b{font-family:var(--display);font-size:22px}#zrdir #zrdirD{font-size:15px;color:var(--muted)}
 #zrdir .btn{min-height:44px;padding:8px 18px;font-size:16px}#zrdir .btn.on{border-color:var(--warn);color:var(--warn)}
 #zrint .zib{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}#zrint .zib .btn{min-height:44px;padding:8px 18px;font-size:17px}
 #zrheld{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;max-width:min(520px,calc(100vw - 32px));margin:3px auto 0}
-.zrcd.set{font-weight:700;background:rgba(0,0,0,.6)}
-.zrcd{display:inline-block;background:rgba(0,0,0,.45);text-shadow:0 1px 2px #000;margin:0;padding:0 6px;border-radius:3px;font-size:12px;border:1px solid var(--hc);color:var(--hc)}
+.zrcd.set{font-weight:700;background:rgba(0,0,0,.6);border-color:rgba(255,255,255,.35);color:var(--fg)}
+.zrcd .zg{width:13px;height:13px;border-radius:3px;vertical-align:-2px;margin-right:4px;box-shadow:none}
+.zrcd{display:inline-block;background:rgba(0,0,0,.45);text-shadow:0 1px 2px #000;margin:0;padding:0 6px;border-radius:3px;font-size:12px;border:1px solid var(--rc,var(--line));border-left-width:3px;color:var(--fg)}
 @media (prefers-reduced-motion:reduce){#zrcap div{animation:none}}
 /* campaign intro: crawl, static cut, then the broadcast framed as live TV (see introStart) */
 #intro{position:fixed;inset:0;z-index:16;overflow:hidden;color:#f2eefc;font-family:var(--display);cursor:default;user-select:none;-webkit-user-select:none}
@@ -686,7 +694,7 @@ body.touch #dock #dashpips i{width:22px;height:6px}
 <div class="hud" id="zrwcard" hidden></div>
 <div class="hud" id="zrboss" hidden><b>The Juggernaut</b><div class="zbb"><i id="zrbossF"></i></div><span>Plating turns bullets from the front. Hit it in the back</span></div>
 <div class="overlay" id="zrlocker" hidden role="dialog" aria-label="Locker"><div class="zlpanel"><div class="zlhd"><div><b>Locker</b><span>Permanent upgrades for Zombie Rumble, bought with Credits from runs. They never apply in PvP.</span></div><span id="zrlockcr" class="num"></span></div><div id="zrlocklist"></div><div class="zlft"><button class="btn" type="button" id="zrlockx">Close</button></div></div></div>
-<div class="hud" id="zrint" hidden role="dialog" aria-label="Intermission"><div class="zih"><b>Intermission</b><span id="zrintT" class="num"></span></div><p id="zrintS"></p><div id="zrcards"></div><div id="zrdir" hidden><div><span class="zdh">Broadcast directive · next segment pays double Favor</span><b id="zrdirN"></b><span id="zrdirD"></span></div><button class="btn" type="button" id="zrdirB"></button></div><div class="zib"><button class="btn" type="button" id="zrfor" hidden></button><button class="btn" type="button" id="zrreroll"></button><button class="btn primary" type="button" id="zrready">Ready</button></div><p id="zrintP"></p></div>
+<div class="hud" id="zrint" hidden role="dialog" aria-label="Intermission"><div class="zih"><b>Intermission</b><span id="zrintT" class="num"></span></div><p id="zrintS"></p><div id="zrcards"></div><div class="zleg" id="zrleg"></div><div id="zrdir" hidden><div><span class="zdh">Broadcast directive · next segment pays double Favor</span><b id="zrdirN"></b><span id="zrdirD"></span></div><button class="btn" type="button" id="zrdirB"></button></div><div class="zib"><button class="btn" type="button" id="zrfor" hidden></button><button class="btn" type="button" id="zrreroll"></button><button class="btn primary" type="button" id="zrready">Ready</button></div><p id="zrintP"></p></div>
 <div id="intro" hidden aria-label="Campaign intro"></div>
 <div class="hud" id="banner" hidden><h2 id="bannerT"></h2><p id="bannerS"></p></div>
 <div class="hud" id="xpsum" hidden aria-live="polite"></div>
@@ -10194,8 +10202,18 @@ const ZCARDS={
   rb:{h:'ark',n:'Rapid Rebuild',r:1,d:'Broken cover rebuilds in 2 s'},
   bp:{h:'ark',n:'Blast Plating',r:2,d:'Bloater bursts hurt you 60% less'},
   mn:{h:'ark',n:'Live Sites',r:3,d:'Bomb sites A and B blow up under Revenants that step on them'}};
-const ZHOUSE={arm:['Armoury','#ff8a5c'],kin:['Kinetics','#5ff2ff'],med:['Medica','#4dffa6'],brd:['Broadcast','#ffc23d'],ark:['Arena Works','#c99bff']};
-const ZRAR=['','Standard','Rare','Signature'],ZCOST=[0,60,90,130],ZREROLL=30,ZGUN=50;
+/* each house's cards are made by one of the arena's sponsors (SPONSORS, the brands on the wall boards); its logo is the card's glyph */
+const ZHOUSE={arm:['Armoury','#ff8a5c','HEXFORGE'],kin:['Kinetics','#5ff2ff','VOLTEX'],med:['Medica','#4dffa6','PULSE-9'],brd:['Broadcast','#ffc23d','STRATA'],ark:['Arena Works','#c99bff','IRONLEAF']};
+const ZRAR=['','Standard','Rare','Signature'],ZRARC=['','#b9c3cf','#3fa0ff','#ffc23d'],ZRARP=['','◆','◆◆','◆◆◆'],ZCOST=[0,60,90,130],ZREROLL=30,ZGUN=50;
+/* a sponsor's logo as a little badge (data URL, made once), the same drawing as on its wall board */
+const ZGLY={};
+function zGlyph(h){if(ZGLY[h])return ZGLY[h];const sp=SPONSORS.find(q=>q.n===(ZHOUSE[h]||[])[2]);if(!sp)return '';
+  try{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');g.fillStyle=sp.bg;g.fillRect(0,0,64,64);g.fillStyle=sp.ac;g.fillRect(0,58,64,6);
+    drawLogo(g,sp.logo,32,30,19,sp.ac);ZGLY[h]=c.toDataURL();}catch(e){ZGLY[h]='';}return ZGLY[h];}
+function zGlyphEl(h){const e=document.createElement('span');e.className='zg';const u=zGlyph(h);if(u)e.style.setProperty('--gl',`url(${u})`);e.setAttribute('aria-hidden','true');return e;}
+/* what taking a card does to its sponsor set, for the card's stack line */
+function zrStackLine(c,n){const h=c.h,sn=ZHOUSE[h][2];
+  return n>=3?[`${sn} set III already on · this card adds its own effect`,0]:n===2?[`Completes <em>${sn} set III</em>: ${ZSET[h][1]} (replaces set II)`,1]:n===1?[`Makes <em>${sn} set II</em>: ${ZSET[h][0]}`,1]:[`1 of 2 for ${sn} set II (${ZSET[h][0]})`,0];}
 /* house sets: two cards of one house give the first bonus, three or more the second */
 const ZSET={arm:['+5% damage','+15% damage'],kin:['+5% move speed','+5% move speed, dash recharges 20% faster'],med:['10% less damage taken','10% less damage taken, 25 s to bleed out'],
   brd:['+25% Favor','+50% Favor'],ark:['Bloater bursts hurt you 25% less','Bursts hurt you 25% less, broken cover rebuilds in 4 s']};
@@ -10520,9 +10538,9 @@ function zrHud(P){const Z=S.zr;if(!Z)return;const L=Z.left|0;
 /* the cards you hold, under your health */
 function zrHide(){for(const id of ['zrheld','zrboss','zrint','zrwcard'])if(!$(id).hidden)$(id).hidden=true;$('zrcap').replaceChildren();}
 function zrCardsLine(P){const el=$('zrheld'),cs=(P&&P.cards)||[],k=cs.join(',')+(TOUCH.on?'t':'')+(innerHeight<520?'s':'');el.hidden=!cs.length;if(el.dataset.k===k)return;el.dataset.k=k;
-  const chip=(h,t,d,set)=>{const sp=document.createElement('span');sp.className='zrcd'+(set?' set':'');sp.style.setProperty('--hc',ZHOUSE[h][1]);sp.textContent=t;sp.title=d;return sp;};
-  el.replaceChildren(...Object.keys(ZHOUSE).filter(h=>zrSet(P,h)).map(h=>{const n=zrSet(P,h);return chip(h,`${ZHOUSE[h][0]} set ${n>1?'III':'II'}: ${ZSET[h][n-1]}`,ZSET[h][n-1],true);}),
-    ...cs.filter(id=>ZCARDS[id]).map(id=>{const c=ZCARDS[id];return chip(c.h,c.n,c.d);}));
+  const chip=(h,t,d,set,r)=>{const sp=document.createElement('span');sp.className='zrcd'+(set?' set':'');if(r)sp.style.setProperty('--rc',ZRARC[r]);sp.append(zGlyphEl(h),t);sp.title=d;return sp;};
+  el.replaceChildren(...Object.keys(ZHOUSE).filter(h=>zrSet(P,h)).map(h=>{const n=zrSet(P,h);return chip(h,`${ZHOUSE[h][2]} set ${n>1?'III':'II'}: ${ZSET[h][n-1]}`,`${ZHOUSE[h][2]} set ${n>1?'III':'II'} (${n>1?'3':'2'} ${ZHOUSE[h][0]} cards): ${ZSET[h][n-1]}`,true);}),
+    ...cs.filter(id=>ZCARDS[id]).map(id=>{const c=ZCARDS[id];return chip(c.h,c.n,`${c.n} · ${ZHOUSE[c.h][2]} ${ZHOUSE[c.h][0]} · ${ZRAR[c.r]}: ${c.d}`,false,c.r);}));
   const max=TOUCH.on?(innerHeight<520?1:6):(innerHeight<520?3:8),kids=[...el.children];if(kids.length>max+1){const more=kids.slice(max);more.forEach(k=>k.remove());const m=document.createElement('span');m.className='zrcd more';m.textContent=`+${more.length} more`;m.title=more.map(k=>k.textContent).join(', ');el.append(m);}}
 function zrBanner(){const Z=S.zr,bn=$('banner');bn.hidden=false;
   if(S.phase==='buy'){$('bannerT').textContent='Monday Night Zombie Rumble';
@@ -10557,16 +10575,22 @@ function zrInterUI(P){const Z=S.zr,el=$('zrint'),on=S.phase==='live'&&Z.ph==='in
   const mate=S.players.find(p=>p!==P);$('zrintP').textContent=mate?`${mate.name}: ${Z.ready[mate.s]?'ready':Z.picked[mate.s]?'shopping':'choosing'}`:'';
   const gun=(Z.gun||{})[s],gift=ZI.gift&&!!mate,mc=(mate&&mate.cards)||[];
   const key=[Z.dir,Z.dirOn,of.join(','),pk,rd,fv,(P.cards||[]).join(','),mc.join(','),gun,gift,TOUCH.on].join('|');if(key===ZI.k)return;ZI.k=key;
+  if(!$('zrleg').childElementCount){const L=$('zrleg'),r=k=>{const i=document.createElement('i');i.style.color=ZRARC[k];i.textContent=`${ZRARP[k]} ${ZRAR[k]}`;return i;},sp=document.createElement('span');
+    for(const h in ZHOUSE){const q=document.createElement('span');q.append(zGlyphEl(h),`${ZHOUSE[h][2]} ${ZHOUSE[h][0]}`);sp.append(q);}
+    L.append(r(1),r(2),r(3),sp,'Two cards from one sponsor make set II, three make set III (it replaces II) · You hold each card once per run · Bonuses multiply: +12% with +15% is +29%');}
   $('zrintS').textContent=pk?`Favor ${fv}. Buy another card, reroll, or ready up for segment ${Z.seg+1}`:`Segment ${Z.seg} survived. The patrons are bidding: take one card, free · Favor ${fv}`;
   const mk=(t,c,x)=>{const n=document.createElement(t);if(c)n.className=c;if(x!=null)n.textContent=x;return n;};
   const who=gift&&pk?mate:P,held=h=>((who.cards||[]).filter(q=>ZCARDS[q]&&ZCARDS[q].h===h).length);
   $('zrcards').replaceChildren(...of.map((id,i)=>{const c=ZCARDS[id],cost=ZCOST[c.r],no=rd||(pk&&(fv<cost||(who.cards||[]).includes(id))),b=mk('button','zcard r'+c.r);b.type='button';
-    b.style.setProperty('--hc',ZHOUSE[c.h][1]);b.setAttribute('aria-disabled',no);const hn=held(c.h);
-    b.append(mk('span','zk',TOUCH.on?'':String(i+1)),mk('span','zh',`${ZHOUSE[c.h][0]} · ${ZRAR[c.r]}`+(hn?` · ${who===P?'you hold':who.name+' holds'} ${hn}`:'')),mk('b','',c.n),mk('span','zd',c.d),
+    b.style.setProperty('--rc',ZRARC[c.r]);b.setAttribute('aria-disabled',no);const hn=held(c.h),own=(who.cards||[]).includes(id);
+    const top=mk('span','ztop'),spn=mk('span','zsp');spn.append(mk('b','',ZHOUSE[c.h][2]),mk('span','',ZHOUSE[c.h][0]));top.append(zGlyphEl(c.h),spn,mk('span','zk',TOUCH.on?'':String(i+1)));
+    const [sl,up]=own?[`${who===P?'You':who.name} already hold${who===P?'':'s'} this card`,0]:zrStackLine(c,hn),st=mk('span','zst'+(up?' up':''));st.innerHTML=sl+(who!==P&&hn?` (${who.name} holds ${hn})`:'');
+    b.append(top,mk('span','zr',`${ZRARP[c.r]} ${ZRAR[c.r]}`),mk('b','',c.n),mk('span','zd',c.d),st,
       mk('span','zc',pk?`${cost} Favor${who!==P?' · for '+who.name:''}`:'Free pick'));
     b.addEventListener('click',()=>{if(b.getAttribute('aria-disabled')==='true')return;blip(980,0.022,0.012,false,'ui');zrCardSend(pk?{a:'buy',id,to:who!==P?1:0}:{a:'pick',id});});return b;}));
-  if(gun&&W[gun]){const no=rd||!pk||fv<ZGUN,b=mk('button','zcard gun');b.type='button';b.style.setProperty('--hc',ZHOUSE.arm[1]);b.setAttribute('aria-disabled',no);
-    b.append(mk('span','zk',TOUCH.on?'':String(of.length+1)),mk('span','zh','Armoury · Gun drop'),mk('b','',W[gun].name),mk('span','zd',`Swap your gun for the ${W[gun].name} for the rest of the run, from the next segment`),mk('span','zc',pk?`${ZGUN} Favor`:'After your free pick'));
+  if(gun&&W[gun]){const no=rd||!pk||fv<ZGUN,b=mk('button','zcard gun');b.type='button';b.style.setProperty('--rc','#d8dee8');b.setAttribute('aria-disabled',no);
+    {const top=mk('span','ztop'),spn=mk('span','zsp');spn.append(mk('b','',ZHOUSE.arm[2]),mk('span','','Gun drop'));top.append(zGlyphEl('arm'),spn,mk('span','zk',TOUCH.on?'':String(of.length+1)));b.append(top);}
+    b.append(mk('span','zr','Weapon'),mk('b','',W[gun].name),mk('span','zd',`Swap your gun for the ${W[gun].name} for the rest of the run, from the next segment`),mk('span','zc',pk?`${ZGUN} Favor`:'After your free pick'));
     b.addEventListener('click',()=>{if(b.getAttribute('aria-disabled')==='true')return;blip(980,0.022,0.012,false,'ui');zrCardSend({a:'gun'});});$('zrcards').append(b);}
   {const dr=Z.dir&&ZDIR[Z.dir];$('zrdir').hidden=!dr;if(dr){$('zrdirN').textContent=dr.n;$('zrdirD').textContent=dr.d;const b=$('zrdirB');b.disabled=rd;b.classList.toggle('on',!!Z.dirOn);
     b.textContent=Z.dirOn?`Taken${TOUCH.on?'':' (D to drop it)'}`:`Take it${TOUCH.on?'':' (D)'}`;}}
