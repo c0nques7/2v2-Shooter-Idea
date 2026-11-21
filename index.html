@@ -374,7 +374,7 @@ body.ended #touch,body.ended #zrcap,body.ended #down,body.ended #lockhint,body.e
 @keyframes mpin{from{opacity:0}to{opacity:1}}
 #menu.sub{background:none}
 #menu.sub .mwrap>:not(#mpanel){visibility:hidden}
-.mcol{pointer-events:auto;box-sizing:border-box;width:min(380px,32vw);flex:none;height:100%;display:flex;flex-direction:column;gap:clamp(6px,1.4vh,14px);overflow:visible;
+.mcol{pointer-events:auto;box-sizing:border-box;width:min(440px,max(46vw,310px));flex:none;height:100%;display:flex;flex-direction:column;gap:clamp(6px,1.4vh,14px);overflow:visible;
   padding:calc(12px + env(safe-area-inset-top,0px)) 14px calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
 .mphd{display:flex;align-items:center;gap:12px}.mphd .msti{align-items:flex-start;flex:1;min-width:0}.mphd .msti b{font-size:clamp(16px,min(3.4vh,2.5vw),30px);white-space:nowrap;letter-spacing:.12em}
 .mcards{flex:1 0 auto;display:flex;flex-direction:column;justify-content:center;gap:clamp(5px,1vh,10px)}
@@ -393,18 +393,23 @@ body.ended #touch,body.ended #zrcap,body.ended #down,body.ended #lockhint,body.e
 .mcd[aria-checked=true]{transform:translateX(8px);border-color:var(--mc);background:linear-gradient(90deg,color-mix(in srgb,var(--mc) 32%,transparent),rgba(12,8,24,.85) 80%);box-shadow:0 0 22px color-mix(in srgb,var(--mc) 40%,transparent)}
 .mcd:focus-visible{outline:2px solid var(--mc);outline-offset:2px}
 /* options for the picked mode open in a panel to the right of the cards (Joe: sub menus open to the right, nothing scrolls) */
-.mside{pointer-events:auto;box-sizing:border-box;width:min(340px,31vw);flex:none;align-self:center;max-height:calc(100% - 24px);margin-left:clamp(6px,1.2vw,16px);display:flex;flex-direction:column;gap:clamp(8px,1.6vh,14px);overflow:hidden;
-  padding:clamp(10px,2vh,18px) clamp(10px,1.4vw,16px);background:rgba(12,8,24,.86);border:1px solid color-mix(in srgb,var(--mc,#5ff2ff) 45%,transparent);border-top:3px solid var(--mc,#5ff2ff);border-radius:8px;
+.mside{pointer-events:auto;box-sizing:border-box;flex:none;margin:-2px 0 2px 8px;display:flex;flex-direction:column;gap:clamp(6px,1.2vh,10px);
+  padding:clamp(8px,1.4vh,12px) clamp(8px,1.2vw,12px);background:rgba(12,8,24,.88);border:1px solid color-mix(in srgb,var(--mc,#5ff2ff) 45%,transparent);border-left:4px solid var(--mc,#5ff2ff);border-radius:0 0 8px 8px;
   box-shadow:0 0 26px color-mix(in srgb,var(--mc,#5ff2ff) 22%,transparent);animation:msin .18s cubic-bezier(.2,.7,.2,1)}
-@keyframes msin{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}}
-.mside .mseg{flex-wrap:wrap}.mside .mseg>span{width:100%;margin-bottom:3px}.mside .mseg button{font-size:13px;padding:6px 4px;white-space:nowrap;min-width:0}
+@keyframes msin{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+.mshd2{display:none!important}
+/* the other cards shrink to one line while one is picked, so the picked card and its options fit */
+.mcards{justify-content:flex-start}
+.mcd[aria-checked=false]{padding-top:clamp(4px,.9vh,8px);padding-bottom:clamp(4px,.9vh,8px)}.mcd[aria-checked=false] .mctag{display:none}.mcd[aria-checked=false] b{font-size:clamp(16px,2.8vh,22px)}.mcd[aria-checked=false] .mcpip{top:50%;transform:translateY(-50%)}
+.mcd[aria-checked=false] b{padding-right:5.6em}.mcd .mctag{padding-right:7em}
+.mside .mseg{flex-wrap:nowrap}.mside .mseg>span{width:4.6em;margin:0}.mside .mseg button{font-size:12.5px;padding:5px 3px;white-space:nowrap;min-width:0;flex:1 1 auto;letter-spacing:.02em}
 @media (max-width:1000px){.mcpip{gap:2px;right:10px}.mcpip i{width:5px;height:10px}.mcpip em{margin:0 1px;font-size:9px}.mcd{padding-right:10px}}
 .mshd2{display:flex;flex-direction:column;gap:1px}.mshd2 .mctag{color:var(--mc,#5ff2ff)}.mshd2 b{font-family:var(--display);font-weight:700;font-size:clamp(20px,3.4vh,28px);line-height:1;letter-spacing:.03em;text-transform:uppercase}
 .mpopts{display:flex;flex-direction:column;align-items:stretch;gap:8px}
 #msetup,.mpp{display:flex;flex-direction:column;align-items:stretch;gap:8px}
-#zrweeks{display:grid;grid-template-columns:1fr;gap:5px}#zrweeks .zwh{grid-column:1/-1;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+#zrweeks{display:grid;grid-template-columns:1fr 1fr;gap:5px}#zrweeks .zwh{grid-column:1/-1;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
 .zwk{font:inherit;text-align:left;display:flex;flex-direction:column;gap:0;padding:4px 9px;min-height:40px;min-width:0;border-radius:6px;border:1px solid var(--line);background:rgba(20,15,36,.85);color:var(--fg);cursor:pointer}
-.zwk b,.zwk span{overflow-wrap:anywhere;line-height:1.15}.zwk b{font-size:14px;letter-spacing:.04em;text-transform:uppercase}.zwk span{font-size:12px;color:var(--muted)}
+.zwk b,.zwk span{overflow-wrap:break-word;line-height:1.15}.zwk b{font-size:13px;letter-spacing:.04em;text-transform:uppercase}.zwk span{font-size:12px;color:var(--muted)}
 .zwk.zwintro{grid-column:1/-1;min-height:34px;flex-direction:row;flex-wrap:wrap;align-items:baseline;column-gap:10px;border-style:dashed}.zwk.zwintro b{flex:none}.zwk.zwintro b{font-size:13px}
 .zwk.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}.zwk.on b{color:var(--accent)}.zwk:disabled{opacity:.5;cursor:default}
 .mseg{display:flex;align-items:center;gap:0}.mseg>span,.mcode>span{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);width:5.4em;flex:none}
@@ -425,7 +430,7 @@ body.ended #touch,body.ended #zrcap,body.ended #down,body.ended #lockhint,body.e
   .mpbar{position:static;width:auto;margin:0 max(16px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}.mpbar #netstatus{text-align:left}
   #zrweeks{grid-template-columns:1fr 1fr}.mshd2{display:none}.mside .mseg{flex-wrap:nowrap}.mside .mseg>span{width:5.4em;margin:0}
   .mphd{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));left:16px;right:16px}
-  .mcards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;flex:none}.mcd:nth-child(5){grid-column:span 2}.mcd b{font-size:clamp(18px,5vw,26px)}.mcpip{position:static;margin-bottom:2px}.mcd[aria-checked=true]{transform:none}.mcd[aria-checked=true] .mccap{max-height:3.8em}.mccap{font-size:12.5px}}
+  .mcards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;flex:none}.mcd[data-m=zr],.mcards .mside{grid-column:1/-1}.mcd b{font-size:clamp(18px,5vw,26px)}.mcpip{position:static;margin-bottom:2px}.mcd[aria-checked=true]{transform:none}.mcd[aria-checked=true] .mccap{max-height:3.8em}.mccap{font-size:12.5px}}
 .mapf{display:flex;flex-direction:column;gap:4px}
 .maphd{display:flex;align-items:baseline;gap:10px;min-width:0}.maphd .cap{margin:0;min-height:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .maps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
@@ -628,6 +633,14 @@ body.touch #dock #dashpips i{width:22px;height:6px}
   #shopSlots .chip{padding:2px 5px}#shopSlots .chip b{font-size:11.5px}#shopSlots{gap:3px}.chips{gap:4px}.chips.sw .chip{padding:3px 2px}
   #shopStats{display:grid;grid-template-columns:1fr 1fr;column-gap:12px}#shopStats .stat{font-size:11px;grid-template-columns:auto minmax(20px,1fr) auto;gap:4px}#shopCv{min-height:40px}
   .shopview .brow .btn{padding:3px 6px;font-size:12px}.shopview .brow .nm input{padding:3px 6px}.shopcard>.btns .btn{padding:5px 12px}}
+/* mode screen on short screens (Joe's Fold renders text large): everything tighter so the picked card's options fit with no scrolling */
+@media (max-height:600px){
+  .mcol{gap:5px;padding-top:calc(8px + env(safe-area-inset-top,0px));padding-bottom:calc(8px + env(safe-area-inset-bottom,0px))}
+  .mphd .btn{padding:4px 12px;min-height:0;font-size:15px}.mphd .msti b{font-size:17px}.mphd .msti span{font-size:11px}
+  .mcards{gap:4px}.mcd[aria-checked=false]{padding:3px 10px 3px 12px}.mcd[aria-checked=false] b{font-size:16px}
+  .mcd[aria-checked=true]{padding:5px 10px 5px 12px}.mcd[aria-checked=true] b{font-size:20px}.mcd .mctag{font-size:10px;letter-spacing:.12em}
+  .mside{padding:6px 8px;gap:5px}#zrweeks{gap:4px}.zwk{min-height:0;padding:3px 7px}.zwk b{font-size:12px}.zwk span{font-size:10.5px}.zwk.zwintro{min-height:0}
+  .mside .mseg button{min-height:26px;padding:3px}.mcode input{padding:3px 8px;min-height:0;font-size:14px}.mpopts,#msetup,.mpp{gap:5px}}
 </style>
 
 <canvas id="view" aria-label="Arena view"></canvas>
@@ -10459,7 +10472,7 @@ function modeCap(){const v=$('modesel').value;$('modecap').textContent=capOf(v);
   for(const c of MCARDS){c.querySelector('.mccap').textContent=capOf(c.dataset.m);const on=c.dataset.m===v;c.setAttribute('aria-checked',on);c.tabIndex=on?0:-1;}
   $('teamseg').hidden=v==='zr';$('zrseg').hidden=v!=='zr';$('zrweeks').hidden=v!=='zr';
   /* the picked mode's options open in the side panel to the right of the cards */
-  const cd=MCARDS.find(c=>c.dataset.m===v);if(cd){$('msideT').textContent=cd.querySelector('b').textContent;$('msideTag').textContent=cd.querySelector('.mctag').textContent;$('mside').style.setProperty('--mc',cd.style.getPropertyValue('--mc'));}}
+  const cd=MCARDS.find(c=>c.dataset.m===v);if(cd){$('msideT').textContent=cd.querySelector('b').textContent;$('msideTag').textContent=cd.querySelector('.mctag').textContent;$('mside').style.setProperty('--mc',cd.style.getPropertyValue('--mc'));if(cd.nextElementSibling!==$('mside'))cd.after($('mside'))/* options open right under the picked card */;}}
 function segSync(){document.querySelectorAll('.mseg').forEach(g=>{const v=$(g.dataset.for).value;g.querySelectorAll('button').forEach(b=>b.setAttribute('aria-checked',+b.dataset.v===+v));});}
 function modePick(v){if(!MODECAP[v])return;const sel=$('modesel');if(sel.value!==v){sel.value=v;sel.dispatchEvent(new Event('change'));blip(980,0.022,0.012,false,'ui');if(!$('mpanel').hidden)dioShow(v);}}
 MCARDS.forEach(c=>c.addEventListener('click',()=>modePick(c.dataset.m)));
@@ -11894,8 +11907,7 @@ new ResizeObserver(()=>menuFit()).observe($('menu'));addEventListener('resize',m
   addEventListener('touchend',end,true);addEventListener('touchcancel',end,true);})();
 /* the free part of the screen for the mode-screen scene: right of the cards and the options panel beside them;
    on portrait screens both sit in a band along the bottom, so the scene gets the area above it */
-function mpRect(){const a=$('mcol').getBoundingClientRect(),b=$('mside').getBoundingClientRect(),W=innerWidth;
-  if(!b.width)return {l:a.right,r:W,top:a.top};return b.left>a.right-1?{l:b.right,r:W,top:a.top}:{l:0,r:W,top:Math.min(a.top,b.top)};}
+function mpRect(){const a=$('mcol').getBoundingClientRect();return {l:a.right,r:innerWidth,top:a.top};}
 function dioOffset(W,H,port){const col=mpRect();return port?[0,Math.min(H*0.32,(H-col.top)/2)]:[W/2-(col.l+col.r)/2,0];}
 /* place the cast around a few candidate spots and pick the spot + camera that show the most of it: everyone in the free part of the screen,
    not hidden behind cover, and shots that are not fired into a crate */
