@@ -370,7 +370,7 @@ body.ended #touch,body.ended #zrcap,body.ended #down,body.ended #lockhint,body.e
 .mi:disabled{opacity:.35;cursor:not-allowed}
 /* mode screen: opens from Play / Play online; the cards run down the left and the menu scene holds a frozen moment of the picked mode beside them (DIO) */
 .mpanel{position:fixed;inset:0;z-index:11;display:flex;pointer-events:none;animation:mpin .18s ease-out;
-  background:linear-gradient(90deg,rgba(10,7,20,.88) 0%,rgba(10,7,20,.6) 24%,rgba(10,7,20,0) 40%,rgba(10,7,20,0) 64%,rgba(10,7,20,.6) 76%,rgba(10,7,20,.85) 100%),linear-gradient(0deg,rgba(10,7,20,.55) 0%,rgba(10,7,20,0) 18%)}
+  background:linear-gradient(90deg,rgba(10,7,20,.88) 0%,rgba(10,7,20,.62) 40%,rgba(10,7,20,0) 66%),linear-gradient(0deg,rgba(10,7,20,.55) 0%,rgba(10,7,20,0) 18%)}
 @keyframes mpin{from{opacity:0}to{opacity:1}}
 #menu.sub{background:none}
 #menu.sub .mwrap>:not(#mpanel){visibility:hidden}
@@ -384,7 +384,7 @@ body.ended #touch,body.ended #zrcap,body.ended #down,body.ended #lockhint,body.e
 .mcd b{font-family:var(--display);font-weight:700;font-size:clamp(22px,3.6vh,32px);line-height:.95;letter-spacing:.03em;text-transform:uppercase;color:#fff}
 .mctag{font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--mc)}
 .mccap{font-size:13.5px;color:#cfd2ea;line-height:1.2;max-height:0;overflow:hidden;opacity:0;transition:max-height .18s,opacity .18s}
-.mcd[aria-checked=true] .mccap{max-height:2.6em;opacity:1}
+.mcd[aria-checked=true] .mccap{max-height:4em;opacity:1}
 .mcpip{position:absolute;right:14px;top:clamp(8px,1.4vh,12px);display:flex;align-items:center;gap:3px}
 .mcpip i{width:8px;height:15px;border-radius:4px 4px 1px 1px;background:var(--team0);box-shadow:0 0 6px var(--team0)}.mcpip i.t1{background:var(--team1);box-shadow:0 0 6px var(--team1)}
 .mcpip i.zz{background:#9dff4d;box-shadow:0 0 6px #9dff4d;transform:skewX(-10deg);opacity:.85}
@@ -393,19 +393,19 @@ body.ended #touch,body.ended #zrcap,body.ended #down,body.ended #lockhint,body.e
 .mcd[aria-checked=true]{transform:translateX(8px);border-color:var(--mc);background:linear-gradient(90deg,color-mix(in srgb,var(--mc) 32%,transparent),rgba(12,8,24,.85) 80%);box-shadow:0 0 22px color-mix(in srgb,var(--mc) 40%,transparent)}
 .mcd:focus-visible{outline:2px solid var(--mc);outline-offset:2px}
 /* options for the picked mode open in a panel to the right of the cards (Joe: sub menus open to the right, nothing scrolls) */
-.mside{pointer-events:auto;box-sizing:border-box;width:min(340px,30vw);flex:none;align-self:center;max-height:calc(100% - 24px);margin-left:auto;margin-right:max(14px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:clamp(8px,1.6vh,14px);overflow:hidden;
+.mside{pointer-events:auto;box-sizing:border-box;width:min(340px,31vw);flex:none;align-self:center;max-height:calc(100% - 24px);margin-left:clamp(6px,1.2vw,16px);display:flex;flex-direction:column;gap:clamp(8px,1.6vh,14px);overflow:hidden;
   padding:clamp(10px,2vh,18px) clamp(10px,1.4vw,16px);background:rgba(12,8,24,.86);border:1px solid color-mix(in srgb,var(--mc,#5ff2ff) 45%,transparent);border-top:3px solid var(--mc,#5ff2ff);border-radius:8px;
   box-shadow:0 0 26px color-mix(in srgb,var(--mc,#5ff2ff) 22%,transparent);animation:msin .18s cubic-bezier(.2,.7,.2,1)}
-@keyframes msin{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
-.mside .mseg{flex-wrap:wrap}.mside .mseg>span{width:100%;margin-bottom:3px}.mside .mseg button{font-size:13px;padding:6px}
+@keyframes msin{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}}
+.mside .mseg{flex-wrap:wrap}.mside .mseg>span{width:100%;margin-bottom:3px}.mside .mseg button{font-size:13px;padding:6px 4px;white-space:nowrap;min-width:0}
 @media (max-width:1000px){.mcpip{gap:2px;right:10px}.mcpip i{width:5px;height:10px}.mcpip em{margin:0 1px;font-size:9px}.mcd{padding-right:10px}}
 .mshd2{display:flex;flex-direction:column;gap:1px}.mshd2 .mctag{color:var(--mc,#5ff2ff)}.mshd2 b{font-family:var(--display);font-weight:700;font-size:clamp(20px,3.4vh,28px);line-height:1;letter-spacing:.03em;text-transform:uppercase}
 .mpopts{display:flex;flex-direction:column;align-items:stretch;gap:8px}
 #msetup,.mpp{display:flex;flex-direction:column;align-items:stretch;gap:8px}
 #zrweeks{display:grid;grid-template-columns:1fr;gap:5px}#zrweeks .zwh{grid-column:1/-1;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
 .zwk{font:inherit;text-align:left;display:flex;flex-direction:column;gap:0;padding:4px 9px;min-height:40px;min-width:0;border-radius:6px;border:1px solid var(--line);background:rgba(20,15,36,.85);color:var(--fg);cursor:pointer}
-.zwk b,.zwk span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.zwk b{font-size:14px;letter-spacing:.04em;text-transform:uppercase}.zwk span{font-size:12px;color:var(--muted)}
-.zwk.zwintro{grid-column:1/-1;min-height:34px;flex-direction:row;align-items:baseline;gap:10px;border-style:dashed}.zwk.zwintro b{flex:none}.zwk.zwintro b{font-size:13px}
+.zwk b,.zwk span{overflow-wrap:anywhere;line-height:1.15}.zwk b{font-size:14px;letter-spacing:.04em;text-transform:uppercase}.zwk span{font-size:12px;color:var(--muted)}
+.zwk.zwintro{grid-column:1/-1;min-height:34px;flex-direction:row;flex-wrap:wrap;align-items:baseline;column-gap:10px;border-style:dashed}.zwk.zwintro b{flex:none}.zwk.zwintro b{font-size:13px}
 .zwk.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}.zwk.on b{color:var(--accent)}.zwk:disabled{opacity:.5;cursor:default}
 .mseg{display:flex;align-items:center;gap:0}.mseg>span,.mcode>span{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);width:5.4em;flex:none}
 .mseg button{flex:1;font:inherit;font-size:14px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);background:rgba(20,15,36,.85);border:1px solid var(--line);padding:7px 8px;min-height:38px;cursor:pointer;margin-left:-1px}
@@ -413,14 +413,16 @@ body.ended #touch,body.ended #zrcap,body.ended #down,body.ended #lockhint,body.e
 .mseg button[aria-checked=true]{color:#0a0714;background:var(--accent);border-color:var(--accent);position:relative}
 .mseg button.t0[aria-checked=true]{background:var(--team0);border-color:var(--team0)}.mseg button.t1[aria-checked=true]{background:var(--team1);border-color:var(--team1)}
 .mcode{flex-direction:row;align-items:center;flex:none;gap:0}.mcode input{flex:1;min-width:0;font-size:16px}
-.mpbar{display:flex;flex-direction:column;align-items:stretch;gap:6px}
-#mpgo{width:100%;margin-top:0}#netstatus{text-align:left}
+.mpbar{display:flex;flex-direction:column;align-items:stretch;gap:6px;pointer-events:auto;position:absolute;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));width:min(300px,30vw)}
+.mpbar #netstatus{text-align:right;text-shadow:0 1px 3px #000}
+#mpgo{width:100%;margin-top:0;white-space:nowrap}
 @media (max-height:620px){#zrweeks{grid-template-columns:1fr 1fr}.zwk{min-height:36px}.mside .mseg{flex-wrap:nowrap}.mside .mseg>span{width:5.4em;margin:0}.mccap{display:none}.mcd b{font-size:clamp(17px,4vh,24px)}.mctag{font-size:10.5px;letter-spacing:.14em}.mcards{justify-content:flex-start}.mcd[aria-checked=true]{transform:translateX(5px)}#mpgo{font-size:19px;padding:7px}.mseg button{min-height:32px;padding:4px 6px;font-size:13px}.mcpip i{width:6px;height:12px}}
 @media (max-height:440px){.zwk span{display:none}.zwk{min-height:30px;justify-content:center}.zwk.zwintro{min-height:28px}.mside{gap:6px;padding:8px 10px}.mshd2 .mctag{display:none}.mcol{gap:5px;padding-top:calc(8px + env(safe-area-inset-top,0px));padding-bottom:calc(8px + env(safe-area-inset-bottom,0px))}.mctag{display:none}.mcd{padding:5px 12px 5px 14px}.mcd b{font-size:18px}.mcpip{top:50%;transform:translateY(-50%)}.mcards{gap:4px}.mphd .btn{padding:4px 10px;min-height:0}.mphd .msti b{font-size:18px}.mphd .msti span{display:none}.mpopts,#msetup,.mpp{gap:5px}.mseg button{min-height:28px}#mpgo{font-size:17px;padding:5px}}
 /* portrait phones: scene on top, the cards in a band along the bottom */
 @media (max-aspect-ratio:9/10){.mpanel{flex-direction:column;justify-content:flex-end;align-items:stretch;background:linear-gradient(0deg,rgba(10,7,20,.92) 0%,rgba(10,7,20,.75) 45%,rgba(10,7,20,0) 62%)}
   .mcol{width:100%;height:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-bottom:6px}
-  .mside{width:auto;align-self:stretch;margin:0 max(16px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));max-height:none;animation:none;padding:10px 12px}
+  .mside{width:auto;align-self:stretch;margin:0 max(16px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));max-height:none;animation:none;padding:10px 12px;margin-bottom:8px}
+  .mpbar{position:static;width:auto;margin:0 max(16px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}.mpbar #netstatus{text-align:left}
   #zrweeks{grid-template-columns:1fr 1fr}.mshd2{display:none}.mside .mseg{flex-wrap:nowrap}.mside .mseg>span{width:5.4em;margin:0}
   .mphd{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));left:16px;right:16px}
   .mcards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;flex:none}.mcd:nth-child(5){grid-column:span 2}.mcd b{font-size:clamp(18px,5vw,26px)}.mcpip{position:static;margin-bottom:2px}.mcd[aria-checked=true]{transform:none}.mcd[aria-checked=true] .mccap{max-height:3.8em}.mccap{font-size:12.5px}}
@@ -725,11 +727,12 @@ body.touch #dock #dashpips i{width:22px;height:6px}
           <button id="joinbtn" type="button" hidden disabled>Join match</button>
         </div>
       </div>
+    </div>
       <div class="mpbar">
         <button class="btn primary mgo msgo" type="button" id="mpgo" data-go="play">Choose map &#8250;</button>
         <div class="cap" id="netstatus">Checking online play…</div>
       </div>
-    </div></section>
+    </section>
     <aside class="mcard" aria-label="Player">
       <input id="nick" class="mnick" maxlength="16" autocomplete="off" value="Player" aria-label="Player name" spellcheck="false">
       <div class="lvlbox"><div class="lvlhd"><b id="lvlN">Level 1</b><span id="lvlX"></span></div><div class="xpbar"><i id="lvlBar"></i></div><div class="cap" id="lvlNext"></div></div>
@@ -11736,10 +11739,10 @@ new ResizeObserver(()=>menuFit()).observe($('menu'));addEventListener('resize',m
     e.preventDefault();setX(g.r,t.clientX);},{capture:true,passive:false});
   const end=e=>{if(!g||![...e.changedTouches].some(q=>q.identifier===g.id))return;if(g.on){g.r.classList.remove('tdrag');g.r.dispatchEvent(new Event('change',{bubbles:true}));}g=null;};
   addEventListener('touchend',end,true);addEventListener('touchcancel',end,true);})();
-/* the free part of the screen for the mode-screen scene: between the cards (left edge) and the options panel (right edge);
+/* the free part of the screen for the mode-screen scene: right of the cards and the options panel beside them;
    on portrait screens both sit in a band along the bottom, so the scene gets the area above it */
 function mpRect(){const a=$('mcol').getBoundingClientRect(),b=$('mside').getBoundingClientRect(),W=innerWidth;
-  if(!b.width)return {l:a.right,r:W,top:a.top};return b.left>a.right-1?{l:a.right,r:b.left,top:a.top}:{l:0,r:W,top:Math.min(a.top,b.top)};}
+  if(!b.width)return {l:a.right,r:W,top:a.top};return b.left>a.right-1?{l:b.right,r:W,top:a.top}:{l:0,r:W,top:Math.min(a.top,b.top)};}
 function dioOffset(W,H,port){const col=mpRect();return port?[0,Math.min(H*0.32,(H-col.top)/2)]:[W/2-(col.l+col.r)/2,0];}
 /* place the cast around a few candidate spots and pick the spot + camera that show the most of it: everyone in the free part of the screen,
    not hidden behind cover, and shots that are not fired into a crate */
