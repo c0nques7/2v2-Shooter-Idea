@@ -7754,7 +7754,9 @@ function limb(a,b,t,m,parent,shadow){const A=new THREE.Vector3(...a),B=new THREE
    arena. Every gun shares the same grip, handguard-hand and sight-rail positions so the first-person arms and the sights line up.
    P (optional) picks the attachment models: {sight,barrel,muzzle,mag,stock} part ids from PARTS; without it the gun gets its stock parts. */
 const GUNGLOW={rifle:NEON.cy,smg:NEON.am,br:NEON.mg,sg:0x4dff6a,lmg:0xff5a2a,sniper:NEON.vi};
-MAT.gunPlate=smat(0x12141f,0.42,0.7);MAT.gunTrim=smat(0x59607a,0.28,0.9);MAT.gunDeep=smat(0x07080d,0.6,0.3);
+MAT.gunPlate=smat(0x171a27,0.42,0.7);MAT.gunTrim=smat(0x6a7290,0.28,0.9);MAT.gunDeep=smat(0x07080d,0.6,0.3);MAT.gunBrass=smat(0xb8913c,0.32,0.9);
+const GACC={};/* each glow colour's accent plate material, shared by every gun that uses it */
+function gunAcc(hex){return GACC[hex]||(GACC[hex]=new THREE.MeshStandardMaterial({color:lin(hex).multiplyScalar(0.28),roughness:0.4,metalness:0.6}));}
 const GSPEC={
   rifle:{rw:0.056,rl:0.34,gl:0.27,gw:0.062,gh:0.066,bl:0.17,br:0.011,hg:'slits',mag:'box',mw:0.036,mh:0.16,md:0.07,mrot:0.22,stock:'std',sight:'dot'},
   smg:{rw:0.05,rl:0.3,gl:0.2,gw:0.056,gh:0.06,bl:0.06,br:0.012,hg:'ports',mag:'box',mw:0.03,mh:0.2,md:0.046,mrot:0.04,stock:'stub',sight:'iron'},
@@ -7762,7 +7764,7 @@ const GSPEC={
   sg:{rw:0.062,rl:0.32,gl:0,gw:0.064,gh:0.05,bl:0.36,br:0.019,hg:'pump',mag:'tube',stock:'std',sight:'iron'},
   lmg:{rw:0.072,rl:0.38,gl:0.26,gw:0.07,gh:0.07,bl:0.24,br:0.016,hg:'fins',mag:'belt',stock:'block',sight:'dot'},
   sniper:{rw:0.05,rl:0.36,gl:0.3,gw:0.046,gh:0.05,bl:0.42,br:0.0105,hg:'slim',mag:'box',mw:0.034,mh:0.075,md:0.075,mrot:0,stock:'thumb',sight:'scope',bolt:true}};
-function buildGun(parent,shadow,kind,P,hex){
+function buildGun(parent,shadow,kind,P,hex,noMerge){
   const G=GSPEC[kind]||GSPEC.rifle;
   P=Object.assign({sight:G.sight,barrel:'std',muzzle:'hider',mag:'std',stock:'std'},P||{});
   const g=new THREE.Group();parent.add(g);const M=MAT;
@@ -7843,6 +7845,18 @@ function buildGun(parent,shadow,kind,P,hex){
   else if(G.stock==='block'){B(0.05,0.04,0.16,M.gunPlate,0,0.004,zR+0.08);B(0.056,0.1,0.09,M.gunPlate,0,-0.03,zR+0.17);B(0.06,0.12,0.02,M.gunDeep,0,-0.03,zR+0.225);B(0.02,0.012,0.1,M.gunTrim,0,0.03,zR+0.12,false);for(const sx of [-1,1])L(0.003,0.012,0.06,sx*0.029,-0.03,zR+0.17);}
   else{B(0.036,0.03,0.16,M.gunMetal,0,0.006,zR+0.08);const w=B(0.044,0.08,0.09,M.gunPlate,0,-0.024,zR+0.165);B(0.048,0.11,0.02,M.gunDeep,0,-0.028,zR+0.218);const u=B(0.04,0.02,0.1,M.gunPlate,0,-0.058,zR+0.12);u.rotation.x=-0.5;
     for(const sx of [-1,1])L(0.003,0.006,0.07,sx*0.023,-0.006,zR+0.165);}
+  // detail: accent plates in a dark shade of the glow colour, bevel highlights, rivets, ejection port with the brass bolt face,
+  // a power cell on the left, magwell, grip panel and a vented shroud on long barrels
+  {const A=gunAcc(hex==null?NEON.cy:hex);
+    B(rw+0.012,0.016,G.rl*0.4,A,0,-0.028,zR-G.rl*0.25);
+    for(const sx of [-1,1]){B(0.006,0.006,G.rl*0.96,M.gunTrim,sx*(hw-0.002),0.0385,(zR+zF)/2,false);for(let i=0;i<3;i++)B(0.006,0.006,0.006,M.gunTrim,sx*(hw+0.009),-0.028,zR-0.05-i*0.045,false);}
+    B(0.004,0.024,0.062,M.gunDeep,hw+0.0025,0.004,zF+G.rl*0.8,false);B(0.003,0.012,0.034,M.gunBrass,hw+0.004,0.004,zF+G.rl*0.8,false);
+    cy(0.012,0.012,0.07,M.gunTrim,-(hw+0.014),-0.022,zF+G.rl*0.32,g,false,10);cy(0.0125,0.0125,0.034,glow,-(hw+0.014),-0.022,zF+G.rl*0.32,g,false,10);
+    if(G.mag==='box'&&P.mag!=='drum')B(G.mw+0.016,0.026,G.md+0.018,A,0,-0.046,-0.075);
+    if(G.mag==='belt')B(0.1,0.02,0.12,A,-0.008,-0.04,-0.09);
+    const gp=B(0.038,0.06,0.03,A,0,-0.104,0.103);gp.rotation.x=-0.32;
+    if(G.bl>=0.2&&G.hg!=='pump'){const sl=Math.min(0.14,BL*0.38),sz=gEnd-sl/2-0.004,sr=Math.max(0.017,br*1.75);cy(sr,sr,sl,M.gunPlate,0,0.006,sz,g,shadow,12);
+      for(let i=0;i<3;i++)B(0.012,0.006,sl*0.18,M.gunDeep,0,0.006+sr,sz-sl*0.3+i*sl*0.3,false);cy(sr+0.002,sr+0.002,0.008,A,0,0.006,sz-sl/2,g,false,12);}}
   // sights
   const red=()=>new THREE.MeshBasicMaterial({color:raw(0xff2a2a),toneMapped:false});
   if(P.sight==='dot'){
@@ -7871,8 +7885,15 @@ function buildGun(parent,shadow,kind,P,hex){
   // ADS lifts the gun so this point (red dot, holo ring, scope cross, or front post tip on irons) lands on the camera's center line
   g.userData.sightY=P.sight==='iron'?0.064:P.sight==='holo'?0.087:0.094;
   const tip=new THREE.Object3D();tip.position.set(0,0.006,tipZ);g.add(tip);
+  if(!noMerge)mergeByMat(g);
   return{g,tip};
 }
+/* merge a group's direct mesh children that share a material into one mesh each (static parts only; transparent lenses and
+   outline hulls stay separate). A gun goes from ~70 draw calls to ~10. */
+function mergeByMat(n){const by=new Map();
+  for(const c of n.children){if(!c.isMesh||c.children.length||c.material.transparent||c.material.isShaderMaterial||!c.geometry.index)continue;(by.get(c.material)||by.set(c.material,[]).get(c.material)).push(c);}
+  for(const [m,list] of by){if(list.length<2)continue;const gs=list.map(c=>{c.updateMatrix();const q=c.geometry.clone().applyMatrix4(c.matrix);q.clearGroups();return q;});const mg=mergeGeometries(gs);if(!mg)continue;
+    const mesh=new THREE.Mesh(mg,m);mesh.castShadow=list.some(c=>c.castShadow);mesh.receiveShadow=list.some(c=>c.receiveShadow);for(const c of list){n.remove(c);c.geometry.dispose();}n.add(mesh);}}
 function buildRifle(parent,shadow,optic,P){return buildGun(parent,shadow,'rifle',Object.assign({sight:optic?'dot':'iron'},P||{}));}
 /* soldier: an armoured arena fighter built from boxes (the outline hulls need boxes). Team colour on the plates, glowing team trim,
    a helmet with a wraparound visor, a back pack with two thrusters. The boxes of each joint are merged per material after the
@@ -7931,7 +7952,7 @@ function buildSoldier(team){
   /* the gun and both arms hang off a shoulder joint so they can recoil, lower for a sprint, tilt for a reload; the left arm has its own joint for the mag change */
   const arms=new THREE.Group();arms.position.set(0,0.45,0);spine.add(arms);const armsIn=new THREE.Group();armsIn.position.set(0,-0.45,0);arms.add(armsIn);
   const armL=new THREE.Group();armL.position.set(-0.27,0.48,0);armsIn.add(armL);const armLIn=new THREE.Group();armLIn.position.set(0.27,-0.48,0);armL.add(armLIn);
-  const guns={};for(const k of WKEYS){guns[k]=buildGun(armsIn,true,k,null,GUNGLOW[k]);guns[k].g.position.set(...gunPos);guns[k].g.visible=k==='rifle';}const rifle=guns.rifle;
+  const guns={};for(const k of WKEYS){guns[k]=buildGun(armsIn,true,k,null,GUNGLOW[k],true);guns[k].g.position.set(...gunPos);guns[k].g.visible=k==='rifle';}const rifle=guns.rifle;
   const rH=[gunPos[0],gunPos[1]-0.09,gunPos[2]+0.1],lH=[gunPos[0],gunPos[1]-0.035,gunPos[2]-0.3];
   // an arm: upper arm with an elbow pad at its end, forearm with a bracer and a glowing cuff (a limb box's local z runs along it)
   const arm=(sh,el,hand,par)=>{const u=limb(sh,el,0.12,MAT.fabric,par),f=limb(el,hand,0.1,MAT.fabric,par),Lu=u.geometry.parameters.depth,Lf=f.geometry.parameters.depth;
@@ -7979,7 +8000,7 @@ function outlineAvatar(a){
 avatars.forEach(outlineAvatar);
 /* merge each joint's boxes into a few meshes (after the outline hulls are built from them): the team plates (they flash when hit),
    the glowing trim, and everything else in one mesh coloured per vertex. Guns stay as they are. */
-function mergeAvatar(a){const skip=new Set();for(const k in a.guns)a.guns[k].g.traverse(o=>skip.add(o));
+function mergeAvatar(a){const skip=new Set();for(const k in a.guns){a.guns[k].g.traverse(o=>skip.add(o));mergeByMat(a.guns[k].g);}
   const vc=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.72,metalness:0.25,stencilWrite:true,stencilRef:1,stencilZPass:THREE.ReplaceStencilOp});
   const nodes=[];a.root.traverse(n=>{if(!skip.has(n))nodes.push(n);});
   for(const n of nodes){const by=new Map();
