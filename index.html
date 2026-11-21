@@ -10258,7 +10258,7 @@ function zrDrop(z){const Z=S.zr;if(!Z||!Z.drops)return;const boss=!!ZTYPES[z.t].
   const add=(o,sp)=>{let x=z.x+(Math.random()-0.5)*sp,q=z.z+(Math.random()-0.5)*sp;if(!freeAt(x,q)){x=z.x;q=z.z;}o.i=++Z.di;o.x=+x.toFixed(2);o.z=+q.toFixed(2);o.e=Math.round(S.timer+o.e);Z.drops.push(o);};
   if(boss){Z.crT=(Z.crT|0)+75;return;}/* the run ends with the headliner, so its 75 Credits go straight to everyone */
   else{if(Math.random()<(el?1:0.3))add({t:'c',v:el?8+((Math.random()*5)|0):2+((Math.random()*3)|0),e:25},0.8);
-    if(Math.random()<(el?0.15:0.015)){const u=Math.random();add({t:'w',sw:zrSwRoll(el?(u<0.2?3:u<0.75?2:1):(u<0.05?3:u<0.3?2:1)),e:45},0.8);}}
+    if(Math.random()<(el?0.19:0.019)){const u=Math.random();add({t:'w',sw:zrSwRoll(el?(u<0.2?3:u<0.75?2:1):(u<0.05?3:u<0.3?2:1)),e:45},0.8);}}
   // keep the state packet small: at most 10 Credits piles and 3 weapons on the floor (the oldest go first)
   for(const [t,n] of [['c',10],['w',3]]){let c=Z.drops.filter(d=>d.t===t);while(c.length>n){Z.drops.splice(Z.drops.indexOf(c[0]),1);c.shift();}}}
 function zrDropTick(){const Z=S.zr;if(!Z.drops)Z.drops=[];
