@@ -359,7 +359,7 @@ body.ended #touch,body.ended #zrcap,body.ended #down,body.ended #lockhint,body.e
 .mtag{font-size:clamp(14px,2.2vh,19px);letter-spacing:.36em;text-transform:uppercase;color:var(--muted);font-weight:600;padding-left:3px;display:flex;align-items:center;gap:10px}
 .mtag::before{content:"";width:34px;height:3px;background:var(--accent2);box-shadow:0 0 10px var(--accent2)}
 .mlist{grid-area:list;display:flex;flex-direction:column;align-items:flex-start;gap:clamp(0px,.6vh,6px);align-self:center}
-.mi{font:inherit;font-family:var(--display);font-weight:700;font-size:clamp(22px,min(6vh,11vw),50px);line-height:1.05;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;color:rgba(238,240,255,.56);background:none;border:0;padding:2px 26px 2px 22px;cursor:pointer;position:relative;text-align:left;transition:color .12s,transform .16s cubic-bezier(.2,.7,.2,1),text-shadow .12s;-webkit-tap-highlight-color:transparent}
+.mi{font:inherit;font-family:var(--display);font-weight:700;font-size:calc(clamp(22px,min(6vh,11vw),50px)*var(--mfit,1));line-height:1.05;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;color:rgba(238,240,255,.56);background:none;border:0;padding:2px 26px 2px 22px;cursor:pointer;position:relative;text-align:left;transition:color .12s,transform .16s cubic-bezier(.2,.7,.2,1),text-shadow .12s;-webkit-tap-highlight-color:transparent}
 .mi::before{content:"";position:absolute;left:0;top:18%;bottom:18%;width:6px;background:var(--accent);transform:skewX(-14deg) scaleY(0);transform-origin:center;transition:transform .14s;box-shadow:0 0 12px var(--accent)}
 .mi span{position:relative;z-index:1}
 .mi::after{content:"";position:absolute;inset:0 0 0 12px;background:linear-gradient(90deg,rgba(95,242,255,.2),rgba(95,242,255,0) 85%);opacity:0;transition:opacity .12s;clip-path:polygon(0 0,100% 0,96% 100%,0 100%)}
@@ -457,7 +457,9 @@ body.ended #touch,body.ended #zrcap,body.ended #down,body.ended #lockhint,body.e
 .mapt[aria-checked=true]{border-color:var(--accent);color:#fff;box-shadow:0 0 10px rgba(95,242,255,.35)}
 .mapt:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .mgo{font-size:24px;padding:12px 16px;margin-top:4px}
-.mcard{box-sizing:border-box;grid-area:card;justify-self:end;align-self:start;width:min(300px,100%);display:flex;flex-direction:column;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.mcard{box-sizing:border-box;grid-area:card;justify-self:end;align-self:start;width:min(280px,100%);display:flex;flex-direction:column;gap:5px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+.mlogo h1{zoom:var(--mfit,1)}.mcard{zoom:max(var(--mfit,1),.8)}
+@media (max-height:700px){.mcard .cap{display:none}}
 .mnick{font-family:var(--display);font-size:24px;font-weight:700;letter-spacing:.04em;background:transparent;border:1px solid transparent;padding:2px 6px;margin:-2px -6px}
 .mnick:hover,.mnick:focus{border-color:var(--line);background:#0b0f12}
 .mfoot{grid-area:foot;display:flex;justify-content:space-between;gap:12px;font-size:13px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;padding-bottom:2px}
@@ -466,7 +468,7 @@ body.touch .mhint{visibility:hidden}
 @media (prefers-reduced-motion:reduce){.mi,.mi::before,.mi::after{transition:none}.mpanel{animation:none}}
 @media (max-width:1100px) and (min-height:521px){
   .mwrap{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"logo card" "list panel" "foot foot";grid-template-rows:auto 1fr auto}
-  .mcard{justify-self:end;width:min(300px,38vw)}.mlogo h1{font-size:clamp(40px,min(10vh,7.2vw),84px)}}
+  .mcard{justify-self:end;width:min(280px,36vw)}.mlogo h1{font-size:clamp(40px,min(10vh,7.2vw),84px)}}
 @media (max-width:760px) and (max-aspect-ratio:4/5){
   .mwrap{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto 1fr auto;grid-template-areas:"logo" "card" "list" "foot";gap:16px}
   .mcard{justify-self:stretch;width:100%}
@@ -575,6 +577,7 @@ body.touch #dock #dashpips i{width:22px;height:6px}
   body.touch #feed{top:calc(100px + var(--miniW)*.4 + env(safe-area-inset-top,0px));max-width:45vw}
   #feed{top:calc(92px + var(--miniW)*.4 + env(safe-area-inset-top,0px))}
   body.touch #dock{left:12px;right:12px;bottom:calc(var(--u)*6.4 + env(safe-area-inset-bottom,0px))}}
+@media (pointer:coarse){input[type=range]{pointer-events:none}input[type=range].tdrag{filter:drop-shadow(0 0 6px var(--accent))}}
 </style>
 
 <canvas id="view" aria-label="Arena view"></canvas>
@@ -11669,6 +11672,22 @@ function dioPose(a,i,x,z,yaw,k,w){const y=groundAt(x,z,0.3);a.g.visible=true;a.g
 function dioClear(){for(const a of avatars){a.g.visible=false;a.blob.visible=false;a.flash.visible=false;a.wk=null;a.init=false;}for(const b of DIO.beams)b.visible=false;
   if(DIO.zr||ZB.list.length){DIO.zr=false;zClear();zRender(0);}}
 const _dCam=new THREE.PerspectiveCamera(),_dP=new THREE.Vector3();
+/* main menu fit: if the menu is taller than the screen (big fonts, odd zoom, short full-screen windows), shrink the list and logo until it fits */
+function menuFit(){const w=document.querySelector('#menu .mwrap');if(!w||$('menu').hidden||!w.clientHeight)return;let k=1;w.style.setProperty('--mfit',1);
+  for(let i=0;i<10&&w.scrollHeight>w.clientHeight+1;i++){k-=0.06;w.style.setProperty('--mfit',k.toFixed(2));}}
+new ResizeObserver(()=>menuFit()).observe($('menu'));addEventListener('resize',menuFit);if(document.fonts)document.fonts.ready.then(menuFit);
+/* touch sliders (Joe): a finger on a slider only moves it after a sideways drag, so scrolling Settings past a slider never changes it.
+   On coarse pointers the range inputs ignore touches (CSS) and this drives them instead. */
+(function(){if(!matchMedia('(pointer:coarse)').matches)return;let g=null;
+  const hit=(x,y)=>{for(const r of document.querySelectorAll('input[type=range]')){if(!r.offsetParent)continue;const b=r.getBoundingClientRect();if(x>=b.left-6&&x<=b.right+6&&y>=b.top-10&&y<=b.bottom+10)return r;}return null;};
+  const setX=(r,x)=>{const b=r.getBoundingClientRect(),lo=+r.min||0,hi=r.max===''?100:+r.max,st=+r.step||1;let v=lo+(hi-lo)*clamp((x-b.left)/b.width,0,1);v=+(Math.round((v-lo)/st)*st+lo).toFixed(6);
+    if(+r.value!==v){r.value=v;r.dispatchEvent(new Event('input',{bubbles:true}));}};
+  addEventListener('touchstart',e=>{if(g||e.touches.length!==1)return;const t=e.touches[0],r=hit(t.clientX,t.clientY);if(r)g={r,id:t.identifier,x:t.clientX,y:t.clientY,on:false};},{capture:true,passive:true});
+  addEventListener('touchmove',e=>{if(!g)return;const t=[...e.changedTouches].find(q=>q.identifier===g.id);if(!t)return;const dx=t.clientX-g.x,dy=t.clientY-g.y;
+    if(!g.on){if(Math.abs(dy)>8&&Math.abs(dy)>=Math.abs(dx)){g=null;return;}if(Math.abs(dx)<=10)return;g.on=true;g.r.classList.add('tdrag');}
+    e.preventDefault();setX(g.r,t.clientX);},{capture:true,passive:false});
+  const end=e=>{if(!g||![...e.changedTouches].some(q=>q.identifier===g.id))return;if(g.on){g.r.classList.remove('tdrag');g.r.dispatchEvent(new Event('change',{bubbles:true}));}g=null;};
+  addEventListener('touchend',end,true);addEventListener('touchcancel',end,true);})();
 /* the cards column plus the options panel beside it (or under it on portrait screens): the scene goes in what is left */
 function mpRect(){const a=$('mcol').getBoundingClientRect(),b=$('mside').getBoundingClientRect();return b.width?{right:Math.max(a.right,b.right),top:Math.min(a.top,b.top)}:a;}
 function dioOffset(W,H,port){const col=mpRect();return port?[0,Math.min(H*0.32,(H-col.top)/2)]:[-Math.min(W*0.3,col.right/2),0];}
