@@ -10798,7 +10798,7 @@ function padFocusables(scope){return [...scope.querySelectorAll(PADSEL)].filter(
 function padFocus(el){if(!el)return;try{el.focus({preventScroll:true});}catch(e){}try{el.scrollIntoView({block:'nearest',inline:'nearest'});}catch(e){}}
 function padDefault(scope){const c=padFocusables(scope);if(!c.length)return null;
   return c.find(e=>e.getAttribute('aria-checked')==='true'||e.getAttribute('aria-selected')==='true'||e.classList.contains('sel'))||c.find(e=>e.classList.contains('primary'))||c[0];}
-function padSpatial(scope,dx,dy){const ae=document.activeElement,cands=padFocusables(scope);
+function padSpatial(scope,dx,dy,skip){const ae=document.activeElement,cands=padFocusables(scope).filter(c=>!skip||!skip(c));
   if(!ae||!scope.contains(ae)||ae===scope||!padVis(ae)){padFocus(padDefault(scope));return;}
   const r=ae.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let best=null,bs=1e9;
   for(const c of cands){if(c===ae||c.contains(ae)||ae.contains(c))continue;const q=c.getBoundingClientRect();
@@ -10818,7 +10818,10 @@ function padDir(scope,d){const [code,dx,dy]=ARROW[d],ae=document.activeElement,i
     if(inS&&ae.classList.contains('mcd')){const a=MCARDS[0].getBoundingClientRect(),b=MCARDS[1].getBoundingClientRect(),col=Math.abs(b.top-a.top)>Math.abs(b.left-a.left);
       const st=col?dy:dx,vis=MCARDS.filter(padVis),i=vis.indexOf(ae);
       if(st&&!((st<0&&i===0)||(st>0&&i===vis.length-1))){modeStep(st);return;}}/* past the first or last card: on to Back, or the options and Choose map */
-    else if(!inS){const c=MCARDS.find(x=>x.dataset.m===$('modesel').value);padFocus(c);return;}
+    else{// from the options, Left (or nothing focused) goes back to the picked card; other moves skip the cards
+      const c=MCARDS.find(x=>x.dataset.m===$('modesel').value);
+      if(!inS||(ae.id==='mback'&&dy>0)||(dx<0&&c&&c.getBoundingClientRect().right<=ae.getBoundingClientRect().left+4)){padFocus(c);return;}
+      padSpatial(scope,dx,dy,e=>e.classList.contains('mcd'));return;}
     padSpatial(scope,dx,dy);return;}
   if(scope===$('mapscr')&&dy){if(!inS){padFocus($('msgo'));return;}padSpatial(scope,dx,dy);return;}
   if(inS&&dx&&ae.tagName==='INPUT'&&ae.type==='range'){if(dx>0)ae.stepUp();else ae.stepDown();ae.dispatchEvent(new Event('input',{bubbles:true}));ae.dispatchEvent(new Event('change',{bubbles:true}));return;}
@@ -10875,8 +10878,8 @@ function padTick(dt){
   if(hit(PB.rb)||hit(PB.rs))me.dashBuf=0.12;
   // X: tap reloads, hold uses (revive / arm / defuse / take a gun); LB always uses; when downed both hold "give up"
   if(hit(PB.x)){PAD.xT=performance.now();PAD.xUse=!$('prompt').hidden||!!document.querySelector('#zrwcard:not([hidden]) .zwp:not(.far)');}
-  if(up(PB.x)&&!PAD.xUse&&performance.now()-PAD.xT<300&&alive)startReload();
-  const useHeld=b[PB.lb]||(b[PB.x]&&(PAD.xUse||performance.now()-PAD.xT>=300));
+  if(up(PB.x)&&!PAD.xUse&&performance.now()-PAD.xT<350&&alive)startReload();
+  const useHeld=b[PB.lb]||(b[PB.x]&&(PAD.xUse||performance.now()-PAD.xT>=350));
   padOut('KeyF',useHeld&&!downed,v=>{keys.KeyF=v;});padOut('KeyG',useHeld&&downed,v=>{keys.KeyG=v;});
   // Y: hold for the weapon wheel where switching is allowed (round start freeze, sandbox)
   if(hit(PB.y)&&canHoldWheel()){openWheel('hold');PAD.yWheel=true;}
