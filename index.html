@@ -77,6 +77,14 @@
 #wheel .wsvg{width:min(340px,70vw,52vh);height:auto}
 #wheel h2{margin:0;font-size:30px;letter-spacing:.04em;text-align:center}
 #wheel .keys{display:block;color:var(--muted);font-size:15px;text-align:center}
+/* controller button glyphs and focus ring (body.padnav while a game controller is in use) */
+.pk{display:inline-block;min-width:1.55em;text-align:center;font:700 .82em/1.35 var(--mono);border-radius:999px;padding:0 .42em;border:1px solid var(--line);background:rgba(255,255,255,.08);color:var(--fg);vertical-align:baseline}
+.pk-a{color:#7dff8a;border-color:rgba(125,255,138,.55)}.pk-b{color:#ff7a7a;border-color:rgba(255,122,122,.55)}.pk-x{color:#6fb8ff;border-color:rgba(111,184,255,.55)}.pk-y{color:#ffd84d;border-color:rgba(255,216,77,.55)}
+body.padnav :focus{outline:3px solid var(--accent)!important;outline-offset:2px}
+body.padnav .wseg:focus{outline:none!important}body.padnav .wseg:focus path{stroke:var(--accent);stroke-width:4}
+#pause .padkeys{display:none}body.padnav #pause .padkeys{display:grid}body.padnav #pause .kbkeys{display:none}
+body.touch.padnav .mhint{visibility:visible}
+.padstat{margin:0 0 8px}
 #wpick .wsvg{width:min(210px,30vh);height:auto}
 #sbpanel{position:fixed;z-index:12;top:calc(10px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px));width:min(360px,calc(100vw - 24px));overflow-y:auto;background:var(--panel-solid);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px;user-select:text;-webkit-user-select:text}
 #sbpanel h3{margin:6px 0 0;font-size:14px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
@@ -655,7 +663,8 @@ body.touch #dock #dashpips i{width:22px;height:6px}
     <div class="hd"><b>Menu</b><span><kbd>Esc</kbd> closes</span></div>
     <div class="sub" id="pauseS" style="color:var(--muted);font-size:15px"></div>
     <div class="pbtns"><button class="btn primary" type="button" id="presume">Resume</button><button class="btn" type="button" id="psettings">Settings</button><button class="btn" type="button" id="prestart">Restart match</button><button class="btn" type="button" id="pleave">Leave match</button></div>
-    <div class="keys"><span><kbd>WASD</kbd> move</span><span><kbd>Left click</kbd> fire</span><span><kbd>Shift</kbd> sprint</span><span><kbd>Right click</kbd> aim</span><span><kbd>Space</kbd> jump</span><span><kbd>C</kbd> crouch, slide</span><span><kbd>V</kbd> dash</span><span><kbd>Q</kbd> <kbd>E</kbd> lean</span><span><kbd>F</kbd> revive, arm, defuse</span><span><kbd>R</kbd> reload</span><span><kbd>G</kbd> give up when down</span><span><kbd>O</kbd> settings</span><span><kbd>Esc</kbd> this menu</span></div>
+    <div class="keys kbkeys"><span><kbd>WASD</kbd> move</span><span><kbd>Left click</kbd> fire</span><span><kbd>Shift</kbd> sprint</span><span><kbd>Right click</kbd> aim</span><span><kbd>Space</kbd> jump</span><span><kbd>C</kbd> crouch, slide</span><span><kbd>V</kbd> dash</span><span><kbd>Q</kbd> <kbd>E</kbd> lean</span><span><kbd>F</kbd> revive, arm, defuse</span><span><kbd>R</kbd> reload</span><span><kbd>G</kbd> give up when down</span><span><kbd>O</kbd> settings</span><span><kbd>Esc</kbd> this menu</span></div>
+    <div class="keys padkeys" id="padkeys"></div>
   </div>
 </div>
 <div class="overlay" id="settings" hidden role="dialog" aria-label="Settings">
@@ -6842,7 +6851,7 @@ const TOUCH={on:false,mx:0,my:0,run:false};
 
 /* ---------- settings (graphics, sound, controls), saved per browser ---------- */
 const OPT0={preset:'high',res:1,autoRes:true,shadows:2,bloom:1,fxaa:true,film:0.6,rain:true,tod:'night',particles:1,marks:true,crowd:1,fog:1,bright:1,fov:78,shake:1,fps:false,lights:true,beatLights:false,mblur:0.35,ao:false,refl:false,beams:false,smaa:false,aniso:false,
-  vMaster:0.8,vWeapons:0.9,vFx:0.9,vSteps:0.8,vUi:0.8,vAmb:0.6,vMap:0.6,vRain:0,vMusic:0.6,vMatch:0.5,reverb:0.4,sens:1,adsSens:1,invertY:false,touch:'auto',tSens:1,tAdsSens:1,tSize:1,tFire2:true,tDblFire:true,tAutoRun:true,dmgDir:'arc'};
+  vMaster:0.8,vWeapons:0.9,vFx:0.9,vSteps:0.8,vUi:0.8,vAmb:0.6,vMap:0.6,vRain:0,vMusic:0.6,vMatch:0.5,reverb:0.4,sens:1,adsSens:1,invertY:false,touch:'auto',tSens:1,tAdsSens:1,tSize:1,tFire2:true,tDblFire:true,tAutoRun:true,dmgDir:'arc',pSens:1,pAdsSens:0.85,pDead:0.12,pCurve:1.8,pBoost:true,pAssist:true,pAutoRun:false,pRumble:true};
 const PRESETS={low:{mblur:0,res:0.75,shadows:0,bloom:0,fxaa:false,film:0,rain:false,particles:0.5,marks:false,crowd:0.35,ao:false,refl:false,beams:false,smaa:false,aniso:false},
   medium:{mblur:0.35,res:1,shadows:1,bloom:1,fxaa:true,film:0.4,rain:true,particles:1,marks:true,crowd:0.7,ao:false,refl:false,beams:false,smaa:false,aniso:false},
   high:{mblur:0.35,res:1,shadows:2,bloom:1,fxaa:true,film:0.6,rain:true,particles:1,marks:true,crowd:1,ao:false,refl:false,beams:false,smaa:false,aniso:false},
@@ -8516,7 +8525,7 @@ const deadWheel=makeWheel($('wpick'),{keys:false,selLabel:'next life',onHover:k=
 function wheelHover(k){if(k===WH.hov)return;WH.hov=k;if(k)blip(760,0.03,0.015,false,'ui');if(WH.mode==='start'&&k)setWeapon(k);wheelUI.set(me.wPref,WH.hov);}
 function canHoldWheel(){const s=mySlot();const P=s>=0&&S?S.players[s]:null;return !!(P&&P.st==='alive'&&(SB.on||S.phase==='buy')&&$('pause').hidden&&$('settings').hidden&&$('dead').hidden);}
 function openWheel(mode){if(WH.open&&WH.mode===mode)return;WH.open=true;WH.mode=mode;WH.hov=null;WH.vx=WH.vy=0;mouseDown=false;adsDown=false;
-  $('wheelK').innerHTML=TOUCH.on?(mode==='start'?'Tap a weapon to lock it in':'Tap a weapon to equip it, or tap outside to close'):mode==='start'?'Move the mouse to a weapon, then click or press <kbd>1</kbd>–<kbd>6</kbd> to lock in':'Point at a weapon and release the middle mouse button to equip';
+  $('wheelK').innerHTML=PAD.on?(mode==='start'?`Push a stick toward a weapon, then press ${pk('a')} to lock it in`:`Push a stick toward a weapon and let go of ${pk('y')} to equip it · ${pk('b')} cancels`):TOUCH.on?(mode==='start'?'Tap a weapon to lock it in':'Tap a weapon to equip it, or tap outside to close'):mode==='start'?'Move the mouse to a weapon, then click or press <kbd>1</kbd>–<kbd>6</kbd> to lock in':'Point at a weapon and release the middle mouse button to equip';
   wheelUI.dot.setAttribute('cx',0);wheelUI.dot.setAttribute('cy',0);wheelUI.dot.style.display=locked?'':'none';
   $('wheel').classList.toggle('free',!locked);wheelUI.refresh();wheelUI.set(me.wPref,null);$('wheel').hidden=false;wheelTitle();}
 function closeWheel(commit){if(!WH.open)return;const k=WH.hov,mode=WH.mode;WH.open=false;WH.mode='';$('wheel').hidden=true;
@@ -9823,7 +9832,7 @@ function zrWCard(P){const el=$('zrwcard'),L=S.zr.drops||[];let best=null,bd=6;
     h.append(mk('span','',`${ZSW[sp.r]} · special`),mk('b','',swName(sp)));if(tc){for(const l of bo.split(' · '))if(l)h.append(mk('i','',l));}else h.append(mk('i','',bo));
     const tb=mk('table'),hr=mk('tr');hr.append(mk('th','',''),mk('th','','This'),mk('th','',cw.name.length>14?'Yours':cw.name));tb.append(hr);
     if(!tc)for(const [k,n] of SWROW){const tr=mk('tr'),a=A[k],b=B[k],df=(a.v-b.v)/Math.max(1e-6,Math.abs(b.v));tr.append(mk('td','',n),mk('td',df>0.005?'up':df<-0.005?'dn':'',(df>0.005?'▲ ':df<-0.005?'▼ ':'')+a.t),mk('td','cur',b.t));tb.append(tr);}
-    const ft=mk('div','zwp'+(near?'':' far'));if(near&&tc){ft.append('Tap ',mk('kbd','','Use'),' to take it');}else if(tc)ft.textContent='Walk up to take it';else if(near){ft.append(TOUCH.on?'Tap ':'Press ',mk('kbd','',TOUCH.on?'Use':'F'),` to take it. It replaces your ${W[me.w]?W[me.w].name:'gun'} for the rest of the run`);}else ft.textContent='Walk up to it to take it';
+    const ft=mk('div','zwp'+(near?'':' far'));if(near&&tc){ft.append('Tap ',mk('kbd','','Use'),' to take it');}else if(tc)ft.textContent='Walk up to take it';else if(near){ft.append(TOUCH.on&&!PAD.on?'Tap ':'Press ',mk('kbd','',PAD.on?padL('x'):TOUCH.on?'Use':'F'),` to take it. It replaces your ${W[me.w]?W[me.w].name:'gun'} for the rest of the run`);}else ft.textContent='Walk up to it to take it';
     el.replaceChildren(...(tc?[h,ft]:[h,tb,ft]));}
   const W0=innerWidth,H0=innerHeight,x=(v.x*0.5+0.5)*W0,y=(-v.y*0.5+0.5)*H0,w=el.offsetWidth,hh=el.offsetHeight;
   el.style.transform=`translate(${Math.round(clamp(x-w/2,8,W0-w-8))}px,${Math.round(clamp(y-hh-10,Math.min(84,H0-hh-8),H0-hh-8))}px)`;}
@@ -10525,12 +10534,20 @@ const SET=[
   ['c','tSize','Touch button size','rng',0.7,1.5,0.05,pct],
   ['c','tFire2','Touch: second fire button above the stick','chk'],
   ['c','tAutoRun','Touch: sprint when the stick is pushed to the edge','chk'],
-  ['c','tDblFire','Touch: double-tap the look area to shoot (hold the second tap to keep firing)','chk']];
+  ['c','tDblFire','Touch: double-tap the look area to shoot (hold the second tap to keep firing)','chk'],
+  ['c','pSens','Controller look sensitivity','rng',0.3,3,0.05,v=>(+v).toFixed(2)],
+  ['c','pAdsSens','Controller sensitivity while aiming','rng',0.4,1.5,0.05,pct],
+  ['c','pDead','Stick deadzone (raise it if your view drifts)','rng',0.02,0.35,0.01,pct],
+  ['c','pCurve','Look response curve','sel',[[1,'Linear'],[1.8,'Standard'],[2.6,'Precise (slower near the centre)']]],
+  ['c','pBoost','Controller: turn faster when the look stick is held at the edge','chk'],
+  ['c','pAssist','Controller: aim assist (your aim slows over enemies)','chk'],
+  ['c','pAutoRun','Controller: sprint when the left stick is pushed all the way forward','chk'],
+  ['c','pRumble','Controller vibration','chk']];
 const setEls={};
 function applyOpt(){applyGfx();audioApply();saveOpt();touchApply();}
 function syncSettings(){for(const d of SET){const el=setEls[d[1]];if(!el)continue;const v=OPT[d[1]];if(d[3]==='chk')el.inp.checked=!!v;else{el.inp.value=String(v);if(el.out)el.out.textContent=d[7](v);}}}
 (function(){const mk=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e;};
-  const PANE={g:$('setG'),s:$('setS'),c:$('setC')},SUBHEAD={ao:'High-end',sens:'Mouse',touch:'Touch'};
+  const PANE={g:$('setG'),s:$('setS'),c:$('setC')},SUBHEAD={ao:'High-end',sens:'Mouse',touch:'Touch',pSens:'Controller'};
   const grp={};for(const d of SET){const [sec,key,label,type]=d;const pane=PANE[sec]||PANE.g;if(SUBHEAD[key]){grp[sec]=mk('div','sgrp');grp[sec].append(mk('h3',null,SUBHEAD[key]));pane.append(grp[sec]);}const host=grp[sec]||pane;
     const row=mk('label','srow'+(type==='chk'?' chk':''));let inp,out=null;
     if(type==='chk'){inp=mk('input');inp.type='checkbox';row.append(inp,mk('span',null,label));}
@@ -10542,6 +10559,7 @@ function syncSettings(){for(const d of SET){const el=setEls[d[1]];if(!el)continu
       else{OPT[key]=type==='chk'?inp.checked:type==='sel'?(isNaN(+inp.value)?inp.value:+inp.value):+inp.value;if(key in PRESETS.high)OPT.preset='custom';}
       applyOpt();syncSettings();});}
   syncSettings();
+  {const ps=document.createElement('div');ps.className='cap padstat';ps.id='padstat';setEls.pSens.inp.closest('.sgrp').querySelector('h3').after(ps);}
   const TABS=[...document.querySelectorAll('#settings .stab')];
   setTab(OPT_TAB());
   for(const b of TABS){b.addEventListener('click',()=>setTab(b.dataset.t,true));
@@ -10599,7 +10617,7 @@ function endShow(){const el=$('endscr');if(!el.hidden)return;
   for(const k in keys)keys[k]=false;mouseDown=false;adsDown=false;
   if(!$('pause').hidden){$('pause').hidden=true;toggleSettings(false);}
   if(locked)document.exitPointerLock();
-  END.padI=0;END.pad=endPadRead()||{};endFocus(0,false);}
+  END.padI=0;endFocus(0,!!PAD.on);}
 function endHide(){const el=$('endscr');if(el.hidden)return;el.hidden=true;document.body.classList.remove('ended');
   if(END.home){END.home.p.insertBefore($('banner'),END.home.n);END.home.p.insertBefore($('xpsum'),END.home.n);}
   for(const b of $('endbtns').children)b.classList.remove('pad');}
@@ -10610,8 +10628,7 @@ function endTick(P){const over=!!S&&S.phase==='over'&&inPlay();if(!over){endHide
   const ag=$('eagain'),solo=net.mode==='solo';
   const t=solo?'Play again':mine?`Ready ${rd}/${hum.length}`:'Play again';if(ag.textContent!==t)ag.textContent=t;ag.disabled=mine;
   const note=solo?'':mine?`Waiting for the others · next ${S.mode==='zr'?'run':'match'} in ${Math.ceil(S.t)}`:hum.length>1?`${rd}/${hum.length} ready · starts early when everyone is ready`:'';
-  if($('endnote').textContent!==note)$('endnote').textContent=note;
-  endPad();}
+  if($('endnote').textContent!==note)$('endnote').textContent=note;}
 function endAgain(){if(!S||S.phase!=='over')return;const s=mySlot();blip(660,0.05,0.03,false,'ui');
   if(net.mode==='solo'){endHide();restartMatch();return;}
   if(s<0)return;if(net.host){S.again=S.again||[];if(!S.again.includes(s))S.again.push(s);}else if(net.room)net.room.emit('hit',{again:1}).catch(()=>{});
@@ -10624,14 +10641,6 @@ document.addEventListener('keydown',e=>{if($('endscr').hidden)return;const c=e.c
   else if(/^(ArrowRight|ArrowDown|KeyD|KeyS|Tab)$/.test(c)){e.preventDefault();e.stopImmediatePropagation();endFocus(END.padI+(e.shiftKey&&c==='Tab'?-1:1),true);}
   else if(c==='Enter'||c==='Space'||c==='NumpadEnter'){e.preventDefault();e.stopImmediatePropagation();const b=$('endbtns').children[END.padI];if(b&&!b.disabled)b.click();}
   else if(c==='Escape'||c==='Backspace'){e.preventDefault();e.stopImmediatePropagation();}},true);
-/* controllers: D-pad or left stick moves between the buttons, A (or Start) presses the highlighted one */
-function endPadRead(){let gp=null;try{for(const g of navigator.getGamepads?navigator.getGamepads():[])if(g&&g.connected){gp=g;break;}}catch(e){}if(!gp)return null;
-  const b=i=>!!(gp.buttons[i]&&gp.buttons[i].pressed),ax=gp.axes[0]||0,ay=gp.axes[1]||0;
-  return {a:b(0)||b(9),prev:b(14)||b(12)||ax<-0.6||ay<-0.6,next:b(15)||b(13)||ax>0.6||ay>0.6};}
-function endPad(){const r=endPadRead();if(!r)return;const o=END.pad||{};
-  if(r.prev&&!o.prev)endFocus(END.padI-1,true);if(r.next&&!o.next)endFocus(END.padI+1,true);
-  if(r.a&&!o.a){const b=$('endbtns').children[END.padI];if(b&&!b.disabled)b.click();}
-  END.pad=r;}
 function closePause(){if($('pause').hidden)return;$('pause').hidden=true;toggleSettings(false);autoLock();blip(660,0.05,0.03,false,'ui');}
 function leaveMatch(){endHide();net.inLobby=false;$('lobby').hidden=true;xpFlush();bigCountOff();closeWheel(false);WH.auto=false;$('pause').hidden=true;toggleSettings(false);toggleSB(false);
   if(net.room){try{net.room.leave().catch(()=>{});}catch(e){}}
@@ -10720,7 +10729,7 @@ $('fullbtn').addEventListener('click',()=>{const d=document.documentElement;try{
 window.addEventListener('resize',()=>{if(tStickId===null)stickHome();});
 function touchTick(){
   const s=S?mySlot():-1,P=s>=0?S.players[s]:null;
-  const show=TOUCH.on&&!!P&&inPlay()&&$('pause').hidden&&$('settings').hidden&&$('dead').hidden&&$('sbpanel').hidden&&$('shop').hidden&&!WH.open;
+  const show=TOUCH.on&&!PAD.on&&!!P&&inPlay()&&$('pause').hidden&&$('settings').hidden&&$('dead').hidden&&$('sbpanel').hidden&&$('shop').hidden&&!WH.open;
   if(show!==tShown){tShown=show;TL.hidden=!show;if(!show)touchRelease();else stickHome();}
   if(!show)return;
   if(P.st!=='alive'&&adsDown)adsDown=false;
@@ -10729,6 +10738,185 @@ function touchTick(){
   const dn=P.st==='down';const ut=dn?'Give up':'Use';if($('tUse').textContent!==ut)$('tUse').textContent=ut;
   const live=S.phase==='live'&&P.st==='alive';for(const id of ['tFire','tFire2','tAds','tReload','tJump','tCrouch'])$(id).classList.toggle('off',!live&&!(id==='tJump'||id==='tCrouch'?P.st==='alive':false));}
 touchApply();
+
+/* ---------- game controllers (Gamepad API) ----------
+   Xbox / PlayStation style pads in the browser's "standard" layout, wired or Bluetooth (Android too). In play the pad
+   writes into the same state the mouse, keyboard and touch controls use (mouseDown, adsDown, keys.*, me.jumpBuf ...), and
+   only when its own buttons change, so a connected but idle pad never fights the mouse. Outside play it drives the menus:
+   the D-pad / left stick sends arrow keys to the existing menu handlers and falls back to moving focus to the nearest
+   control in that direction; A presses, B is Esc, LB/RB switch tabs (Q/E). PAD.on is true while the pad was the last thing
+   used; it shows controller button hints (body.padnav) and hides the touch buttons. */
+const PAD={on:false,id:'',ps:false,b:[],ax:[0,0,0,0],out:{},rep:{},xT:0,xUse:false,yWheel:false,run:false,mx:0,my:0,boost:0,seen:false,rumbleT:0,gp:null};
+const PB={a:0,b:1,x:2,y:3,lb:4,rb:5,lt:6,rt:7,back:8,start:9,ls:10,rs:11,up:12,down:13,left:14,right:15};
+const PADL_X={a:'A',b:'B',x:'X',y:'Y',lb:'LB',rb:'RB',lt:'LT',rt:'RT',back:'View',start:'Menu',ls:'L3',rs:'R3',dpad:'D-pad'};
+const PADL_P={a:'✕',b:'○',x:'□',y:'△',lb:'L1',rb:'R1',lt:'L2',rt:'R2',back:'Create',start:'Options',ls:'L3',rs:'R3',dpad:'D-pad'};
+function padIsPS(id){return /054c|playstation|dualsense|dualshock/i.test(id)||(/wireless controller/i.test(id)&&!/xbox|045e/i.test(id));}
+function padL(k){return (PAD.ps?PADL_P:PADL_X)[k]||k;}
+function pk(k){return `<kbd class="pk pk-${k}">${padL(k)}</kbd>`;}
+function padPick(){let best=null;try{for(const g of navigator.getGamepads?navigator.getGamepads():[]){if(!g||!g.connected)continue;
+  if(!best||(g.mapping==='standard')>(best.mapping==='standard')||((g.mapping==='standard')===(best.mapping==='standard')&&g.timestamp>best.timestamp))best=g;}}catch(e){}return best;}
+function padSetOn(on){if(on===PAD.on)return;PAD.on=on;document.body.classList.toggle('padnav',on);padHints();
+  if(on){if(TOUCH.on)touchRelease();}else{padReleaseAll();}}
+/* any real mouse, key or touch use hands control back */
+window.addEventListener('mousemove',e=>{if(PAD.on&&e.isTrusted&&(Math.abs(e.movementX)+Math.abs(e.movementY)>3))padSetOn(false);},true);
+window.addEventListener('mousedown',e=>{if(e.isTrusted)padSetOn(false);},true);
+/* some Android builds also send the pad's D-pad, A and B as arrow / Enter / Esc key presses: drop those while that button is down */
+const PADDUP={ArrowUp:PB=>PB.up,ArrowDown:PB=>PB.down,ArrowLeft:PB=>PB.left,ArrowRight:PB=>PB.right,Enter:PB=>PB.a,Space:PB=>PB.a,Escape:PB=>PB.b,Backspace:PB=>PB.b,BrowserBack:PB=>PB.b};
+window.addEventListener('keydown',e=>{if(!e.isTrusted)return;
+  if(/^Gamepad/.test(e.key||'')||/^Gamepad/.test(e.code||'')){e.preventDefault();e.stopImmediatePropagation();return;}
+  const g=PADDUP[e.code]||PADDUP[e.key]?padPick():null;
+  if(g){const i=(PADDUP[e.code]||PADDUP[e.key])(PB),bt=g.buttons[i];if(bt&&bt.pressed){e.preventDefault();e.stopImmediatePropagation();return;}}
+  if(PAD.on&&e.key!=='Unidentified')padSetOn(false);},true);
+window.addEventListener('touchstart',e=>{if(e.isTrusted)padSetOn(false);},{passive:true,capture:true});
+window.addEventListener('gamepadconnected',e=>{const g=e.gamepad;PAD.seen=true;PAD.ps=padIsPS(g.id);
+  padStat();if(S&&inPlay())xpToast('Controller connected');});
+window.addEventListener('gamepaddisconnected',()=>{padStat();if(!padPick()){padSetOn(false);if(S&&inPlay())xpToast('Controller disconnected');}});
+function padStat(){const el=$('padstat');if(!el)return;const g=padPick();
+  el.textContent=g?`Connected: ${g.id.replace(/\s*\(.*?\)\s*/g,' ').trim().slice(0,60)||'controller'}${g.mapping==='standard'?'':' (unknown layout, buttons may differ)'}`:'No controller found. Connect one and press any button on it.';}
+/* release whatever the pad is holding down (pad output state lives in PAD.out) */
+function padReleaseAll(){const o=PAD.out;if(o.fire)mouseDown=false;if(o.ads)adsDown=false;for(const k of ['KeyC','KeyF','KeyG','KeyQ','KeyE'])if(o[k])keys[k]=false;
+  PAD.out={};PAD.mx=PAD.my=0;PAD.run=false;PAD.xUse=false;if(PAD.yWheel&&WH.open&&WH.mode==='hold')closeWheel(false);PAD.yWheel=false;}
+function padOut(name,want,apply){if(!!PAD.out[name]===!!want)return;PAD.out[name]=!!want;apply(!!want);}
+function padRumble(dur,strong,weak){if(!OPT.pRumble||!PAD.on)return;const g=PAD.gp,a=g&&g.vibrationActuator;if(!a||!a.playEffect)return;
+  const n=performance.now();if(n<PAD.rumbleT)return;PAD.rumbleT=n+dur*0.6;
+  try{const r=a.playEffect(a.effects&&!a.effects.includes('dual-rumble')&&a.effects.includes('trigger-rumble')?'trigger-rumble':'dual-rumble',{duration:dur,strongMagnitude:strong,weakMagnitude:weak});if(r&&r.catch)r.catch(()=>{});}catch(e){}}
+function padStick(x,y,dz){const m=Math.hypot(x,y);if(m<dz)return [0,0,0];const n=Math.min(1,(m-dz)/(1-dz));return [x/m*n,y/m*n,n];}
+
+/* which screen the pad is driving: an element to navigate, or null for play */
+function padScope(){
+  if(INTRO.on)return 'intro';
+  for(const id of ['settings','shop','zrlocker','lobby'])if(!$(id).hidden)return $(id);
+  if(!$('menu').hidden){if(MS.open)return $('mapscr');return !$('mpanel').hidden?$('mpanel'):$('menu');}
+  for(const id of ['endscr','pause','sbpanel'])if(!$(id).hidden)return $(id);
+  if(WH.open)return 'wheel';
+  for(const id of ['zrint','dead'])if(!$(id).hidden)return $(id);
+  return null;}
+const PADSEL='button,[role=button],[role=radio],[role=tab],input:not([type=hidden]),select,textarea,a[href],[tabindex]:not([tabindex="-1"])';
+function padVis(el){if(el.disabled||el.closest('[hidden]'))return false;const r=el.getBoundingClientRect();if(r.width<2||r.height<2)return false;
+  const cs=getComputedStyle(el);return cs.visibility!=='hidden'&&cs.display!=='none'&&+cs.opacity!==0;}
+function padFocusables(scope){return [...scope.querySelectorAll(PADSEL)].filter(padVis);}
+function padFocus(el){if(!el)return;try{el.focus({preventScroll:true});}catch(e){}try{el.scrollIntoView({block:'nearest',inline:'nearest'});}catch(e){}}
+function padDefault(scope){const c=padFocusables(scope);if(!c.length)return null;
+  return c.find(e=>e.getAttribute('aria-checked')==='true'||e.getAttribute('aria-selected')==='true'||e.classList.contains('sel'))||c.find(e=>e.classList.contains('primary'))||c[0];}
+function padSpatial(scope,dx,dy){const ae=document.activeElement,cands=padFocusables(scope);
+  if(!ae||!scope.contains(ae)||ae===scope||!padVis(ae)){padFocus(padDefault(scope));return;}
+  const r=ae.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let best=null,bs=1e9;
+  for(const c of cands){if(c===ae||c.contains(ae)||ae.contains(c))continue;const q=c.getBoundingClientRect();
+    // distance from the current control's edge in the pushed direction, and how far off to the side
+    const px=clamp(cx,q.left,q.right),py=clamp(cy,q.top,q.bottom),qx=q.left+q.width/2,qy=q.top+q.height/2;
+    const along=dx?(qx-cx)*dx:(qy-cy)*dy,gap=dx?(dx>0?q.left-r.right:r.left-q.right):(dy>0?q.top-r.bottom:r.top-q.bottom);
+    if(along<=4||gap<-Math.min(r.width,r.height)*0.5)continue;
+    const side=dx?Math.abs(py-cy):Math.abs(px-cx);const s=Math.max(0,gap)+side*2.2;if(s<bs){bs=s;best=c;}}
+  if(best){padFocus(best);blip(980,0.022,0.012,false,'ui');}}
+function padKey(code,key){const t=document.activeElement&&document.activeElement!==document.body?document.activeElement:document.body;
+  const o={code,key:key||code,bubbles:true,cancelable:true};const e=new KeyboardEvent('keydown',o);t.dispatchEvent(e);t.dispatchEvent(new KeyboardEvent('keyup',o));return e.defaultPrevented;}
+function padClick(el){if(!el)return;if(el.tagName==='SELECT'){el.selectedIndex=(el.selectedIndex+1)%el.options.length;el.dispatchEvent(new Event('change',{bubbles:true}));return;}
+  if(el.click&&!(el instanceof SVGElement))el.click();else el.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true}));}
+const ARROW={L:['ArrowLeft',-1,0],R:['ArrowRight',1,0],U:['ArrowUp',0,-1],D:['ArrowDown',0,1]};
+function padDir(scope,d){const [code,dx,dy]=ARROW[d],ae=document.activeElement,inS=ae&&scope.contains(ae)&&ae!==scope;
+  if(scope===$('mpanel')){// the mode cards change mode along their own axis (a column, or a row in portrait); everything else moves focus
+    if(inS&&ae.classList.contains('mcd')){const a=MCARDS[0].getBoundingClientRect(),b=MCARDS[1].getBoundingClientRect(),col=Math.abs(b.top-a.top)>Math.abs(b.left-a.left);
+      const st=col?dy:dx,vis=MCARDS.filter(padVis),i=vis.indexOf(ae);
+      if(st&&!((st<0&&i===0)||(st>0&&i===vis.length-1))){modeStep(st);return;}}/* past the first or last card: on to Back, or the options and Choose map */
+    else if(!inS){const c=MCARDS.find(x=>x.dataset.m===$('modesel').value);padFocus(c);return;}
+    padSpatial(scope,dx,dy);return;}
+  if(scope===$('mapscr')&&dy){if(!inS){padFocus($('msgo'));return;}padSpatial(scope,dx,dy);return;}
+  if(inS&&dx&&ae.tagName==='INPUT'&&ae.type==='range'){if(dx>0)ae.stepUp();else ae.stepDown();ae.dispatchEvent(new Event('input',{bubbles:true}));ae.dispatchEvent(new Event('change',{bubbles:true}));return;}
+  if(inS&&dx&&ae.tagName==='SELECT'){const n=clamp(ae.selectedIndex+dx,0,ae.options.length-1);if(n!==ae.selectedIndex){ae.selectedIndex=n;ae.dispatchEvent(new Event('change',{bubbles:true}));blip(760,0.022,0.012,false,'ui');}return;}
+  const typing=inS&&/^(INPUT|TEXTAREA)$/.test(ae.tagName)&&ae.type!=='checkbox';
+  if(!typing&&padKey(code))return;
+  padSpatial(scope,dx,dy);}
+function padA(scope){const ae=document.activeElement,inS=ae&&scope.contains(ae)&&ae!==scope&&padVis(ae);
+  if(scope===$('mpanel')&&inS&&ae.classList.contains('mcd')){$('mpgo').click();return;}
+  if(scope===$('mapscr')&&inS&&ae.closest('#maps')){$('msgo').click();return;}
+  if(inS&&ae.matches(PADSEL)&&!(ae.tagName==='INPUT'&&ae.type==='range')){if(/^(INPUT|TEXTAREA)$/.test(ae.tagName)&&ae.type!=='checkbox')return;padClick(ae);return;}
+  if(padKey('Enter','Enter'))return;
+  if(!inS)padFocus(padDefault(scope));}
+function padB(scope){if(scope===$('settings')||scope===$('pause')||scope===$('sbpanel')){const ae=document.activeElement;if(ae&&ae.blur&&/^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName))ae.blur();}padKey('Escape','Escape');}
+
+function padTick(dt){
+  const g=padPick();PAD.gp=g;
+  if(!g){if(PAD.on)padSetOn(false);PAD.b=[];return;}
+  if(g.id!==PAD.id){PAD.id=g.id;PAD.ps=padIsPS(g.id);padHints();padStat();}
+  const prev=PAD.b,b=g.buttons.map(x=>!!(x&&(x.pressed||x.value>0.35))),val=i=>g.buttons[i]?g.buttons[i].value||(g.buttons[i].pressed?1:0):0;
+  PAD.b=b;const hit=i=>b[i]&&!prev[i],up=i=>!b[i]&&prev[i];
+  const ax=g.axes,dz=OPT.pDead,ls=padStick(ax[0]||0,ax[1]||0,dz),rs=padStick(ax[2]||0,ax[3]||0,dz);
+  const active=b.some((x,i)=>x&&!prev[i])||ls[2]>0.25||rs[2]>0.25;
+  if(active&&!PAD.on)padSetOn(true);
+  if(!PAD.on)return;
+  const scope=padScope();
+  // menus: D-pad or left stick with key repeat, A/B/LB/RB/Start/View
+  if(scope){
+    if(scope==='wheel'){padWheel(g,b,hit,up,ls,rs);return;}
+    padReleaseAll();
+    if(scope==='intro'){if(hit(PB.a)||hit(PB.b)||hit(PB.start))padKey('Enter','Enter');return;}
+    const dirs={L:b[PB.left]||(ls[2]>0.5&&ls[0]<-Math.abs(ls[1])),R:b[PB.right]||(ls[2]>0.5&&ls[0]>Math.abs(ls[1])),U:b[PB.up]||(ls[2]>0.5&&ls[1]<-Math.abs(ls[0])),D:b[PB.down]||(ls[2]>0.5&&ls[1]>Math.abs(ls[0]))};
+    const n=performance.now();
+    for(const d in dirs){const r=PAD.rep[d];if(!dirs[d]){PAD.rep[d]=0;continue;}if(!r){PAD.rep[d]=n+380;padDir(scope,d);}else if(n>=r){PAD.rep[d]=n+110;padDir(scope,d);}}
+    if(hit(PB.a))padA(scope);
+    if(hit(PB.b))padB(scope);
+    if(hit(PB.lb))padKey('KeyQ','q');if(hit(PB.rb))padKey('KeyE','e');
+    if(hit(PB.start)){if(scope===$('pause'))closePause();else if(scope===$('settings')||scope===$('sbpanel')||scope===$('shop')||scope===$('zrlocker'))padB(scope);}
+    if(hit(PB.back)&&scope===$('sbpanel')){toggleSB(false);autoLock();}
+    // the right stick scrolls long panels (settings, workshop, sandbox)
+    if(rs[2]>0&&typeof scope!=='string'){const sc=scope.querySelector('.setgrid')||scope;const el=[sc,scope,...scope.querySelectorAll('*')].find(e=>e.scrollHeight>e.clientHeight+4&&/(auto|scroll)/.test(getComputedStyle(e).overflowY));if(el)el.scrollTop+=rs[1]*900*dt;}
+    return;}
+  // play
+  PAD.rep={};
+  const s=mySlot(),P=s>=0&&S?S.players[s]:null,alive=!!P&&P.st==='alive',downed=!!P&&P.st==='down';
+  PAD.mx=ls[0];PAD.my=ls[1];
+  if(hit(PB.ls))PAD.run=!PAD.run;if(ls[2]<0.2||ls[1]>-0.2)PAD.run=false;
+  PAD.autoRun=!!OPT.pAutoRun&&ls[2]>0.92&&ls[1]<-0.75;
+  padOut('fire',b[PB.rt]&&val(PB.rt)>0.3,v=>{mouseDown=v;});
+  padOut('ads',b[PB.lt],v=>{adsDown=v;});
+  padOut('KeyC',b[PB.b],v=>{keys.KeyC=v;});
+  padOut('KeyQ',b[PB.left],v=>{keys.KeyQ=v;});padOut('KeyE',b[PB.right],v=>{keys.KeyE=v;});
+  if(hit(PB.a))me.jumpBuf=0.14;
+  if(hit(PB.rb)||hit(PB.rs))me.dashBuf=0.12;
+  // X: tap reloads, hold uses (revive / arm / defuse / take a gun); LB always uses; when downed both hold "give up"
+  if(hit(PB.x)){PAD.xT=performance.now();PAD.xUse=!$('prompt').hidden||!!document.querySelector('#zrwcard:not([hidden]) .zwp:not(.far)');}
+  if(up(PB.x)&&!PAD.xUse&&performance.now()-PAD.xT<300&&alive)startReload();
+  const useHeld=b[PB.lb]||(b[PB.x]&&(PAD.xUse||performance.now()-PAD.xT>=300));
+  padOut('KeyF',useHeld&&!downed,v=>{keys.KeyF=v;});padOut('KeyG',useHeld&&downed,v=>{keys.KeyG=v;});
+  // Y: hold for the weapon wheel where switching is allowed (round start freeze, sandbox)
+  if(hit(PB.y)&&canHoldWheel()){openWheel('hold');PAD.yWheel=true;}
+  if(hit(PB.start)){padReleaseAll();openPause();return;}
+  if(hit(PB.back)&&SB.on){padReleaseAll();toggleSB();return;}
+  padLook(dt,rs,P);}
+/* weapon wheel: either stick points at a weapon; let go of Y (switch wheel) or press A (round start pick) to take it */
+function padWheel(g,b,hit,up,ls,rs){const st=rs[2]>ls[2]?rs:ls;
+  if(st[2]>0.45){WH.vx=st[0]*110;WH.vy=st[1]*110;wheelUI.dot.style.display='';wheelMove(0,0);}
+  if(WH.mode==='hold'){if(up(PB.y)||hit(PB.a)){PAD.yWheel=false;closeWheel(true);}else if(hit(PB.b)){PAD.yWheel=false;closeWheel(false);}}
+  else if(hit(PB.a)||hit(PB.y)){if(WH.hov)closeWheel(true);}
+  if(hit(PB.start)){closeWheel(false);openPause();}}
+/* right stick look: radial deadzone, response curve, a turn boost at full tilt and a gentle slowdown over enemies */
+const PADV=new THREE.Vector3(),PADF=new THREE.Vector3();
+function padLook(dt,rs,P){
+  if(rs[2]<=0){PAD.boost=0;return;}
+  let x=rs[0],y=rs[1];const k=Math.pow(rs[2],OPT.pCurve)/rs[2];x*=k;y*=k;
+  if(OPT.pBoost&&rs[2]>0.97&&Math.abs(rs[0])>0.85&&me.ads<0.3)PAD.boost=Math.min(1,PAD.boost+dt/0.45);else PAD.boost=Math.max(0,PAD.boost-dt*4);
+  const ads=(1-0.32*me.ads)*(1+(OPT.pAdsSens-1)*me.ads),rate=3.3*OPT.pSens*ads*(1+0.75*sstep((PAD.boost-0.35)/0.65));
+  const slow=OPT.pAssist?1-0.5*padAssist(P):1;
+  me.yaw-=x*rate*slow*dt;me.pitch=clamp(me.pitch-y*rate*0.72*slow*dt*(OPT.invertY?-1:1),-1.45,1.45);
+  me.swayX=clamp(me.swayX+x*dt*2.2,-1,1);me.swayY=clamp(me.swayY+y*dt*2.2,-1,1);}
+/* 0..1: how close the crosshair is to a visible enemy body (other team's soldiers, Revenants) */
+function padAssist(P){if(!P||P.st!=='alive'||!S||S.phase!=='live')return 0;
+  camera.getWorldDirection(PADF);const cp=camera.position;let best=0;
+  const test=(x,y,z,r)=>{PADV.set(x-cp.x,y-cp.y,z-cp.z);const d=PADV.length();if(d<1||d>70)return;
+    const ang=Math.acos(clamp(PADV.dot(PADF)/d,-1,1)),cone=Math.atan(r/d)*1.8+0.01;if(ang>cone)return;
+    const f=1-ang/cone;if(f>best&&segClear(cp.x,cp.z,x-(x-cp.x)/d*0.6,z-(z-cp.z)/d*0.6))best=f;};
+  for(const o of S.players){if(o===P||o.team===P.team||o.st!=='alive')continue;test(o.x,(o.y||0)+1.15,o.z,0.7);}
+  if(S.mode==='zr'||rgOn())for(const z of ZB.list){if(z.st==='dead'||z.hp<=0)continue;test(z.x,(z.y||0)+(z.st==='crawl'?0.4:1.1),z.z,0.6);}
+  return best;}
+/* button hints: swap keyboard hints for controller ones while the pad is in use */
+const PADH={};
+function padHints(){const on=PAD.on;
+  const mh=$('mhint');if(mh){if(PADH.mh==null)PADH.mh=mh.innerHTML;mh.innerHTML=on?`${pk('dpad')} select · ${pk('a')} confirm · ${pk('b')} back`:PADH.mh;}
+  const sh=document.querySelector('#settings .stabhint');if(sh){if(PADH.sh==null)PADH.sh=sh.innerHTML;sh.innerHTML=on?`${pk('lb')} ${pk('rb')} switch tabs`:PADH.sh;}
+  const pkx=$('padkeys');if(pkx)pkx.innerHTML=[['ls','move · click to sprint'],['rs','look'],['rt','fire'],['lt','aim'],['a','jump'],['b','crouch, slide'],['rb','dash'],['x','reload · hold to use'],['lb','revive, arm, defuse'],['y','hold for guns (start of round)'],['dpad','◂ ▸ lean'],['start','this menu']]
+    .map(([k,t])=>`<span>${pk(k)} ${t}</span>`).join('');
+  lastPickerKey='';}
+padStat();
 
 
 /* ---------- local update: movement and weapon feel ---------- */
@@ -10760,13 +10948,13 @@ function localTick(dt){
   if(keys.ArrowLeft)me.yaw+=2.2*dt;if(keys.ArrowRight)me.yaw-=2.2*dt;if(keys.ArrowUp)me.pitch=clamp(me.pitch+1.6*dt,-1.45,1.45);if(keys.ArrowDown)me.pitch=clamp(me.pitch-1.6*dt,-1.45,1.45);
   me.sinceShot+=dt;me.sprintLock-=dt;me.slideCd-=dt;me.jumpBuf-=dt;me.wrCd-=dt;me.grabCd=(me.grabCd||0)-dt;
   const canMove=(alive||downed)&&!frozen;
-  let fx=0,fz=0;if(canMove){if(keys.KeyW)fz-=1;if(keys.KeyS)fz+=1;if(keys.KeyA)fx-=1;if(keys.KeyD)fx+=1;fx+=TOUCH.mx;fz+=TOUCH.my;}
+  let fx=0,fz=0;if(canMove){if(keys.KeyW)fz-=1;if(keys.KeyS)fz+=1;if(keys.KeyA)fx-=1;if(keys.KeyD)fx+=1;fx+=TOUCH.mx+PAD.mx;fz+=TOUCH.my+PAD.my;}
   const L=Math.hypot(fx,fz);if(L>1){fx/=L;fz/=L;}/* the touch stick is analog: a small push walks slowly */
   const sy=Math.sin(me.yaw),cy=Math.cos(me.yaw);const wx=fx*cy+fz*sy,wz=-fx*sy+fz*cy;
   const adsWant=alive&&adsDown&&me.reloadT<=0;
   const crouchKey=alive&&!!keys.KeyC;
   let speedNow=Math.hypot(me.vx,me.vz);
-  const sprinting=alive&&!frozen&&(keys.ShiftLeft||keys.ShiftRight||TOUCH.run)&&fz<0&&!crouchKey&&!adsWant&&me.sprintLock<=0&&me.slideT<=0;
+  const sprinting=alive&&!frozen&&(keys.ShiftLeft||keys.ShiftRight||TOUCH.run||PAD.run||PAD.autoRun)&&fz<0&&!crouchKey&&!adsWant&&me.sprintLock<=0&&me.slideT<=0;
   if(crouchKey&&!me.crouch&&me.ground&&speedNow>7&&me.slideCd<=0&&me.slideT<=0){me.slideT=0.9;me.slideCd=1.3;const k=Math.min(13,speedNow*1.4)/speedNow;me.vx*=k;me.vz*=k;sndFade(me.slideSnd);me.slideSnd=slideSound();}
   me.crouch=crouchKey;
   if(me.slideT>0){me.slideT-=dt;if(!crouchKey||speedNow<3.2)me.slideT=0;}
@@ -10810,7 +10998,7 @@ function localTick(dt){
     if(lg){const b=lg.b,dx=-lg.nx,dz=-lg.nz,top=b.y1,m=0.3;
       const M={t:0,y0:me.y,x0:me.x,z0:me.z,top,ex:lg.cx+lg.nx*0.4,ez:lg.cz+lg.nz*0.4,dx,dz,
         tx:clamp(lg.cx+dx*0.6,b.x0+m,Math.max(b.x0+m,b.x1-m)),tz:clamp(lg.cz+dz*0.6,b.z0+m,Math.max(b.z0+m,b.z1-m)),over:false,dur:0.42};
-      if(keys.ShiftLeft||keys.ShiftRight||TOUCH.run){
+      if(keys.ShiftLeft||keys.ShiftRight||TOUCH.run||PAD.run||PAD.autoRun){
         // vault: the crate must be thin along the travel direction, with open floor past the far edge
         const across=Math.min(dx>1e-3?(b.x1-lg.cx)/dx:dx<-1e-3?(lg.cx-b.x0)/-dx:1e9,dz>1e-3?(b.z1-lg.cz)/dz:dz<-1e-3?(lg.cz-b.z0)/-dz:1e9);
         const fx2=lg.cx+dx*(across+0.45),fz2=lg.cz+dz*(across+0.45);
@@ -10839,13 +11027,13 @@ function localTick(dt){
   const mv=clamp(speedNow/CFG.speed,0,1.4);
   me.spread=myW(me.w).spread*(1+(myW(me.w).hip-1)*(1-me.ads))*(Math.abs(me.lean)*0.004+(0.0022+me.bloom)*(me.crouch?0.6:1)*(1-0.6*me.ads)+mv*0.026*(1-0.5*me.ads)+(me.ground?0:me.wr?0.025:0.05)+(sliding?0.03:0));
   me.fireCd-=dt;if(me.reloadT>0){me.reloadT-=dt;if(me.reloadT<=0){me.reloadT=0;me.ammo=myW(me.w).mag;}}
-  const canFire=alive&&S.phase==='live'&&(locked||dragMode||TOUCH.on)&&!WH.open&&me.reloadT<=0&&!P.ak&&!me.mantle;
+  const canFire=alive&&S.phase==='live'&&(locked||dragMode||TOUCH.on||PAD.on)&&!WH.open&&me.reloadT<=0&&!P.ak&&!me.mantle;
   if(mouseDown&&canFire)me.sprintLock=0.25;
   if(mouseDown&&canFire&&me.fireCd<=0&&me.sprintK<0.4){
     if(me.ammo<=0){if(me.reloadT<=0)dryFire();startReload();}
     else{
       if(me.sinceShot>0.28)me.burst=0;
-      if(!(SB.on&&SB.ammo))me.ammo--;me.fireCd=myW(me.w).cd;me.sh++;fire(s);
+      if(!(SB.on&&SB.ammo))me.ammo--;me.fireCd=myW(me.w).cd;me.sh++;fire(s);padRumble(70,0.12*myW(me.w).recoil,0.35);
       const rk=(1-0.35*me.ads)*(me.crouch?0.8:1)*myW(me.w).recoil;
       me.rcP=Math.min(0.24,me.rcP+0.0105*(1+Math.min(me.burst,7)*0.13)*rk);
       me.rcY+=(RECOIL_X[me.burst%16]*0.0062+(Math.random()-.5)*0.003)*rk;
@@ -10898,7 +11086,7 @@ function localTick(dt){
     rlE*0.4+rlR-me.roll*1.5*RM-me.swayX*0.03+me.kRoll*(1-0.6*a)-0.11*adsT+sl*0.32-btE*0.3+Math.sin(me.bob)*0.05*sk*me.bobAmp*RM+dr*0.5);
   const fl=me.sinceShot<0.022&&a<0.3&&!myW(me.w).supp;mflash.visible=fl;if(fl){mflash.rotation.z=Math.random()*3;const sc=0.6+Math.random()*0.5;mflash.scale.set(sc,sc,sc);}
   muzzle.intensity=me.sinceShot<0.04&&!myW(me.w).supp?MUZZLE_I:0;
-  if(P.hp<me.lastHp&&alive){flashT=0.35;hurtSound();me.shake=1;me.rcP+=0.012;dmgDirAdd(P,me.lastHp-P.hp);}
+  if(P.hp<me.lastHp&&alive){flashT=0.35;padRumble(180,0.6,0.4);hurtSound();me.shake=1;me.rcP+=0.012;dmgDirAdd(P,me.lastHp-P.hp);}
   else if(P.st==='down'&&me.lastSt==='down'&&P.dhp<me.lastDhp)dmgDirAdd(P,me.lastDhp-P.dhp);
   me.lastSt=P.st;me.lastDhp=P.dhp;
   if(P.st==='down'&&me.lastHp>0){flashT=0.6;downSound();}
@@ -11163,7 +11351,7 @@ function hud(dt){
     const zi=zoneOf(me.x);const rh=dm?100:returnHP(role,zi);
     $('zoneline').innerHTML='';if(!dm){const b=document.createElement('b');b.textContent=zoneName(role,zi);const sp=document.createElement('span');sp.textContent=' · come back here at ';const h=document.createElement('b');h.textContent=rh+' HP';h.style.color=hpColor(rh);
     $('zoneline').append(b,sp,h);}if(P.st==='alive'&&P.prot>0&&S.phase==='live'){const sh=document.createElement('b');sh.textContent=' · Spawn shield '+P.prot.toFixed(1)+'s';sh.style.color='var(--accent)';$('zoneline').append(sh);}
-    $('ammonum').textContent=me.reloadT>0?'··':me.ammo;$('ammosub').textContent=me.reloadT>0?'Reloading':myW(me.w).name+(TOUCH.on?'':' · R to reload');
+    $('ammonum').textContent=me.reloadT>0?'··':me.ammo;$('ammosub').textContent=me.reloadT>0?'Reloading':myW(me.w).name+(PAD.on?` · ${padL('x')} to reload`:TOUCH.on?'':' · R to reload');
   }
   // prompt + ring
   let prompt='';
@@ -11173,7 +11361,8 @@ function hud(dt){
     else if(prole==='atk'&&!S.armed){for(const k of ['A','B'])if(hyp(me.x,me.z,SITES[k].x,SITES[k].z)<3)prompt=`Hold <kbd>F</kbd> to arm the charge at ${k}`;}
     else if(prole==='def'&&S.armed&&hyp(me.x,me.z,SITES[S.armed.site].x,SITES[S.armed.site].z)<3)prompt='Hold <kbd>F</kbd> to defuse';
   }
-  if(prompt&&TOUCH.on)prompt=prompt.replace('<kbd>F</kbd>','<kbd>Use</kbd>');
+  if(prompt&&PAD.on)prompt=prompt.replace('<kbd>F</kbd>',pk('x'));
+  else if(prompt&&TOUCH.on)prompt=prompt.replace('<kbd>F</kbd>','<kbd>Use</kbd>');
   const pe=$('prompt');if(prompt){pe.hidden=false;if(pe.dataset.k!==prompt){pe.dataset.k=prompt;pe.innerHTML=prompt;}}else pe.hidden=true;
   const rc=$('ring');
   if(P&&P.ak&&P.ap>0){rc.hidden=false;ringC.clearRect(0,0,120,120);ringC.lineWidth=8;ringC.strokeStyle='rgba(255,255,255,.18)';ringC.beginPath();ringC.arc(60,60,44,0,Math.PI*2);ringC.stroke();ringC.strokeStyle=P.ak==='rev'?'#5cc27f':P.ak==='arm'?'#e3584d':'#5b93f5';ringC.beginPath();ringC.arc(60,60,44,-Math.PI/2,-Math.PI/2+Math.PI*2*Math.min(1,P.ap));ringC.stroke();}
@@ -11184,30 +11373,30 @@ function hud(dt){
   else if(dm&&S.phase==='over'){bn.hidden=false;const w=S.last?S.last.team:-1,top=S.players.reduce((a,b)=>(b.k|0)>(a.k|0)?b:a,S.players[0]);
     $('bannerT').textContent=w<0?'Draw':S.size===1&&P?(w===myTeam?'You win':'You lose'):P?(w===myTeam?'Your team wins':`${TEAMN[w]} wins`):`${TEAMN[w]} wins`;
     $('bannerS').textContent=`${S.score[0]}–${S.score[1]}`+(S.size>1?` · most kills: ${top.name} (${top.k|0})`:'')+`${overIn('match')}`;}
-  else if(dm&&S.phase==='buy'){bn.hidden=false;$('bannerT').textContent=modeName('dm',S.size);$('bannerS').textContent=`First to ${S.kills} kills, or the most kills in ${fmt(S.timer)} · Weapon: ${myW(me.w).name} · keys 1–6 switch guns`;}
+  else if(dm&&S.phase==='buy'){bn.hidden=false;$('bannerT').textContent=modeName('dm',S.size);$('bannerS').textContent=`First to ${S.kills} kills, or the most kills in ${fmt(S.timer)} · Weapon: ${myW(me.w).name}${PAD.on?` · hold ${padL('y')} to switch guns`:' · keys 1–6 switch guns'}`;}
   else if(S.phase==='post'&&S.last){bn.hidden=false;$('bannerT').textContent=(S.last.team===myTeam&&P?'Round won':P?'Round lost':TEAMN[S.last.team]+' wins the round');$('bannerS').textContent=`${TEAMN[S.last.team]}: ${S.last.why} · ${S.score[0]}–${S.score[1]} · sides swap next round`;}
   else if(S.phase==='over'){bn.hidden=false;const w=S.score[0]>S.score[1]?0:1;$('bannerT').textContent=`${TEAMN[w]} wins the match`;$('bannerS').textContent=`${S.score[0]}–${S.score[1]}${overIn('match')}`;}
-  else if(S.phase==='buy'){bn.hidden=false;$('bannerT').textContent=role?(role==='atk'?'You attack this round':'You defend this round'):'Round '+S.round;$('bannerS').textContent=(role==='atk'?'Start in your home base on the west end':'Sites A and B are in your half. Hold them.')+` · Weapon: ${myW(me.w).name} · keys 1–6 switch guns`;}
+  else if(S.phase==='buy'){bn.hidden=false;$('bannerT').textContent=role?(role==='atk'?'You attack this round':'You defend this round'):'Round '+S.round;$('bannerS').textContent=(role==='atk'?'Start in your home base on the west end':'Sites A and B are in your half. Hold them.')+` · Weapon: ${myW(me.w).name}${PAD.on?` · hold ${padL('y')} to switch guns`:' · keys 1–6 switch guns'}`;}
   else bn.hidden=true;
   if(WH.open)bn.hidden=true;
   // down / dead overlays
   $('down').hidden=!(P&&P.st==='down'&&S.phase!=='over');endTick(P);
-  if(P&&P.st==='down'){const mate=S.players.find(o=>o.team===myTeam&&o!==P);$('downtxt').textContent=`Bleeding out in ${Math.ceil(P.downT)}s · ${mate&&mate.st==='alive'?mate.name+' can revive you':'no teammate up'} · ${TOUCH.on?'hold Use':'hold G'} to give up`;}
+  if(P&&P.st==='down'){const mate=S.players.find(o=>o.team===myTeam&&o!==P);$('downtxt').textContent=`Bleeding out in ${Math.ceil(P.downT)}s · ${mate&&mate.st==='alive'?mate.name+' can revive you':'no teammate up'} · ${PAD.on?'hold '+padL('x'):TOUCH.on?'hold Use':'hold G'} to give up`;}
   const dead=P&&P.st==='dead'&&S.phase==='live';$('dead').hidden=!dead;
   if(me.wantLock&&!dead){me.wantLock=false;autoLock();}
   if(dead){
     if(locked)document.exitPointerLock();
     $('picker').hidden=dm;
     if(dm){$('deadT').textContent=zr?'Out of the fight':'Respawning';$('deadS').textContent=zr?(S.zr&&(S.zr.ph==='break'||S.zr.ph==='inter')?'Back in a moment':'You come back beside your partner when this wave is cleared, if they live through it'):`Back in ${Math.max(0,Math.ceil(P.deadT))}s, away from the enemy · ${P.k|0} kills, ${P.d|0} deaths`;
-      const key='dm'+me.wPref;if(key!==lastPickerKey){lastPickerKey=key;$('deadK').innerHTML='Press <kbd>1</kbd>–<kbd>6</kbd> or click to pick a weapon.';deadWheel.refresh();deadWheel.set(me.wPref,null);}}
+      const key='dm'+me.wPref+PAD.on;if(key!==lastPickerKey){lastPickerKey=key;$('deadK').innerHTML=PAD.on?`${pk('dpad')} to a weapon, ${pk('a')} picks it.`:'Press <kbd>1</kbd>–<kbd>6</kbd> or click to pick a weapon.';deadWheel.refresh();deadWheel.set(me.wPref,null);}}
     else{
-    if(lastPickerKey.startsWith('dm')){lastPickerKey='';$('deadK').innerHTML='Press <kbd>1</kbd>–<kbd>5</kbd> or click a zone. Closer to the enemy means less HP.';}
+    if(lastPickerKey.startsWith('dm')||$('deadK').dataset.pad!==String(PAD.on)){lastPickerKey='';$('deadK').dataset.pad=PAD.on;$('deadK').innerHTML=PAD.on?`${pk('dpad')} to a zone or weapon, ${pk('a')} picks it. Closer to the enemy means less HP.`:'Press <kbd>1</kbd>–<kbd>5</kbd> or click a zone. Closer to the enemy means less HP.';}
     const noT=S.tickets[myTeam]<=0;
     $('deadT').textContent=noT?'Out of respawns':'Choose where to come back';
     $('deadS').textContent=noT?'Your team has no respawns left this round. Watch your teammate finish it.':`Respawn in ${Math.max(0,Math.ceil(P.deadT))}s · ${S.tickets[myTeam]} team respawns left · no pick sends you back to ${zoneName(role,pickOK(P,P.lastZ,role)?P.lastZ:homeZ(role))}`;
     const zs=[0,1,2,3,4].map(zi=>{const lockC=zi===2&&canSpawn(role,zi)&&!centerOwn(myTeam);const ok=canSpawn(role,zi)&&!lockC,bl=ok&&zoneBlocked(zi,myTeam);return{zi,ok,bl,lockC};});
     const key=zs.map(z=>z.ok+'-'+z.bl).join()+me.pick+role+noT+me.wPref;
-    if(key!==lastPickerKey){lastPickerKey=key;
+    if(key!==lastPickerKey){lastPickerKey=key;const pfi=[...$('picker').children].indexOf(document.activeElement);
       $('picker').replaceChildren(...zs.map(z=>{const b=document.createElement('button');b.type='button';const hp=retHP(myTeam,role,z.zi);
         b.disabled=!z.ok||noT;if(me.pick===z.zi)b.classList.add('sel');
         const zn=document.createElement('span');zn.className='zn';zn.textContent=zoneName(role,z.zi);
@@ -11215,9 +11404,10 @@ function hud(dt){
         const st=document.createElement('span');st.className='st';st.textContent=z.lockC?'Take the center to unlock':!z.ok?'Revive only':z.bl?'Blocked by enemy':'Spawn here';
         const k=document.createElement('span');k.className='k';k.textContent='key '+(z.zi+1);
         b.append(zn,h,st,k);b.addEventListener('click',()=>{choosePick(z.zi);lastPickerKey='';});return b;}));
+      if(pfi>=0&&$('picker').children[pfi])$('picker').children[pfi].focus({preventScroll:true});
       deadWheel.refresh();deadWheel.set(me.wPref,null);}
   }}
-  $('lockhint').hidden=locked||TOUCH.on||!$('menu').hidden||!!dead||!P||!$('settings').hidden||!$('pause').hidden;
+  $('lockhint').hidden=locked||TOUCH.on||PAD.on||!$('menu').hidden||!!dead||!P||!$('settings').hidden||!$('pause').hidden;
   $('lockmode').textContent=dragMode?'mouse capture is blocked here, so drag with the mouse button held (or use arrow keys) to look':'click or press any key to take back the mouse · Esc opens the menu';
   // net pill
   let np='';
@@ -11547,7 +11737,7 @@ function frame(now){
   try{frameBody(now);}catch(e){errShow(e,'frame');}
 }
 function frameBody(now){
-  const raw=(now-last)/1000,dt=Math.min(0.05,raw);last=now;dynResTick(raw);
+  const raw=(now-last)/1000,dt=Math.min(0.05,raw);last=now;dynResTick(raw);try{padTick(dt);}catch(e){errShow(e,'pad');}
   const paused=!$('pause').hidden&&net.mode==='solo';
   if(paused){}
   else if(S||net.mode!=='none'){netTick(dt);}
