@@ -231,8 +231,6 @@ body.prematch #topbar,body.prematch #mini,body.prematch #feed,body.prematch #vit
 .zcard .zsp{display:flex;flex-direction:column;min-width:0;line-height:1.1}.zcard .zsp b{font-family:var(--display);font-size:15px;letter-spacing:.06em;color:var(--fg)}.zcard .zsp span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
 .zcard .zr{font-size:12px;font-weight:700;color:var(--rc);text-transform:uppercase;letter-spacing:.1em}
 .zcard .zst{font-size:13px;color:var(--muted);border-top:1px solid rgba(255,255,255,.1);padding-top:5px}.zcard .zst.up{color:var(--fg)}.zcard .zst.up em{font-style:normal;color:var(--rc2,#ffc23d);font-weight:700}
-#zrint .zleg{font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center}#zrint .zleg i{font-style:normal;font-weight:700}
-#zrint .zleg>span{display:flex;flex-wrap:wrap;gap:4px 12px}#zrint .zleg .zg{width:18px;height:18px;border-radius:4px;vertical-align:-4px;margin-right:4px}
 .zcard[aria-disabled=true]{opacity:.45;cursor:default}
 .zcard .zk{font-family:var(--mono);font-size:12px;color:var(--muted)}
 .zcard b{font-family:var(--display);font-size:24px;line-height:1.05}.zcard .zd{font-size:15px;flex:1}.zcard .zc{font-family:var(--mono);font-size:13px;color:var(--warn)}
@@ -700,7 +698,7 @@ body.touch #dock #dashpips i{width:22px;height:6px}
 <div class="hud" id="zrwcard" hidden></div>
 <div class="hud" id="zrboss" hidden><b>The Juggernaut</b><div class="zbb"><i id="zrbossF"></i></div><span>Plating turns bullets from the front. Hit it in the back</span></div>
 <div class="overlay" id="zrlocker" hidden role="dialog" aria-label="Locker"><div class="zlpanel"><div class="zlhd"><div><b>Locker</b><span>Permanent upgrades for Zombie Rumble, bought with Credits from runs. They never apply in PvP.</span></div><span id="zrlockcr" class="num"></span></div><div id="zrlocklist"></div><div class="zlft"><button class="btn" type="button" id="zrlockx">Close</button></div></div></div>
-<div class="hud" id="zrint" hidden role="dialog" aria-label="Intermission"><div class="zih"><b>Intermission</b><span id="zrintT" class="num"></span></div><p id="zrintS"></p><div id="zrcards"></div><div class="zleg" id="zrleg"></div><div id="zrdir" hidden><div><span class="zdh">Broadcast directive · next segment pays double Favor</span><b id="zrdirN"></b><span id="zrdirD"></span></div><button class="btn" type="button" id="zrdirB"></button></div><div class="zib"><button class="btn" type="button" id="zrfor" hidden></button><button class="btn" type="button" id="zrreroll"></button><button class="btn primary" type="button" id="zrready">Ready</button></div><p id="zrintP"></p></div>
+<div class="hud" id="zrint" hidden role="dialog" aria-label="Intermission"><div class="zih"><b>Intermission</b><span id="zrintT" class="num"></span></div><p id="zrintS"></p><div id="zrcards"></div><div id="zrdir" hidden><div><span class="zdh">Broadcast directive · next segment pays double Favor</span><b id="zrdirN"></b><span id="zrdirD"></span></div><button class="btn" type="button" id="zrdirB"></button></div><div class="zib"><button class="btn" type="button" id="zrfor" hidden></button><button class="btn" type="button" id="zrreroll"></button><button class="btn primary" type="button" id="zrready">Ready</button></div><p id="zrintP"></p></div>
 <div id="intro" hidden aria-label="Campaign intro"></div>
 <div class="hud" id="banner" hidden><h2 id="bannerT"></h2><p id="bannerS"></p></div>
 <div class="hud" id="xpsum" hidden aria-live="polite"></div>
@@ -10753,9 +10751,6 @@ function zrInterUI(P){const Z=S.zr,el=$('zrint'),on=S.phase==='live'&&Z.ph==='in
   const mate=S.players.find(p=>p!==P);$('zrintP').textContent=mate?`${mate.name}: ${Z.ready[mate.s]?'ready':Z.picked[mate.s]?'shopping':'choosing'}`:'';
   const gun=(Z.gun||{})[s],gift=ZI.gift&&!!mate,mc=(mate&&mate.cards)||[];
   const key=[Z.dir,Z.dirOn,of.join(','),pk,rd,fv,(P.cards||[]).join(','),mc.join(','),gun,gift,TOUCH.on].join('|');if(key===ZI.k)return;ZI.k=key;
-  if(!$('zrleg').childElementCount){const L=$('zrleg'),r=k=>{const i=document.createElement('i');i.style.color=ZRARC[k];i.textContent=`${ZRARP[k]} ${ZRAR[k]}`;return i;},sp=document.createElement('span');
-    for(const h in ZHOUSE){const q=document.createElement('span');q.append(zGlyphEl(h),`${ZHOUSE[h][2]} → ${ZHOUSE[h][0]}`);sp.append(q);}
-    L.append(r(1),r(2),r(3),sp,'Brands make the cards; each card counts for a house. Two cards for one house earn that house’s set II, three its set III (it replaces II) · You hold each card once per run · Bonuses multiply: +12% with +15% is +29%');}
   $('zrintS').textContent=pk?`Favor ${fv}. Buy another card, reroll, or ready up for segment ${Z.seg+1}`:`Segment ${Z.seg} survived. The patrons are bidding: take one card, free · Favor ${fv}`;
   const mk=(t,c,x)=>{const n=document.createElement(t);if(c)n.className=c;if(x!=null)n.textContent=x;return n;};
   const who=gift&&pk?mate:P,held=h=>((who.cards||[]).filter(q=>ZCARDS[q]&&ZCARDS[q].h===h).length);
