@@ -6972,14 +6972,34 @@ function wallMesh(b,h,parent){const w=b.x1-b.x0,d=b.z1-b.z0,rp=Math.max(1,Math.r
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);mesh.position.set((b.x0+b.x1)/2,h/2,(b.z0+b.z1)/2);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh;}
 for(const b of BOXES)if(b.outer)wallMesh(b,WALL_H,scene);
 const stripCy=new THREE.MeshBasicMaterial({color:lin(NEON.cy),toneMapped:false}),stripMg=new THREE.MeshBasicMaterial({color:lin(NEON.mg),toneMapped:false});
+/* steel dressing on cover and midfield structures (looks only; collision stays the plain box): corner guards, kick plates, top rims,
+   straps and lifting lugs. Each set is one merged mesh. */
+const TRIM_M=new THREE.MeshStandardMaterial({color:lin(0x7a8296),roughness:0.36,metalness:0.6});
+/* kick plates: worn yellow and black hazard stripes */
+const TRIM_D=new THREE.MeshStandardMaterial({roughness:0.55,metalness:0.35,map:(()=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');g.fillStyle='#16171c';g.fillRect(0,0,64,64);
+  g.fillStyle='#b88a1c';for(let i=-64;i<128;i+=32){g.beginPath();g.moveTo(i,64);g.lineTo(i+16,64);g.lineTo(i+80,0);g.lineTo(i+64,0);g.fill();}
+  for(let i=0;i<120;i++){g.fillStyle=`rgba(0,0,0,${Math.random()*0.35})`;g.fillRect(Math.random()*64,Math.random()*64,2+Math.random()*4,1+Math.random()*2);}
+  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.colorSpace=THREE.SRGBColorSpace;return t;})()});
+function trimMesh(list,m){if(!list.length)return null;m=m||TRIM_M;
+  const gs=list.map(([w,h,d,x,y,z])=>{const g=new THREE.BoxGeometry(w,h,d);if(m.map){const uv=g.attributes.uv,nm=g.attributes.normal;/* stripes keep one size: 0.3 m per repeat, across the band */
+      for(let i=0;i<uv.count;i++){const su=Math.abs(nm.getX(i))>.5?d:w,sv=Math.abs(nm.getY(i))>.5?d:h;uv.setXY(i,uv.getX(i)*su/0.3,uv.getY(i)*sv/0.3);}}return g.translate(x,y,z);});
+  const o=new THREE.Mesh(gs.length>1?mergeGeometries(gs):gs[0],m);o.castShadow=false;o.receiveShadow=true;o.userData.noMerge=true;return o;}
+/* the frame of a w x d box from y0 to y1: L-shaped guards on the four vertical edges (t thick, a wide), sticking out by o */
+function cornerGuards(L,w,d,y0,y1,a,t,o){const hw=w/2+o,hd=d/2+o,h=y1-y0,y=(y0+y1)/2;
+  for(const sx of [-1,1])for(const sz of [-1,1]){L.push([a,h,t,sx*(hw-a/2),y,sz*(hd-t/2)]);L.push([t,h,a,sx*(hw-t/2),y,sz*(hd-a/2)]);}}
+function band(L,w,d,y,h,o){const hw=w/2+o,hd=d/2+o;L.push([w+2*o,h,0.03,0,y,hd-0.015],[w+2*o,h,0.03,0,y,-hd+0.015],[0.03,h,d+2*o,hw-0.015,y,0],[0.03,h,d+2*o,-hw+0.015,y,0]);}
 // solids get a violet neon outline so they read as permanent structure, not breakable cover
 const SOLID_G=new THREE.Group(),solidEdgeM=new THREE.LineBasicMaterial({color:lin(NEON.vi),toneMapped:false});scene.add(SOLID_G);
 /* (re)build the solid meshes for the current BOXES; returns the old materials so setMap can drop them from the day/night lists */
 function buildSolids(){const old=[];
-  for(const o of [...SOLID_G.children]){SOLID_G.remove(o);o.geometry.dispose();if(o.material!==solidEdgeM){old.push(o.material);const k=wallMats.indexOf(o.material);if(k>=0)wallMats.splice(k,1);o.material.dispose();}}
+  for(const o of [...SOLID_G.children]){SOLID_G.remove(o);if(o.isGroup){for(const c of o.children)c.geometry.dispose();continue;}o.geometry.dispose();if(o.material!==solidEdgeM){old.push(o.material);const k=wallMats.indexOf(o.material);if(k>=0)wallMats.splice(k,1);o.material.dispose();}}
   for(const b of BOXES){if(!b.solid)continue;const h=b.h0||b.y1,mesh=wallMesh(b,h,SOLID_G);mesh.userData.noMerge=true;
     const e=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(b.x1-b.x0,h,b.z1-b.z0)),solidEdgeM);e.position.set((b.x0+b.x1)/2,h/2,(b.z0+b.z1)/2);SOLID_G.add(e);
-    if(b.mid){b.vis=[mesh,e];b.h0=h;}}
+    // structure dressing: plinth, top cap, corner guards and ribs every ~2 m on the long faces
+    const w=b.x1-b.x0,d=b.z1-b.z0,L=[],D=[];band(D,w,d,0.15,0.3,0.05);band(L,w,d,h-0.06,0.12,0.04);cornerGuards(L,w,d,0.3,h-0.12,0.14,0.03,0.03);
+    const along=w>=d,len=along?w:d,nr=Math.floor(len/2);for(let i=1;i<nr;i++){const u=-len/2+len*i/nr;for(const sg of [-1,1]){const off=(along?d:w)/2+0.02;L.push(along?[0.12,h-0.42,0.04,u,0.3+(h-0.42)/2,sg*off]:[0.04,h-0.42,0.12,sg*off,0.3+(h-0.42)/2,u]);}}
+    const tg=new THREE.Group();tg.position.set((b.x0+b.x1)/2,0,(b.z0+b.z1)/2);for(const o of [trimMesh(L),trimMesh(D,TRIM_D)])if(o)tg.add(o);SOLID_G.add(tg);
+    if(b.mid){b.vis=[mesh,e,tg];b.h0=h;}}
   return old;}
 buildSolids();
 const stripTopCy=softBloom(stripCy.clone()),stripTopMg=softBloom(stripMg.clone());
@@ -7191,7 +7211,13 @@ function makeCoverVis(b){const w=b.x1-b.x0,d=b.z1-b.z0,H=b.h0,hh=coverHeight(b,1
   const holo=new THREE.LineSegments(holoGeo(w,H,d),new THREE.LineBasicMaterial({color:lin(neon),transparent:true,opacity:0.9,toneMapped:false,clippingPlanes:[clipW]}));holo.visible=false;g.add(holo);
   const ghost=part(new THREE.BoxGeometry(w,H,d),new THREE.MeshBasicMaterial({color:lin(neon),transparent:true,opacity:0.035,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false,side:THREE.DoubleSide,clippingPlanes:[clipW]}));ghost.position.y=H/2;
   const scan=part(new THREE.PlaneGeometry(w+0.5,d+0.5),scanFor(nk));scan.rotation.x=-Math.PI/2;scan.renderOrder=3;
-  return{b,g,mat,full,edge,base,core,caps,crack,crackG,crackM:crackFor(nk),hot,teeth,rub,ember,holo,ghost,scan,clip,clipW,look:-1,hp:-1,neon,high,cx,cz,w,d,H,hh,cap,rg:0,rgSeen:0,building:false,flash:0,hit:0,emi:1.1,ecol:lin(neon)};}
+  // dressing: the lower set stays while the half-height block stands, the upper set only while the cover is whole
+  const lo=[],up=[],dk=[];cornerGuards(lo,w,d,0,hh,0.1,0.025,0.02);band(dk,w,d,0.07,0.14,0.03);
+  cornerGuards(up,w,d,hh,H,0.1,0.025,0.02);band(up,w,d,H-0.035,0.07,0.035);
+  if(high){band(up,w,d,hh+(H-hh)*0.5,0.06,0.025);for(const sx of [-1,1])for(const sz of [-1,1])up.push([0.14,0.06,0.14,sx*(w/2-0.18),H+0.03,sz*(d/2-0.18)]);}
+  else for(const sx of [-1,1])up.push([0.18,0.05,Math.min(0.5,d*0.4),sx*(w/2+0.035),H-0.22,0]);/* handles on the short sides */
+  const trimLo=new THREE.Group(),trimUp=trimMesh(up);for(const o of [trimMesh(lo),trimMesh(dk,TRIM_D)])trimLo.add(o);g.add(trimLo);g.add(trimUp);trimLo.visible=trimUp.visible=false;
+  return{b,g,mat,full,edge,base,core,caps,crack,crackG,trimLo,trimUp,crackM:crackFor(nk),hot,teeth,rub,ember,holo,ghost,scan,clip,clipW,look:-1,hp:-1,neon,high,cx,cz,w,d,H,hh,cap,rg:0,rgSeen:0,building:false,flash:0,hit:0,emi:1.1,ecol:lin(neon)};}
 const coverVis=COVER.map(makeCoverVis);/* refilled in place by setMap */
 /* flying chunks and dust puffs */
 const debris=[],debGeo=new THREE.BoxGeometry(1,1,1);
@@ -7213,7 +7239,7 @@ function setCoverLook(v,lk,prev){const h=coverHeight(v.b,coverStage(v.b,v.hp));
   v.teeth[0].visible=lk===3;v.teeth[1].visible=lk===3||lk===4;v.hot.visible=lk===3||lk===4;
   v.crack.visible=lk>=1&&lk<=4;if(v.crack.visible){v.crack.material=v.crackM[lk===1?0:lk===4?2:1];v.crack.geometry=v.crackG[lk>=3?1:0];v.crack.position.y=(lk>=3?v.hh:v.H)/2;}
   v.edge.visible=lk<5;if(lk<5){v.edge.scale.y=h;v.edge.position.y=h/2;}
-  v.rub.visible=v.ember.visible=lk===5;
+  v.rub.visible=v.ember.visible=lk===5;v.trimLo.visible=lk<=4;v.trimUp.visible=lk===0;
   if(prev<0)return;
   // something just broke off: throw chunks from the part that went, with a crack or a collapse sound
   const big=lk===3||lk===5,y0=lk===5?0.15:lk>=3?v.hh:v.H-v.cap,y1=lk===5?v.hh:lk===3?v.H:lk===4?v.hh+0.2:v.H,n=Math.round((big?11:4)*Math.min(1.5,OPT.particles));
