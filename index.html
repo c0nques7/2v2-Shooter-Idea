@@ -370,11 +370,11 @@ body.ended #touch,body.ended #zrcap,body.ended #down,body.ended #lockhint,body.e
 .mi:disabled{opacity:.35;cursor:not-allowed}
 /* mode screen: opens from Play / Play online; the cards run down the left and the menu scene holds a frozen moment of the picked mode beside them (DIO) */
 .mpanel{position:fixed;inset:0;z-index:11;display:flex;pointer-events:none;animation:mpin .18s ease-out;
-  background:linear-gradient(90deg,rgba(10,7,20,.88) 0%,rgba(10,7,20,.62) 34%,rgba(10,7,20,0) 62%),linear-gradient(0deg,rgba(10,7,20,.55) 0%,rgba(10,7,20,0) 18%)}
+  background:linear-gradient(90deg,rgba(10,7,20,.88) 0%,rgba(10,7,20,.6) 24%,rgba(10,7,20,0) 40%,rgba(10,7,20,0) 64%,rgba(10,7,20,.6) 76%,rgba(10,7,20,.85) 100%),linear-gradient(0deg,rgba(10,7,20,.55) 0%,rgba(10,7,20,0) 18%)}
 @keyframes mpin{from{opacity:0}to{opacity:1}}
 #menu.sub{background:none}
 #menu.sub .mwrap>:not(#mpanel){visibility:hidden}
-.mcol{pointer-events:auto;box-sizing:border-box;width:min(400px,37vw);flex:none;height:100%;display:flex;flex-direction:column;gap:clamp(6px,1.4vh,14px);overflow:hidden;
+.mcol{pointer-events:auto;box-sizing:border-box;width:min(380px,32vw);flex:none;height:100%;display:flex;flex-direction:column;gap:clamp(6px,1.4vh,14px);overflow:visible;
   padding:calc(12px + env(safe-area-inset-top,0px)) 14px calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
 .mphd{display:flex;align-items:center;gap:12px}.mphd .msti{align-items:flex-start;flex:1;min-width:0}.mphd .msti b{font-size:clamp(16px,min(3.4vh,2.5vw),30px);white-space:nowrap;letter-spacing:.12em}
 .mcards{flex:1 0 auto;display:flex;flex-direction:column;justify-content:center;gap:clamp(5px,1vh,10px)}
@@ -393,11 +393,12 @@ body.ended #touch,body.ended #zrcap,body.ended #down,body.ended #lockhint,body.e
 .mcd[aria-checked=true]{transform:translateX(8px);border-color:var(--mc);background:linear-gradient(90deg,color-mix(in srgb,var(--mc) 32%,transparent),rgba(12,8,24,.85) 80%);box-shadow:0 0 22px color-mix(in srgb,var(--mc) 40%,transparent)}
 .mcd:focus-visible{outline:2px solid var(--mc);outline-offset:2px}
 /* options for the picked mode open in a panel to the right of the cards (Joe: sub menus open to the right, nothing scrolls) */
-.mside{pointer-events:auto;box-sizing:border-box;width:min(360px,33vw);flex:none;align-self:center;max-height:calc(100% - 24px);margin-left:clamp(6px,1.2vw,16px);display:flex;flex-direction:column;gap:clamp(8px,1.6vh,14px);overflow:hidden;
+.mside{pointer-events:auto;box-sizing:border-box;width:min(340px,30vw);flex:none;align-self:center;max-height:calc(100% - 24px);margin-left:auto;margin-right:max(14px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:clamp(8px,1.6vh,14px);overflow:hidden;
   padding:clamp(10px,2vh,18px) clamp(10px,1.4vw,16px);background:rgba(12,8,24,.86);border:1px solid color-mix(in srgb,var(--mc,#5ff2ff) 45%,transparent);border-top:3px solid var(--mc,#5ff2ff);border-radius:8px;
   box-shadow:0 0 26px color-mix(in srgb,var(--mc,#5ff2ff) 22%,transparent);animation:msin .18s cubic-bezier(.2,.7,.2,1)}
-@keyframes msin{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}}
+@keyframes msin{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
 .mside .mseg{flex-wrap:wrap}.mside .mseg>span{width:100%;margin-bottom:3px}.mside .mseg button{font-size:13px;padding:6px}
+@media (max-width:1000px){.mcpip{gap:2px;right:10px}.mcpip i{width:5px;height:10px}.mcpip em{margin:0 1px;font-size:9px}.mcd{padding-right:10px}}
 .mshd2{display:flex;flex-direction:column;gap:1px}.mshd2 .mctag{color:var(--mc,#5ff2ff)}.mshd2 b{font-family:var(--display);font-weight:700;font-size:clamp(20px,3.4vh,28px);line-height:1;letter-spacing:.03em;text-transform:uppercase}
 .mpopts{display:flex;flex-direction:column;align-items:stretch;gap:8px}
 #msetup,.mpp{display:flex;flex-direction:column;align-items:stretch;gap:8px}
@@ -11709,15 +11710,17 @@ new ResizeObserver(()=>menuFit()).observe($('menu'));addEventListener('resize',m
     e.preventDefault();setX(g.r,t.clientX);},{capture:true,passive:false});
   const end=e=>{if(!g||![...e.changedTouches].some(q=>q.identifier===g.id))return;if(g.on){g.r.classList.remove('tdrag');g.r.dispatchEvent(new Event('change',{bubbles:true}));}g=null;};
   addEventListener('touchend',end,true);addEventListener('touchcancel',end,true);})();
-/* the cards column plus the options panel beside it (or under it on portrait screens): the scene goes in what is left */
-function mpRect(){const a=$('mcol').getBoundingClientRect(),b=$('mside').getBoundingClientRect();return b.width?{right:Math.max(a.right,b.right),top:Math.min(a.top,b.top)}:a;}
-function dioOffset(W,H,port){const col=mpRect();return port?[0,Math.min(H*0.32,(H-col.top)/2)]:[-Math.min(W*0.3,col.right/2),0];}
+/* the free part of the screen for the mode-screen scene: between the cards (left edge) and the options panel (right edge);
+   on portrait screens both sit in a band along the bottom, so the scene gets the area above it */
+function mpRect(){const a=$('mcol').getBoundingClientRect(),b=$('mside').getBoundingClientRect(),W=innerWidth;
+  if(!b.width)return {l:a.right,r:W,top:a.top};return b.left>a.right-1?{l:a.right,r:b.left,top:a.top}:{l:0,r:W,top:Math.min(a.top,b.top)};}
+function dioOffset(W,H,port){const col=mpRect();return port?[0,Math.min(H*0.32,(H-col.top)/2)]:[W/2-(col.l+col.r)/2,0];}
 /* place the cast around a few candidate spots and pick the spot + camera that show the most of it: everyone in the free part of the screen,
    not hidden behind cover, and shots that are not fired into a crate */
 function dioPlan(mode){const C=dioCast(mode),P=C.P,sq=mode==='zone'?0.85:0.75,W=innerWidth,H=innerHeight,asp=W/H,port=asp<0.9,fov=port?70:52;
   const [ox,oy]=dioOffset(W,H,port),col=mpRect();
   const cam=_dCam;cam.fov=fov;cam.aspect=asp;cam.near=0.1;cam.far=400;cam.setViewOffset(W,H,ox,oy,W,H);cam.updateProjectionMatrix();
-  const lx=port?-0.92:(col.right/W)*2-1+0.12,ly=port?1-(col.top/H)*2+0.04:-0.92;
+  const lx=port?-0.92:(col.l/W)*2-1+0.12,rx=port?0.94:(col.r/W)*2-1-0.06,ly=port?1-(col.top/H)*2+0.04:-0.92;
   const f0=C.f;let cents;
   if(mode==='zone'){const sx=f0[0],sz=f0[1];cents=[[sx,sz],[sx,sz+3],[sx,sz-3],[sx-4,sz],[sx-4,sz+3],[sx-4,sz-3]];}
   else{cents=[];for(const fx of [0,-6,6])for(const fz of [0,-6,6,-11,11])cents.push([fx+f0[0],fz+f0[1]]);}
@@ -11734,7 +11737,7 @@ function dioPlan(mode){const C=dioCast(mode),P=C.P,sq=mode==='zone'?0.85:0.75,W=
       const cx=cx0+Math.cos(az)*dist,cz=cz0+Math.sin(az)*dist;if(Math.abs(cx)>48||Math.abs(cz)>19.5||!freeAt(cx,cz))continue;
       cam.position.set(cx,hgt,cz);cam.lookAt(cx0,1.05,cz0);cam.updateMatrixWorld();
       let sc=shots*0.6-moved*0.05-Math.abs(dist-9)*0.04-(az<0?0.15:0)-Math.hypot(dX,dZ)*0.01;
-      for(const q of pts){_dP.set(q[0],q[1],q[2]).project(cam);const on=_dP.z<1&&_dP.x>lx&&_dP.x<0.94&&_dP.y>ly&&_dP.y<0.9;
+      for(const q of pts){_dP.set(q[0],q[1],q[2]).project(cam);const on=_dP.z<1&&_dP.x>lx&&_dP.x<rx&&_dP.y>ly&&_dP.y<0.9;
         if(on&&clear(cx,hgt,cz,q[0],q[1],q[2]))sc+=q[3];else if(on)sc+=q[3]*0.2;if(Math.hypot(q[0]-cx,q[2]-cz)<4.5)sc-=1.5;}
       if(!best||sc>best.sc)best={sc,pos,zs,cam:[cx,hgt,cz],look:[cx0,1.05,cz0]};}}
   return{C,P,...best};}
