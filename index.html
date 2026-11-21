@@ -499,12 +499,12 @@ input,select{font:inherit;font-size:16px;color:var(--fg);background:#0b0f12;bord
 /* touch controls: shown on touch screens (Settings > Controls > Touch controls). Sizes scale with the short side of the screen,
    so a near-square foldable inner screen gets the same layout in landscape and portrait. */
 #touch{position:fixed;inset:0;z-index:7;touch-action:none;-webkit-touch-callout:none;--u:calc(clamp(40px,7.2vmin,78px)*var(--tsz,1))}
-#touch .tb{position:absolute;width:calc(var(--u)*var(--s,1.3));height:calc(var(--u)*var(--s,1.3));border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;
-  font-family:var(--display);font-weight:700;font-size:calc(var(--u)*.26);letter-spacing:.06em;text-transform:uppercase;line-height:1;color:var(--fg);
+#touch .tb{position:absolute;width:calc(var(--u)*var(--s,1.3)*var(--k,1));height:calc(var(--u)*var(--s,1.3)*var(--k,1));border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;
+  font-family:var(--display);font-weight:700;font-size:calc(var(--u)*.26*min(var(--k,1),1.4));letter-spacing:.06em;text-transform:uppercase;line-height:1;color:var(--fg);
   background:rgba(12,8,24,calc(.42*var(--top,1)));border:2px solid rgba(120,230,255,calc(.5*var(--top,1)));box-shadow:0 0 12px rgba(39,230,255,calc(.18*var(--top,1)));opacity:var(--top,1);touch-action:none}
 #touch .tb.dn{background:rgba(95,242,255,.34);border-color:var(--accent)}
 #touch .tb.on{border-color:var(--accent);color:var(--accent);box-shadow:0 0 16px rgba(95,242,255,.55)}
-#touch .tb.fire{--s:2.2;font-size:calc(var(--u)*.34);border-color:rgba(255,77,106,.75);background:rgba(60,8,20,.4)}
+#touch .tb.fire{--s:2.2;font-size:calc(var(--u)*.34*min(var(--k,1),1.4));border-color:rgba(255,77,106,.75);background:rgba(60,8,20,.4)}
 #touch .tb.fire.dn{background:rgba(255,77,106,.42);border-color:var(--bad)}
 #touch .tb.sq{border-radius:12px;--s:1}
 #touch .tb.off{opacity:.25}
@@ -519,9 +519,30 @@ input,select{font:inherit;font-size:16px;color:var(--fg);background:#0b0f12;bord
 #tMenu{right:calc(240px + env(safe-area-inset-right,0px));top:calc(10px + env(safe-area-inset-top,0px))}
 #tWheel{right:calc(12px + env(safe-area-inset-right,0px));top:calc(108px + env(safe-area-inset-top,0px));width:auto!important;padding:0 12px}
 #tTune{right:calc(12px + env(safe-area-inset-right,0px));top:calc(108px + var(--u) + 10px + env(safe-area-inset-top,0px));width:auto!important;padding:0 12px}
-#tStick{position:absolute;width:calc(var(--u)*2.8);height:calc(var(--u)*2.8);margin:calc(var(--u)*-1.4) 0 0 calc(var(--u)*-1.4);border-radius:50%;border:2px solid rgba(120,230,255,.4);background:rgba(12,8,24,.25);pointer-events:none}
-#tStick i{position:absolute;left:50%;top:50%;width:calc(var(--u)*1.15);height:calc(var(--u)*1.15);margin:calc(var(--u)*-.575) 0 0 calc(var(--u)*-.575);border-radius:50%;background:rgba(95,242,255,.3);border:2px solid var(--accent);box-shadow:0 0 12px rgba(95,242,255,.45)}
+#tStick{position:absolute;width:calc(var(--u)*2.8*var(--k,1));height:calc(var(--u)*2.8*var(--k,1));margin:calc(var(--u)*-1.4*var(--k,1)) 0 0 calc(var(--u)*-1.4*var(--k,1));border-radius:50%;border:2px solid rgba(120,230,255,.4);background:rgba(12,8,24,.25);pointer-events:none}
+#tStick i{position:absolute;left:50%;top:50%;width:calc(var(--u)*1.15*var(--k,1));height:calc(var(--u)*1.15*var(--k,1));margin:calc(var(--u)*-.575*var(--k,1)) 0 0 calc(var(--u)*-.575*var(--k,1));border-radius:50%;background:rgba(95,242,255,.3);border:2px solid var(--accent);box-shadow:0 0 12px rgba(95,242,255,.45)}
 #tStick.idle{opacity:.45}#tStick.run{border-color:var(--warn)}#tStick.run i{border-color:var(--warn);background:rgba(255,194,61,.3)}
+/* touch layout editor (Settings > Controls > Edit touch layout): drag to move, pinch or the size buttons to resize */
+#touch.edit{z-index:60;background:linear-gradient(rgba(120,230,255,.08) 1px,transparent 1px) 0 0/40px 40px,linear-gradient(90deg,rgba(120,230,255,.08) 1px,transparent 1px) 0 0/40px 40px,rgba(6,4,14,.86)}
+#touch.edit .tb,#touch.edit #tStick{pointer-events:auto;cursor:grab;opacity:1}
+#touch.edit .tb.off{opacity:1}
+#touch.edit #tStick{opacity:.9;display:flex;align-items:center;justify-content:center}
+#touch.edit #tStick::after{content:'Move';position:relative;font-family:var(--display);font-weight:700;font-size:calc(var(--u)*.26);letter-spacing:.06em;text-transform:uppercase;color:var(--fg)}
+#touch.edit .sel{outline:3px dashed var(--warn);outline-offset:4px}
+#touch.edit .clash{border-color:var(--bad)!important;box-shadow:0 0 0 3px rgba(255,77,106,.6)}
+#touch.edit .ctx{border-style:dashed}
+#touch:not(.edit) .gone{display:none!important}
+#touch.edit .gone{opacity:.3!important;border-style:dotted}
+#touch.edit .gone.sel{opacity:.55!important}
+#tebar{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:61;display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 14px;max-width:min(94vw,520px);
+  background:rgba(12,8,24,.92);border:1px solid rgba(120,230,255,.4);border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.5);font-size:14px;color:var(--muted);text-align:center;touch-action:none}
+#tebar.low{top:auto;bottom:12px;transform:translateX(-50%)}
+#tebar b{color:var(--fg);font-family:var(--display);letter-spacing:.05em;text-transform:uppercase}
+#tebar .row{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;align-items:center}
+#tebar .btn{font-size:14px;padding:8px 12px;min-height:40px}#teMinus,#tePlus{font-size:22px!important;min-width:44px;line-height:1}
+#tebar .btn[disabled]{opacity:.4}
+#setC .tlayrow{grid-template-columns:minmax(0,1fr) auto;gap:4px 10px}#setC .tlayrow .btn{font-size:14px;padding:7px 12px;white-space:nowrap}
+#tebar #teSz{min-width:52px;font-family:var(--mono);color:var(--fg)}
 body.touch #view{cursor:default}
 body.touch,body.touch #view{touch-action:none;overscroll-behavior:none}
 body.touch .overlay,body.touch #sbpanel{touch-action:pan-x pan-y}
@@ -660,6 +681,13 @@ body.touch #dock #dashpips i{width:22px;height:6px}
   <div class="tb sq" id="tMenu" data-a="menu">Menu</div>
   <div class="tb sq" id="tWheel" data-a="wheel">Guns</div>
   <div class="tb sq" id="tTune" data-a="tune">Tune</div>
+</div>
+<div id="tebar" hidden role="dialog" aria-label="Edit touch layout">
+  <div><b>Edit touch layout</b> · <span id="teOr"></span></div>
+  <div id="teWarn" hidden style="color:var(--warn)"></div>
+  <div id="teHelp">Drag a control to move it. Pinch it, or pick it and use the size buttons, to resize it.</div>
+  <div class="row"><button class="btn" type="button" id="teMinus" aria-label="Smaller">&minus;</button><span id="teSz">&ndash;</span><button class="btn" type="button" id="tePlus" aria-label="Bigger">+</button><button class="btn" type="button" id="teHide">Hide</button><button class="btn" type="button" id="teOne">Reset this</button><button class="btn" type="button" id="teFlip" aria-label="Move this panel">&#8597;</button></div>
+  <div class="row"><button class="btn" type="button" id="teAll">Reset all</button><button class="btn" type="button" id="teCopy" hidden></button><button class="btn" type="button" id="teCancel">Cancel</button><button class="btn primary" type="button" id="teSave">Save</button></div>
 </div>
 <div class="hud" id="lockhint" hidden>Click to aim · <span id="lockmode"></span></div>
 
@@ -10743,16 +10771,17 @@ const TL=$('touch'),TSTICK=$('tStick'),TKNOB=TSTICK.firstElementChild;
 const tFingers=new Map();let tLookTap=null;let tStickId=null,tStick0={x:0,y:0},tShown=false;
 function touchWanted(){return OPT.touch==='on'||(OPT.touch==='auto'&&(matchMedia('(pointer:coarse)').matches||TOUCH.seen));}
 function touchApply(){const on=touchWanted();if(on!==TOUCH.on){TOUCH.on=on;if(on&&locked)document.exitPointerLock();if(!on)touchRelease();}
-  document.body.classList.toggle('touch',on);TL.style.setProperty('--tsz',OPT.tSize);document.body.style.setProperty('--tsz',OPT.tSize);$('tFire2').hidden=!OPT.tFire2;
+  document.body.classList.toggle('touch',on);TL.style.setProperty('--tsz',OPT.tSize);document.body.style.setProperty('--tsz',OPT.tSize);$('tFire2').hidden=!OPT.tFire2;tLayApply();
   $('touchnote').hidden=!on;$('fullbtn').classList.toggle('ok',!!(document.fullscreenEnabled||document.webkitFullscreenEnabled));}
 function touchRelease(){for(const f of tFingers.values())if(f.el)f.el.classList.remove('dn');tFingers.clear();tLookTap=null;tStickId=null;TOUCH.mx=TOUCH.my=0;TOUCH.run=false;
   mouseDown=false;keys.KeyC=keys.KeyF=keys.KeyG=false;TSTICK.classList.add('idle');TKNOB.style.transform='';stickHome();}
-function stickHome(){const r=TL.getBoundingClientRect(),u=parseFloat(getComputedStyle(TL).getPropertyValue('--u'))||60;
+function stickHome(){const r=TL.getBoundingClientRect(),u=parseFloat(getComputedStyle(TL).getPropertyValue('--u'))||60,h=tLayHome();
+  if(h){TSTICK.style.left=h.x+'px';TSTICK.style.top=h.y+'px';return;}
   TSTICK.style.left=(Math.max(u*1.7,r.width*0.16))+'px';TSTICK.style.top=(r.height-u*2.1)+'px';}
 function tLook(dx,dy){const k=0.0062*OPT.tSens*(1-0.32*me.ads)*(1+(OPT.tAdsSens-1)*me.ads);
   me.yaw-=dx*k;me.pitch=clamp(me.pitch-dy*k*(OPT.invertY?-1:1),-1.45,1.45);
   me.swayX=clamp(me.swayX+dx*0.008,-1,1);me.swayY=clamp(me.swayY+dy*0.008,-1,1);}
-function tStickMove(x,y){const u=parseFloat(getComputedStyle(TL).getPropertyValue('--u'))||60,R=u*1.4;
+function tStickMove(x,y){const u=parseFloat(getComputedStyle(TL).getPropertyValue('--u'))||60,R=u*1.4*tLayK('tStick');
   let dx=x-tStick0.x,dy=y-tStick0.y;const L=Math.hypot(dx,dy);
   // drag past the rim and the stick follows the finger, so it never runs out of travel
   if(L>R*1.35){const k=(L-R*1.35)/L;tStick0.x+=dx*k;tStick0.y+=dy*k;TSTICK.style.left=tStick0.x+'px';TSTICK.style.top=tStick0.y+'px';dx=x-tStick0.x;dy=y-tStick0.y;}
@@ -10775,18 +10804,18 @@ function tPress(a,el,down){
   else if(a==='menu'){touchRelease();openPause();}
   else if(a==='wheel'){if(canHoldWheel()){touchRelease();openWheel('hold');}}
   else if(a==='tune'){if(SB.on){touchRelease();toggleSB();}}}
-function tStart(e){TOUCH.seen=true;if(!TOUCH.on)touchApply();e.preventDefault();
+function tStart(e){TOUCH.seen=true;if(!TOUCH.on)touchApply();e.preventDefault();if(TE.on)return;
   const r=TL.getBoundingClientRect();
   for(const t of e.changedTouches){const x=t.clientX-r.left,y=t.clientY-r.top;const el=t.target&&t.target.closest?t.target.closest('.tb'):null;
     if(el&&!el.hidden){const a=el.dataset.a;el.classList.add('dn');tFingers.set(t.identifier,{k:'btn',a,el,x:t.clientX,y:t.clientY,look:el.id==='tFire'});tPress(a,el,true);continue;}
-    if(tStickId===null&&x<r.width*0.45&&y>r.height*0.3){tStickId=t.identifier;tStick0={x,y};TSTICK.style.left=x+'px';TSTICK.style.top=y+'px';TSTICK.classList.remove('idle');tFingers.set(t.identifier,{k:'stick'});tStickMove(x,y);continue;}
+    if(tStickId===null&&tStickZone(x,y,r)){tStickId=t.identifier;tStick0={x,y};TSTICK.style.left=x+'px';TSTICK.style.top=y+'px';TSTICK.classList.remove('idle');tFingers.set(t.identifier,{k:'stick'});tStickMove(x,y);continue;}
     const n=e.timeStamp||performance.now(),lt=tLookTap,dbl=OPT.tDblFire&&lt&&n-lt.t<300&&Math.hypot(t.clientX-lt.x,t.clientY-lt.y)<90;tLookTap=null;
     tFingers.set(t.identifier,{k:'look',x:t.clientX,y:t.clientY,x0:t.clientX,y0:t.clientY,t0:n,fire:!!dbl});if(dbl)mouseDown=true;}}
-function tMove(e){e.preventDefault();const r=TL.getBoundingClientRect();
+function tMove(e){e.preventDefault();if(TE.on)return;const r=TL.getBoundingClientRect();
   for(const t of e.changedTouches){const f=tFingers.get(t.identifier);if(!f)continue;
     if(f.k==='stick'){tStickMove(t.clientX-r.left,t.clientY-r.top);continue;}
     if(f.k==='look'||f.look){const dx=t.clientX-f.x,dy=t.clientY-f.y;f.x=t.clientX;f.y=t.clientY;if(!WH.open)tLook(dx,dy);}}}
-function tEnd(e){e.preventDefault();
+function tEnd(e){e.preventDefault();if(TE.on)return;
   for(const t of e.changedTouches){const f=tFingers.get(t.identifier);if(!f)continue;tFingers.delete(t.identifier);
     if(f.k==='btn'){f.el.classList.remove('dn');if(![...tFingers.values()].some(o=>o.k==='btn'&&o.a===f.a))tPress(f.a,f.el,false);}
     else if(f.k==='look'){const n=e.timeStamp||performance.now();
@@ -10806,8 +10835,106 @@ window.addEventListener('touchstart',()=>{if(!TOUCH.seen){TOUCH.seen=true;touchA
 // tapping outside the weapon wheel closes it (only the switch-weapon wheel; the match-start pick needs a choice)
 $('wheel').addEventListener('click',e=>{if(TOUCH.on&&e.target===$('wheel')&&WH.mode==='hold')closeWheel(false);});
 $('fullbtn').addEventListener('click',()=>{const d=document.documentElement;try{const r=(d.requestFullscreen||d.webkitRequestFullscreen).call(d,{navigationUI:'hide'});if(r&&r.catch)r.catch(()=>{});}catch(e){}});
-window.addEventListener('resize',()=>{if(tStickId===null)stickHome();});
+/* ---------- touch layout editor ----------
+   Settings > Controls > Edit touch layout. Each control's centre (as a share of the screen) and size are saved in this
+   browser, separately for landscape and portrait, so a foldable can keep one layout per way it is held. A control
+   with nothing saved keeps its built-in spot. Drag to move, pinch (or pick it and use - / +) to resize. */
+const TCTL=['tStick','tFire','tFire2','tAds','tReload','tUse','tJump','tCrouch','tDash','tMenu','tWheel','tTune'];
+let TLAY={land:{},port:{}};
+try{const j=JSON.parse(localStorage.getItem('za-tlayout')||'null');if(j&&typeof j==='object')TLAY={land:j.land||{},port:j.port||{}};}catch(e){}
+const TE={on:false,drafts:null,sel:null,ptrs:new Map(),pinch:null,setWas:false};
+function tLayOr(){return innerWidth>=innerHeight?'land':'port';}
+function tLayCur(){return (TE.on?TE.drafts:TLAY)[tLayOr()]||{};}
+function tLayK(id){const e=tLayCur()[id];return e&&e.k?e.k:1;}
+function tLayPx(id,el){const e=tLayCur()[id];if(!e||e.x==null)return null;const W=innerWidth,H=innerHeight;
+  const hw=el&&el.offsetWidth?el.offsetWidth/2:0,hh=el&&el.offsetHeight?el.offsetHeight/2:0;
+  return {x:clamp(e.x*W,Math.min(hw,W/2),Math.max(W-hw,W/2)),y:clamp(e.y*H,Math.min(hh,H/2),Math.max(H-hh,H/2))};}
+function tLayHome(){return tLayPx('tStick',TSTICK);}
+function tStickZone(x,y,r){if(tLayCur().tStick&&tLayCur().tStick.off)return false;const h=tLayHome();if(!h)return x<r.width*0.45&&y>r.height*0.3;
+  const side=h.x<r.width*0.5?x<Math.max(r.width*0.45,h.x+r.width*0.12):x>Math.min(r.width*0.55,h.x-r.width*0.12);
+  return side&&y>Math.min(r.height*0.3,h.y-r.height*0.25);}
+function tLayOne(id){const el=$(id);if(!el)return;const e=tLayCur()[id];el.classList.toggle('gone',!!(e&&e.off));
+  if(e&&e.k&&e.k!==1)el.style.setProperty('--k',e.k);else el.style.removeProperty('--k');
+  if(id==='tStick')return;
+  if(e&&e.x!=null){const p=tLayPx(id,el);el.style.left=p.x+'px';el.style.top=p.y+'px';el.style.right='auto';el.style.bottom='auto';el.style.translate='-50% -50%';}
+  else for(const k of ['left','top','right','bottom','translate'])el.style.removeProperty(k);}
+function tLayApply(){for(const id of TCTL)tLayOne(id);if(TE.on||tStickId===null)stickHome();}
+function teOpen(){
+  TE.drafts=JSON.parse(JSON.stringify(TLAY));TE.on=true;TE.sel=null;TE.ptrs.clear();TE.pinch=null;
+  if(locked)document.exitPointerLock();touchRelease();
+  TE.setWas=!$('settings').hidden;$('settings').hidden=true;
+  TL.hidden=false;TL.classList.add('edit');tShown=true;
+  $('tFire2').hidden=!OPT.tFire2;
+  for(const id of ['tWheel','tTune']){const el=$(id);el.hidden=false;el.classList.add('ctx');}
+  for(const id of TCTL)$(id).classList.remove('off','dn','on');
+  TSTICK.classList.remove('idle','run');TKNOB.style.transform='';
+  $('tebar').hidden=false;$('tebar').classList.remove('low');
+  tLayApply();teSync();}
+function teClose(save){
+  if(save){TLAY=TE.drafts;try{localStorage.setItem('za-tlayout',JSON.stringify(TLAY));}catch(e){}}
+  TE.on=false;TE.ptrs.clear();TE.pinch=null;TE.sel=null;
+  TL.classList.remove('edit');for(const id of TCTL)$(id).classList.remove('sel','clash','ctx');
+  $('tebar').hidden=true;TL.hidden=true;tShown=false;TSTICK.classList.add('idle');
+  tLayApply();
+  if(TE.setWas)$('settings').hidden=false;}
+function teSync(){
+  const o=tLayOr();$('teOr').textContent=o==='land'?'Landscape':'Portrait';
+  $('teHelp').textContent='Drag a control to move it. Pinch it, or tap it and use the size buttons, to resize it. Hide takes it off the screen. Rotate your device to set up the '+(o==='land'?'portrait':'landscape')+' layout too.';
+  const s=TE.sel;for(const id of TCTL)$(id).classList.toggle('sel',id===s);
+  $('teSz').textContent=s?Math.round(tLayK(s)*100)+'%':'–';
+  for(const id of ['teMinus','tePlus','teOne','teHide'])$(id).disabled=!s;
+  const off=!!(s&&tLayCur()[s]&&tLayCur()[s].off);$('teHide').textContent=off?'Show':'Hide';
+  const gone=TCTL.filter(id=>tLayCur()[id]&&tLayCur()[id].off),fireGone=gone.includes('tFire')&&(gone.includes('tFire2')||!OPT.tFire2);
+  $('teWarn').textContent=fireGone&&!OPT.tDblFire?'No Fire button is left and double-tap to shoot is off, so you could not shoot. Turn double-tap on in Controls, or show a Fire button.':
+    gone.includes('tStick')?'The move stick is hidden, so you will not be able to walk with touch.':'';
+  $('teWarn').hidden=!$('teWarn').textContent;
+  // flag controls that overlap, since a finger on the overlap only reaches one of them
+  const rs=TCTL.map(id=>{const el=$(id);return el.hidden||el.classList.contains('gone')?null:[el,el.getBoundingClientRect()];}).filter(Boolean);
+  for(const [el] of rs)el.classList.remove('clash');
+  for(let i=0;i<rs.length;i++)for(let j=i+1;j<rs.length;j++){const a=rs[i][1],b=rs[j][1];
+    if(a.left<b.right-3&&b.left<a.right-3&&a.top<b.bottom-3&&b.top<a.bottom-3){rs[i][0].classList.add('clash');rs[j][0].classList.add('clash');}}}
+function teEntry(id){const d=TE.drafts[tLayOr()]||(TE.drafts[tLayOr()]={});return d[id]||(d[id]={});}
+function teCentre(el){const r=el.getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2};}
+function teSize(id,k){const e=teEntry(id);e.k=Math.round(clamp(k,0.5,2.2)*100)/100;
+  // keep the centre where it is when the size changes
+  if(e.x==null){const c=teCentre($(id));e.x=c.x/innerWidth;e.y=c.y/innerHeight;}
+  tLayOne(id);if(id==='tStick')stickHome();teSync();}
+function teGrab(p){const c=teCentre(p.el);p.sx=p.x;p.sy=p.y;p.cx=c.x;p.cy=c.y;}
+TL.addEventListener('pointerdown',e=>{if(!TE.on)return;e.preventDefault();
+  const el=e.target.closest&&e.target.closest('.tb,#tStick');
+  if(!el){if(!TE.ptrs.size){TE.sel=null;teSync();}return;}
+  try{TL.setPointerCapture(e.pointerId);}catch(_){}
+  const p={el,id:el.id,x:e.clientX,y:e.clientY};teGrab(p);TE.ptrs.set(e.pointerId,p);TE.sel=el.id;
+  const ps=[...TE.ptrs.values()];
+  if(ps.length===2){const tid=ps[0].id;TE.pinch={id:tid,d0:Math.max(20,Math.hypot(ps[0].x-ps[1].x,ps[0].y-ps[1].y)),k0:tLayK(tid)};TE.sel=tid;}
+  teSync();});
+TL.addEventListener('pointermove',e=>{if(!TE.on)return;const p=TE.ptrs.get(e.pointerId);if(!p)return;e.preventDefault();p.x=e.clientX;p.y=e.clientY;
+  if(TE.pinch){const ps=[...TE.ptrs.values()];if(ps.length>=2){teSize(TE.pinch.id,TE.pinch.k0*Math.hypot(ps[0].x-ps[1].x,ps[0].y-ps[1].y)/TE.pinch.d0);}return;}
+  const W=innerWidth,H=innerHeight,hw=p.el.offsetWidth/2,hh=p.el.offsetHeight/2;
+  let x=clamp(p.cx+p.x-p.sx,hw,W-hw),y=clamp(p.cy+p.y-p.sy,hh,H-hh);
+  // snap to the screen's centre lines
+  if(Math.abs(x-W/2)<8)x=W/2;
+  const en=teEntry(p.id);en.x=x/W;en.y=y/H;tLayOne(p.id);if(p.id==='tStick')stickHome();teSync();});
+function teUp(e){if(!TE.on)return;if(!TE.ptrs.delete(e.pointerId))return;
+  if(TE.pinch&&TE.ptrs.size<2){TE.pinch=null;for(const p of TE.ptrs.values())teGrab(p);}}
+TL.addEventListener('pointerup',teUp);TL.addEventListener('pointercancel',teUp);
+$('tebar').addEventListener('touchstart',e=>e.stopPropagation(),{passive:true});
+$('teMinus').addEventListener('click',()=>{if(TE.sel)teSize(TE.sel,tLayK(TE.sel)-0.1);});
+$('tePlus').addEventListener('click',()=>{if(TE.sel)teSize(TE.sel,tLayK(TE.sel)+0.1);});
+$('teOne').addEventListener('click',()=>{if(!TE.sel)return;const d=TE.drafts[tLayOr()];if(d)delete d[TE.sel];tLayOne(TE.sel);if(TE.sel==='tStick')stickHome();teSync();});
+$('teHide').addEventListener('click',()=>{if(!TE.sel)return;const e=teEntry(TE.sel);if(e.off)delete e.off;else e.off=true;tLayOne(TE.sel);teSync();});
+$('teAll').addEventListener('click',()=>{TE.drafts[tLayOr()]={};TE.sel=null;tLayApply();teSync();});
+$('teFlip').addEventListener('click',()=>$('tebar').classList.toggle('low'));
+$('teCancel').addEventListener('click',()=>teClose(false));
+$('teSave').addEventListener('click',()=>teClose(true));
+window.addEventListener('keydown',e=>{if(!TE.on)return;if(e.code==='Escape'){e.preventDefault();e.stopImmediatePropagation();teClose(false);}else if(e.code==='Enter'){e.preventDefault();e.stopImmediatePropagation();teClose(true);}},true);
+{const g=setEls.tSize.inp.closest('.sgrp'),row=document.createElement('div');row.className='srow tlayrow';
+  const b=document.createElement('button');b.className='btn';b.type='button';b.id='tlayedit';b.textContent='Edit touch layout';
+  const c=document.createElement('span');c.textContent='Move and resize each button. Saved on this device, one layout for landscape and one for portrait.';
+  row.append(c,b);setEls.tSize.inp.closest('.srow').after(row);b.addEventListener('click',teOpen);}
+window.addEventListener('resize',()=>{tLayApply();if(TE.on)teSync();if(tStickId===null)stickHome();});
 function touchTick(){
+  if(TE.on)return;
   const s=S?mySlot():-1,P=s>=0?S.players[s]:null;
   const show=TOUCH.on&&!PAD.on&&!!P&&inPlay()&&$('pause').hidden&&$('settings').hidden&&$('dead').hidden&&$('sbpanel').hidden&&$('shop').hidden&&!WH.open;
   if(show!==tShown){tShown=show;TL.hidden=!show;if(!show)touchRelease();else stickHome();}

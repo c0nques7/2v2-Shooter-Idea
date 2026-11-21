@@ -43,6 +43,7 @@ On a touch screen the game shows on-screen controls by itself (Settings > Contro
 - **Buttons:** Fire (plus an optional second Fire above the stick), Aim (tap to toggle), Jump, Slide (hold to crouch, slide from a sprint), Dash, Reload, Use (hold to revive, arm or defuse; turns into Give up while you are down), Menu, Guns (weapon wheel, when switching is allowed) and Tune (Sandbox overlay).
 - Menus, the Workshop, the weapon wheel and the respawn picker are all tappable. Tap outside the switch-weapon wheel to close it.
 - Settings has touch look sensitivity, touch sensitivity while aiming, button size, the second Fire button and auto-sprint. The main menu has a Full screen button where the browser allows it.
+- **Edit touch layout** (Settings > Controls, under Touch button size): drag any control (including the move stick's resting spot) to move it, pinch it or use - / + to resize it (50% to 220%), and Hide to take it off the screen (Reset this brings it back). Overlapping controls are outlined red. Save keeps it in this browser (localStorage `za-tlayout`), with one layout for landscape and one for portrait: rotate the device while editing to set up the other. Esc cancels, Enter saves.
 
 ## Modes
 
