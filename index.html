@@ -12199,9 +12199,8 @@ function frameBody(now){
   if(paused){}
   else if(S||net.mode!=='none'){netTick(dt);}
   if(paused){}
-  if(!S)siteShow(true);
   else if(S){if(DIO.on)dioHide();coverTick(dt);rgTick(dt);zRender(dt);zrDropRender(dt);debrisTick(dt);localTick(dt);renderOthers(dt);siteFx();hud(dt);audioTick(dt);}
-  else flyover(dt);
+  else{siteShow(true);flyover(dt);}
   if((S||($('menu').hidden&&!INTRO.on))&&(TOD.force||SHOW.fade)){TOD.force='';SHOW.fade=0;SHOW.want=-1;$('flyfade').style.opacity=0;applyGfx();}/* leaving the menu: the player's time of day again */
   if(!$('lobby').hidden)lobbyTick(dt);
   fxTick(dt,now);touchTick();
