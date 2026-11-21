@@ -50,7 +50,7 @@ On a touch screen the game shows on-screen controls by itself (Settings > Contro
 Pick the mode on the main menu. It applies to Practice and to online matches (each mode has its own room per match code, so `arena-1` in Zone 2v2 and `arena-1` in Team deathmatch 4v4 are different matches).
 
 - **Zone 2v2:** the attack and defense mode described under Rules.
-- **Deathmatch 1v1, Team deathmatch 2v2 and 4v4:** every kill scores a point for the killer's team. First to the kill limit wins, or the higher score when the 10 minute clock runs out (a tie is a draw). No downs, revives, tickets, sites or center control: at 0 HP you die, and 3 s later you respawn at the open spot farthest from (and out of sight of) living enemies, with the spawn shield. Each team starts in its own base. Kills heal 25 HP, and the respawn screen lets you pick your next weapon (keys 1 to 3). Bots hunt the nearest enemy.
+- **Deathmatch 1v1, Team deathmatch 2v2 and 4v4:** every kill scores a point for the killer's team. First to the kill limit wins, or the higher score when the 10 minute clock runs out (a tie is a draw). No downs, revives, tickets, sites or center control: at 0 HP you die, and 3 s later you respawn at the open spot farthest from (and out of sight of) living enemies, with the spawn shield. Each team starts in its own base. Kills heal 25 HP, and the respawn screen lets you pick your next weapon (keys 1 to 6). Bots hunt the nearest enemy.
 
 | Deathmatch setting | Value |
 | --- | --- |
@@ -74,7 +74,7 @@ Each map has its own mechanic, light and sound, on top of its layout. Everything
 - **Zone return HP:** when you respawn you pick one of five zones. From your own end the return HP is 100, 80, 60, 45, 30.
 - Downed players bleed out unless a teammate revives them. Each team shares a pool of respawn tickets per round.
 - Holding the center zone for a few seconds unlocks a center spawn with bonus HP. Kills heal you.
-- Weapons: rifle, SMG, battle rifle. A weapon wheel opens at match start (the first freeze lasts 8 s; in Practice it ends once you lock in) and sits on the respawn screen for picking your next life's weapon.
+- Weapons: the six guns on your wheel (set in the Workshop). A weapon wheel opens at match start (the first freeze lasts 8 s; in Practice it ends once you lock in) and sits on the respawn screen for picking your next life's weapon.
 - **Breakable cover:** cover chips, cracks, breaks down to half height, crumbles, and finally collapses into rubble as it takes fire. Rubble rebuilds itself 5 to 10 seconds later (random per piece): a wireframe cage draws in, then the solid block fills from the ground up over the last 1.8 seconds. It turns solid at the end of the fill, and anyone standing in it is pushed out of the nearest side. The host runs the timers, so everyone in an online match sees the same rebuild.
 - **Arena layout:** each spawn point sits in its own walled alcove that nothing outside the base can see into, so neither spawn has a line of sight to the other. The base front is a solid 3.2 m wall with five doors (center, two inner, and one along each arena wall), and a staggered second row of walls stands in front of the doors so each one has a left and a right way out. These base walls can't be destroyed or climbed, but you can wallrun on them. The midfield is breakable cover in three lanes, with tall lane breakers between the respawn points and cover around each site.
 - **Spawn shield:** for 3 s after any spawn you take no damage. The shield ends early the moment you damage an enemy.
@@ -103,8 +103,10 @@ Current default numbers (from `CFG` in `index.html`):
 
 ## Guns
 
-Six guns, on keys 1 to 6 and the weapon wheel. Each has its own model (dark plates, steel trim, light strips in the gun's colour),
-and other players see the gun you carry.
+Eleven guns for every mode plus two Zombie Rumble exclusives. Six of them sit on your weapon wheel and keys 1 to 6: pick which
+six in the Workshop (the **Wheel** row; choosing a gun that is already on the wheel swaps the two). Each has its own model (dark
+plates, steel trim, light strips in the gun's colour), and other players see the gun you carry. The first six are open from level 1;
+the newer ones unlock by player level.
 
 | Gun | Damage (body / head) | Notes |
 | --- | --- | --- |
@@ -114,6 +116,16 @@ and other players see the gun you carry.
 | Shotgun | 8 pellets of 13 / 18 | Deadly inside 10 m, 6 shells |
 | LMG | 24 / 40 | 75 rounds, slow to move, aim and reload |
 | Sniper rifle | 80 / 150 | Bolt action, 5 rounds, 2x scope, poor from the hip |
+| Gavel (level 3) | 52 / 100 | Hand cannon, 6 rounds, 0.4 s between shots: two body shots, or one headshot inside 20 m. Loader slot (speed loader, moon clip) |
+| Tribune (level 6) | 30 / 55 per round | Three-round bursts (0.06 s apart, 0.42 s per burst), 30 rounds; a headshot in the first burst kills |
+| Turnstile (level 10) | 7 pellets of 9 / 14 | Auto shotgun, 10-shell drum, 0.3 s between shots. Choke slot (full, cylinder, duckbill) |
+| Hecklers (level 14) | 17 / 28 | Twin machine pistols, 2 x 20 rounds, hip fire only (aiming steadies them, no zoom), fastest to move. Laser and grip slots; the laser shows to other players |
+| Reach Lance (level 18) | 30 tap, 95 / 140 charged | Hold fire to charge (0.8 s), let go to fire a beam that pierces players and Revenants; fires on its own after 2 s; slower to move while charging. Lens and capacitor slots |
+| Arc Caster (Zombie Rumble) | 27 per tick | Chain lightning to 14 m, 10 ticks a second, jumps to 2 more targets within 5 m. Heat bar instead of a magazine: cools when you stop, overheats for 4 s |
+| Encore (Zombie Rumble) | 120 splash | Grenade launcher, 4 grenades on an arc that burst over 4 m (a quarter damage at the edge), never hurts you or your partner |
+
+The Arc Caster and Encore only come as Zombie Rumble special weapon drops (the Encore only as a Legendary); the Sandbox Weapons tab can
+equip every gun. Until their own sounds are approved, the new guns borrow an existing gunshot.
 
 ## Experience and the Workshop
 
