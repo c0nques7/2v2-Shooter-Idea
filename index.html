@@ -623,24 +623,23 @@ body.touch #dock #dashpips i{width:22px;height:6px}
 #shopSlots{min-height:0;overflow:hidden;gap:6px;justify-content:space-between;container-type:inline-size}
 #shopSlots .slot h4{font-size:12px;margin:0 0 3px}
 #shopSlots .chip{padding:4px 7px;min-height:0;gap:1px}#shopSlots .chip b{font-size:13px;overflow-wrap:anywhere}#shopSlots .chip small{font-size:10.5px;-webkit-line-clamp:1}
-@container (max-width:290px){#shopSlots .chips{grid-template-columns:repeat(2,minmax(0,1fr))}#shopSlots .chips.sw{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@container (max-width:230px){#shopSlots .chips{grid-template-columns:repeat(2,minmax(0,1fr))}}@media (max-height:620px){#shopSlots .chips.sw{grid-template-columns:repeat(8,minmax(0,1fr))!important}}@container (max-width:320px){#shopSlots .chip b{font-size:11px;letter-spacing:0}}@container (max-width:320px){#shopSlots .chips.sw{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .shopcard>.btns{flex:none;flex-wrap:nowrap;align-items:center}.shopcard>.btns .cap{margin:0;min-width:0}
-@media (max-height:760px){#shopSlots .chip small{display:none}#shopSlots .chip.on small,#shopSlots .chip.lock small{display:block}#shopStats .fixed{display:none}#shopHint{display:none}}
-@media (max-height:620px){.shopcard{padding:8px 12px;gap:6px}.shopcard .hd b{font-size:18px}.shopcard>.btns .cap{display:none}.shopview .gtabs small{display:none}#shopSlots .chip small{display:none!important}#shopSlots .slot h4{margin-bottom:2px}#shopStats .stat{font-size:12px}}
-@media (max-height:620px){#shopSlots .slot{display:grid;grid-template-columns:5.6em minmax(0,1fr);align-items:center;gap:6px}#shopSlots .slot h4{margin:0;font-size:11px;letter-spacing:.08em;overflow-wrap:anywhere}}
-@media (max-width:560px){.shopgrid{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto;overflow-y:auto}#shopCv{flex:none;height:150px}.shopview,#shopSlots{overflow:visible}.shopcard>.btns .cap{display:none}}
-@media (max-height:480px){.shopview .gtabs{grid-template-columns:repeat(6,minmax(0,1fr))}.shopview .gtabs .btn{padding:4px 5px;font-size:12px;align-items:center;text-align:center}
-  #shopSlots .chip{padding:2px 5px}#shopSlots .chip b{font-size:11.5px}#shopSlots{gap:3px}.chips{gap:4px}.chips.sw .chip{padding:3px 2px}
-  #shopStats{display:grid;grid-template-columns:1fr 1fr;column-gap:12px}#shopStats .stat{font-size:11px;grid-template-columns:auto minmax(20px,1fr) auto;gap:4px}#shopCv{min-height:40px}
-  .shopview .brow .btn{padding:3px 6px;font-size:12px}.shopview .brow .nm input{padding:3px 6px}.shopcard>.btns .btn{padding:5px 12px}}
-/* mode screen on short screens (Joe's Fold renders text large): everything tighter so the picked card's options fit with no scrolling */
-@media (max-height:600px){
-  .mcol{gap:5px;padding-top:calc(8px + env(safe-area-inset-top,0px));padding-bottom:calc(8px + env(safe-area-inset-bottom,0px))}
-  .mphd .btn{padding:4px 12px;min-height:0;font-size:15px}.mphd .msti b{font-size:17px}.mphd .msti span{font-size:11px}
-  .mcards{gap:4px}.mcd[aria-checked=false]{padding:3px 10px 3px 12px}.mcd[aria-checked=false] b{font-size:16px}
-  .mcd[aria-checked=true]{padding:5px 10px 5px 12px}.mcd[aria-checked=true] b{font-size:20px}.mcd .mctag{font-size:10px;letter-spacing:.12em}
-  .mside{padding:6px 8px;gap:5px}#zrweeks{gap:4px}.zwk{min-height:0;padding:3px 7px}.zwk b{font-size:12px}.zwk span{font-size:10.5px}.zwk.zwintro{min-height:0}
-  .mside .mseg button{min-height:26px;padding:3px}.mcode input{padding:3px 8px;min-height:0;font-size:14px}.mpopts,#msetup,.mpp{gap:5px}}
+/* parts: name plus its unlock line always shown (Joe), names only break between words */
+#shopSlots .chip b{overflow-wrap:break-word;word-break:normal;hyphens:auto;font-size:12.5px;line-height:1.1}
+#shopSlots .chip small{display:block!important;font-size:10px;-webkit-line-clamp:2;line-height:1.15}
+#shopSlots .chip:not(.lock):not(.on) small{display:none!important}
+#shopCv{flex:2 1 0;min-height:90px}
+.shopview .gtabs small{display:none}.shopview .gtabs .btn{align-items:center;justify-content:center;text-align:center;line-height:1.05;padding:4px 6px;min-height:30px}
+@media (max-height:760px){#shopStats .fixed{display:none}#shopHint{display:none}.shopcard>.btns .cap{display:none}}
+@media (max-height:620px){.shopcard{padding:8px 12px;gap:6px}.shopcard .hd b{font-size:18px}#shopSlots{gap:3px}#shopSlots .slot h4{font-size:10.5px;margin:0 0 2px}
+  #shopSlots .chip{padding:3px 5px}#shopSlots .chip b{font-size:11.5px}.chips{gap:4px}.chips.sw .chip{padding:3px 2px}.chips.sw .chip small{font-size:9px;letter-spacing:0;white-space:nowrap}#shopSlots .chips.sw{gap:3px}#shopSlots .chips.sw .chip{padding:3px 0;min-width:0}#shopSlots .chips.sw i{width:min(22px,70%)}
+  #shopStats{display:grid;grid-template-columns:1fr 1fr;column-gap:10px;row-gap:1px}#shopStats .stat{font-size:11px;grid-template-columns:auto minmax(0,1fr) auto;gap:4px;white-space:nowrap}#shopStats .stat b{font-size:10.5px}
+  .shopview{gap:5px}.shopview .gtabs .btn{font-size:11.5px;min-height:24px;padding:2px 4px}.shopview .brow .btn{padding:3px 6px;font-size:12px}.shopview .brow .nm input{padding:3px 6px;font-size:13px}.shopcard>.btns .btn{padding:5px 12px}}
+@media (max-height:480px){.shopview .gtabs{grid-template-columns:repeat(6,minmax(0,1fr))}.shopview .brow .nm{font-size:0;gap:0}
+  #shopSlots .slot{display:grid;grid-template-columns:4.4em minmax(0,1fr);align-items:center;gap:5px}#shopSlots .slot h4{margin:0;font-size:10px;letter-spacing:.06em}
+  #shopSlots .chip{flex-direction:row;flex-wrap:wrap;align-items:baseline;column-gap:5px;padding:2px 5px}#shopSlots .chips.sw .chip{flex-direction:column;align-items:center}}
+@media (max-width:560px){.shopgrid{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto;overflow-y:auto}#shopCv{flex:none;height:150px}.shopview,#shopSlots{overflow:visible}}
 </style>
 
 <canvas id="view" aria-label="Arena view"></canvas>
@@ -10422,14 +10421,14 @@ function shopUI(){const k=SHOP.k,b=buildOf(k),mk=(t,c,x)=>{const n=document.crea
   const sl=$('shopSlots');sl.replaceChildren();const eff=effParts(k,b);
   for(const s of SLOTS){const row=mk('div','slot');row.append(mk('h4','',SLOTN[s]));const chips=mk('div','chips');
     for(const p of PARTS[s]){const lk=partLock(k,s,p),on=eff[s]===p.id,c=mk('button','chip'+(on?' on':'')+(lk?' lock':''));c.type='button';c.disabled=!!lk;
-      c.append(mk('b','',p.n),mk('small','',lk?'🔒 '+lk:on?'Equipped':p.d));c.title=p.d;
+      c.append(mk('b','',p.n),mk('small','',lk?'🔒 '+lk.replace(/ level /,' Lv ').replace(/^Level /,'Lv '):on?'Equipped':p.d));c.title=lk?`${p.n}: unlocks at ${lk}`:p.d;
       c.addEventListener('pointerenter',()=>{SHOP.hov={sl:s,id:p.id};shopStats();});c.addEventListener('pointerleave',()=>{SHOP.hov=null;shopStats();});
       c.addEventListener('focus',()=>{SHOP.hov={sl:s,id:p.id};shopStats();});c.addEventListener('blur',()=>{SHOP.hov=null;shopStats();});
       c.addEventListener('click',()=>{if(partLock(k,s,p))return;b.p[s]=p.id;progSave();blip(700,0.04,0.025,false,'ui');shopUI();});chips.append(c);}
     row.append(chips);sl.append(row);}
   const gr=mk('div','slot');gr.append(mk('h4','','Glow'));const gc=mk('div','chips sw');
   for(const g of GLOWS){const lk=glowLock(g),on=b.g===g.id,c=mk('button','chip'+(on?' on':'')+(lk?' lock':''));c.type='button';c.disabled=!!lk;
-    const hex=g.hex!=null?g.hex:GUNGLOW[k];c.style.setProperty('--sw','#'+hex.toString(16).padStart(6,'0'));c.append(mk('i'),mk('small','',lk?'🔒 '+lk:g.n));c.title=g.n+' (looks only)';
+    const hex=g.hex!=null?g.hex:GUNGLOW[k];c.style.setProperty('--sw','#'+hex.toString(16).padStart(6,'0'));c.append(mk('i'),mk('small','',lk?lk.replace(/^Level /,'Lv '):g.id?g.n:'Stock'));c.title=g.n+(lk?`: unlocks at ${lk}`:'')+' (looks only)';
     c.addEventListener('pointerenter',()=>{SHOP.hov={sl:'glow',id:g.id};});c.addEventListener('pointerleave',()=>{SHOP.hov=null;});
     c.addEventListener('click',()=>{if(glowLock(g))return;b.g=g.id;progSave();shopUI();});gc.append(c);}
   gr.append(gc);sl.append(gr);
