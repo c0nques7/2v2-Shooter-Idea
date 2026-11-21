@@ -754,7 +754,7 @@ body.touch #dock #dashpips i{width:22px;height:6px}
   <div class="setcard">
     <div class="hd"><b>Menu</b><span><kbd>Esc</kbd> closes</span></div>
     <div class="sub" id="pauseS" style="color:var(--muted);font-size:15px"></div>
-    <div class="pbtns"><button class="btn primary" type="button" id="presume">Resume</button><button class="btn" type="button" id="psettings">Settings</button><button class="btn" type="button" id="prestart">Restart match</button><button class="btn" type="button" id="pleave">Leave match</button></div>
+    <div class="pbtns"><button class="btn primary" type="button" id="presume">Resume</button><button class="btn" type="button" id="psettings">Settings</button><button class="btn fsbtn" type="button" id="pfull">Full screen</button><button class="btn" type="button" id="prestart">Restart match</button><button class="btn" type="button" id="pleave">Leave match</button></div>
     <div class="keys kbkeys" id="kbkeys"></div>
     <div class="keys padkeys" id="padkeys"></div>
   </div>
@@ -764,7 +764,7 @@ body.touch #dock #dashpips i{width:22px;height:6px}
     <div class="hd"><b>Settings</b><span>Changes apply right away and are saved in this browser · <kbd id="setkey">O</kbd> or <kbd>Esc</kbd> closes</span></div>
     <div class="settabs" role="tablist" aria-label="Settings sections"><button type="button" role="tab" class="stab" data-t="g" aria-controls="setG">Graphics</button><button type="button" role="tab" class="stab" data-t="s" aria-controls="setS">Sound</button><button type="button" role="tab" class="stab" data-t="c" aria-controls="setC">Controls</button><span class="stabhint"><kbd>Q</kbd> <kbd>E</kbd> switch tabs</span></div>
     <div class="setgrid"><section id="setG" role="tabpanel" data-t="g"></section><section id="setS" role="tabpanel" data-t="s" hidden></section><section id="setC" role="tabpanel" data-t="c" hidden></section></div>
-    <div class="btns"><button class="btn" type="button" id="settest">Test sound</button><button class="btn" type="button" id="setreset">Reset to defaults</button><button class="btn primary" type="button" id="setclose">Close</button></div>
+    <div class="btns"><button class="btn fsbtn" type="button" id="setfull">Full screen</button><button class="btn" type="button" id="settest">Test sound</button><button class="btn" type="button" id="setreset">Reset to defaults</button><button class="btn primary" type="button" id="setclose">Close</button></div>
   </div>
 </div>
 
@@ -11205,7 +11205,13 @@ let tLastTap=0;document.addEventListener('touchend',e=>{if(!TOUCH.on)return;cons
 window.addEventListener('touchstart',()=>{if(!TOUCH.seen){TOUCH.seen=true;touchApply();}},{passive:true,capture:true});
 // tapping outside the weapon wheel closes it (only the switch-weapon wheel; the match-start pick needs a choice)
 $('wheel').addEventListener('click',e=>{if(TOUCH.on&&e.target===$('wheel')&&WH.mode==='hold')closeWheel(false);});
-$('fullbtn').addEventListener('click',()=>{const d=document.documentElement;try{const r=(d.requestFullscreen||d.webkitRequestFullscreen).call(d,{navigationUI:'hide'});if(r&&r.catch)r.catch(()=>{});}catch(e){}});
+/* full screen: main menu item (touch), Settings and the pause menu all toggle it; the labels follow the real state */
+function fsOn(){return !!(document.fullscreenElement||document.webkitFullscreenElement);}
+function fsToggle(){const d=document.documentElement;try{const r=fsOn()?(document.exitFullscreen||document.webkitExitFullscreen).call(document):(d.requestFullscreen||d.webkitRequestFullscreen).call(d,{navigationUI:'hide'});if(r&&r.catch)r.catch(()=>{});}catch(e){}}
+function fsSync(){const ok=!!(document.fullscreenEnabled||document.webkitFullscreenEnabled),t=fsOn()?'Exit full screen':'Full screen';
+  for(const b of document.querySelectorAll('.fsbtn')){b.hidden=!ok;b.textContent=t;}const m=$('fullbtn').querySelector('span');if(m)m.textContent=t;}
+$('fullbtn').addEventListener('click',fsToggle);for(const b of document.querySelectorAll('.fsbtn'))b.addEventListener('click',fsToggle);
+document.addEventListener('fullscreenchange',fsSync);document.addEventListener('webkitfullscreenchange',fsSync);fsSync();
 /* ---------- touch layout editor ----------
    Settings > Controls > Edit touch layout. Each control's centre (as a share of the screen) and size are saved in this
    browser, separately for landscape and portrait, so a foldable can keep one layout per way it is held. A control
