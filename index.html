@@ -705,6 +705,37 @@ body.touch .chip{min-height:44px}
   </div>
 </div>
 
+<script>
+/* Boot check: if the game script never starts (3D graphics unavailable, a blocked download, a script error), the menu
+   used to sit there with dead buttons. This names the problem on screen instead. window.__za is set when the game is up. */
+(function(){
+  var first=null,shown=false;
+  function webgl2(){try{var c=document.createElement('canvas');return !!c.getContext('webgl2');}catch(e){return false;}}
+  function show(){
+    if(shown||window.__za)return;shown=true;
+    var ff=/firefox/i.test(navigator.userAgent),gl=webgl2(),d=document.createElement('div');
+    d.id='bootfail';d.setAttribute('role','alert');
+    d.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:9999;width:min(520px,calc(100vw - 32px));box-sizing:border-box;padding:18px 20px;border-radius:10px;background:rgba(14,8,28,.96);border:1px solid #ff4d6a;color:#f2ecff;font:15px/1.45 system-ui,sans-serif;box-shadow:0 10px 40px rgba(0,0,0,.6)';
+    var h='<b style="display:block;font-size:18px;margin-bottom:6px;color:#ff8da0">The game couldn’t start</b>';
+    if(!gl){
+      h+='<p style="margin:0 0 8px">Your browser didn’t give the game 3D graphics (WebGL 2), which it needs to run.</p>';
+      h+=ff?'<p style="margin:0 0 8px">In Firefox: open <b>Settings</b>, search for <b>performance</b>, untick “Use recommended performance settings” and tick <b>Use hardware acceleration when available</b>, then restart Firefox. If that’s already on, open <code>about:config</code> and make sure <code>webgl.disabled</code> is <b>false</b>. <code>about:support</code> shows the WebGL 2 status under Graphics.</p>'
+          :'<p style="margin:0 0 8px">Turn on hardware acceleration in your browser’s settings and restart it, or try another browser.</p>';
+    }else{
+      h+='<p style="margin:0 0 8px">The game script stopped while loading. Reloading usually fixes a dropped download; if it keeps happening, an ad or script blocker may be blocking <code>cdn.jsdelivr.net</code>.</p>';
+    }
+    if(first)h+='<p style="margin:0;font:12px/1.35 ui-monospace,monospace;color:#ffd0d6;word-break:break-word;user-select:text">'+String(first).replace(/[<&]/g,function(c){return c==='<'?'&lt;':'&amp;';}).slice(0,300)+'</p>';
+    d.innerHTML=h;(document.body||document.documentElement).appendChild(d);
+  }
+  addEventListener('error',function(e){
+    if(window.__za)return;
+    var t=e.target,m=(t&&t!==window&&t.tagName==='SCRIPT')?'Could not load '+(t.src||'the game script'):(e.error&&(e.error.message||e.error))||e.message;
+    if(!first&&m)first=m;
+    setTimeout(show,1500);
+  },true);
+  addEventListener('load',function(){setTimeout(show,20000);});
+})();
+</script>
 <script type="importmap">
 {"imports":{
   "three":"https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
