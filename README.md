@@ -66,7 +66,7 @@ Each map has its own mechanic, light and sound, on top of its layout. Everything
 - **Foundry:** the center channel between the steel walls floods with molten metal. 29 s quiet, 3 s warning (alarm and flashing banks), then 8 s molten (40 s cycle, `pourAt`). Standing on the channel floor while it's molten burns 45 HP/s; standing on cover inside it is safe. In Zone you go down (and finish if you stay), in deathmatch you die, in Zombie Rumble you go down.
 - **Atrium:** six tall glass panes stop bullets but not sight. Each takes 150 damage, cracks at half, shatters, and rebuilds after 9 s. Bots can see you through glass but their shots hit the glass.
 - **Warren:** much darker light and nearer haze, lamps that flicker, acid puddles that glow, and a big flare at the muzzle whenever someone fires, so shooting gives you away. Other players' footsteps carry further.
-- **Ambience:** each map has its own recorded background (city hum, machinery, air handling, dripping basement) and its own reverb. The **Map ambience** slider in Settings sets its volume.
+- **Ambience:** each map has its own recorded background (city hum, machinery, air handling; Warren is left quiet) and its own reverb. The **Map ambience** slider in Settings sets its volume.
 
 ## Rules
 
@@ -192,7 +192,6 @@ Settings live in this browser (`localStorage` keys `za-sb` and `za-dev`). **Copy
 | Yard ambience | [Sci-fi city ambient loop](https://opengameart.org/content/scifi-city-ambient-loop) (`busy_cyberworld.ogg`), loudness-normalized, mono MP3. | TinyWorlds (OpenGameArt.org) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | Foundry ambience | [12 ambient machine sounds](https://opengameart.org/content/12-ambient-machine-sounds) (`ambient_machine2.wav`, first 24 s), loudness-normalized, mono MP3. | Michael Brigida and students (OpenGameArt.org) | [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/) |
 | Atrium ambience | [12 ambient machine sounds](https://opengameart.org/content/12-ambient-machine-sounds) (`fan_1.wav`, first 20 s), loudness-normalized, mono MP3. | Michael Brigida and students (OpenGameArt.org) | [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/) |
-| Warren ambience | [Dripping water loop](https://opengameart.org/content/dripping-water-loop) (`atmosbasement`), loudness-normalized MP3. | Johannes Pinter (OpenGameArt.org) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | Molten metal in the Foundry pour | [Lava loop](https://opengameart.org/content/lava-loop) (`LavaLoop.wav`, first 10 s), loudness-normalized MP3. | Blender Foundation (OpenGameArt.org) | [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/) |
 | Glass panes shattering and taking hits | [Glass break](https://opengameart.org/content/glass-break) (`glass_breaking.wav`); [75 CC0 breaking/falling/hit sfx](https://opengameart.org/content/75-cc0-breaking-falling-hit-sfx) (`glass_breaking_06`, `glass_hit_01`/`02`). | Till Behrend; rubberduck (OpenGameArt.org) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
 | Foundry pour alarm | [Alarm](https://opengameart.org/content/alarm-1) (`alarm_2.ogg`). | EZduzziteh (OpenGameArt.org) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
