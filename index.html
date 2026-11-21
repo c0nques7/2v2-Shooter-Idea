@@ -9102,46 +9102,109 @@ const ZTYPES={
 function zSize(z){return ZTYPES[z.t].size*(z.elite?1.12:1);}
 function zA(z){const T=ZTYPES[z.t];return T.boss?T.name:'a '+T.name;}
 function zStat(z,k){const v=CFG[ZTYPES[z.t][k]];return k==='spd'&&zrAct('fast')?v*1.2:v;}
-/* the body: a scratch rig of joints, each body part a little block of voxels ("pixels", about 7 cm). Every voxel of every Revenant
-   is one instance of a single InstancedMesh (plus one for the glowing eyes and seam), so a horde is two draw calls. A part keeps
-   which of its voxels are still there, so bullets knock pixels out of it, a part shot to pieces falls off, and a corpse dissolves. */
-const ZV=0.07;
+const ZV=0.07;/* the old body voxel size; loose debris that isn't from a body part still uses it */
 const ZREG={head:{name:'head',f:0.75,kill:1},torso:{name:'body',f:1,kill:1},armL:{name:'left arm',f:0.45},armR:{name:'right arm',f:0.45},legL:{name:'left leg',f:0.6},legR:{name:'right leg',f:0.6}};
+/* how each type looks: skin, clothes (one of each list per Revenant), how far the sleeves and trousers reach */
+const ZLOOK={
+  sham:{shirt:[0xd6ceb6,0x6f8cc0,0x95a060,0xb45a48],pants:[0x46506a,0x5c584a,0x645a50],shoe:[0x3a3230,0x4a3d32],sleeve:0.45,shin:0.55,hair:1},
+  sprint:{shirt:[0x3c4048,0x963434,0x3f5a44],pants:[0x3a3d46,0x564e44],shoe:[0x3a3a40,0x9a9aa0],sleeve:0,tank:1,shorts:1,ridge:1},
+  crawl:{shirt:[0xa09884,0x66758a,0x84684e],pants:[0x40454a],shoe:[0x3a3230],sleeve:0.7,shin:0.8,hair:1},
+  bloat:{shirt:null,pants:[0x5c5640,0x4a5668],shoe:[0x3a3230],sleeve:0,shin:0.7,belly:1},
+  jugg:{shirt:[0x30353e],pants:[0x2c3038],shoe:[0x1e2024],sleeve:1,shin:1,armor:0x7c8592,stripe:0xf07a22}};
+/* the body: a scratch rig of joints, each body part a little box of voxels ("pixels") carved to a shape: rounded limbs, a skull with
+   eye sockets and a hanging jaw, clawed hands. The head, hands and eyes use finer voxels than the trunk and limbs. Every voxel of every
+   Revenant is one instance of a single InstancedMesh (plus one for the glowing eyes and seams), so a horde is two draw calls; only the
+   voxels on the surface are drawn (zVis), so a carved, fine-grained body costs about what the old blocky one did. A part keeps which
+   of its voxels are still there, so bullets knock pixels out of it, a part shot to pieces falls off, and a corpse dissolves.
+   Parts with `only` exist on those types alone (the Juggernaut's riot plating, a Bloater's boils, a Sprinter's spine). A part marked
+   `soft` (the jaw, hands, plating) can be shot away without the limb under it falling off. New parts go at the end of the list:
+   online hits name parts by their index. */
+/* voxel size scale: coarser bodies on phones and tablets and on the Low preset (decided at load), about half the voxels to draw.
+   Hits are named by part and position inside it, so players on different scales still agree on where a shot landed. */
+const ZQ=(matchMedia('(pointer:coarse)').matches||OPT.preset==='low')?1.3:1;
 const ZR=(function(){
   const root=new THREE.Object3D(),model=new THREE.Object3D();root.add(model);
   const J=()=>new THREE.Object3D();
   const hips=J();hips.position.y=0.95;model.add(hips);
   const spine=J();spine.position.y=0.08;hips.add(spine);
   const head=J();head.position.y=0.58;spine.add(head);
-  const sh=[-1,1].map(sx=>{const s=J();s.position.set(sx*0.27,0.47,0);spine.add(s);const e=J();e.position.y=-0.31;s.add(e);return{s,e};});
+  const jaw=J();jaw.position.set(0,0.05,0.02);head.add(jaw);
+  const sh=[-1,1].map(sx=>{const s=J();s.position.set(sx*0.25,0.45,0.01);spine.add(s);const e=J();e.position.y=-0.31;s.add(e);const h=J();h.position.y=-0.32;e.add(h);return{s,e,h};});
   const lg=[-1,1].map(sx=>{const h=J();h.position.set(sx*0.1,-0.06,0);hips.add(h);const k=J();k.position.y=-0.44;h.add(k);return{h,k};});
   const parts=[];let NB=0,NG=0;
-  // kind: skin | rag | metal | glow; reg: the damage region it belongs to
-  const P=(name,parent,w,h,d,x,y,z,kind,reg)=>{const o=new THREE.Object3D();o.position.set(x,y,z);o.scale.set(w,h,d);parent.add(o);
-    const nx=Math.max(1,Math.round(w/ZV)),ny=Math.max(1,Math.round(h/ZV)),nz=Math.max(1,Math.round(d/ZV)),n=nx*ny*nz,off=new Float32Array(n*3);
-    for(let ix=0,i=0;ix<nx;ix++)for(let iy=0;iy<ny;iy++)for(let iz=0;iz<nz;iz++,i++){off[i*3]=(ix+0.5)/nx-0.5;off[i*3+1]=(iy+0.5)/ny-0.5;off[i*3+2]=(iz+0.5)/nz-0.5;}
-    const glow=kind==='glow';parts.push({name,o,w,h,d,nx,ny,nz,n,off,kind,reg,glow});if(glow)NG+=n;else NB+=n;};
-  P('pelvis',hips,0.35,0.18,0.23,0,0,0,'rag','torso');
-  P('torso',spine,0.42,0.5,0.25,0,0.27,0,'skin','torso');
-  P('collar',spine,0.27,0.08,0.27,0,0.55,0,'metal','torso');
-  P('seam',spine,0.06,0.28,0.03,0.06,0.3,-0.14,'glow','torso');
-  P('head',head,0.23,0.26,0.25,0,0.14,0,'skin','head');
-  P('eyes',head,0.16,0.035,0.03,0,0.17,-0.135,'glow','head');
+  // shapes, on a voxel's centre in the part's unit box (-0.5..0.5; y up, -z the front) and its grid index
+  const rnd=(t)=>(x,y,z)=>4*(x*x+z*z)<=t;/* a rounded cross section */
+  const shell=(x,y,z,i,j,k,P)=>i===0||k===0||i===P.nx-1||k===P.nz-1||j===P.ny-1;
+  const SH={
+    limb:rnd(0.86),
+    torso:(x,y,z)=>{const w=0.8+0.2*clamp(y*2+0.6,0,1);/* narrower at the waist */return Math.abs(x)<=w*0.5+1e-6&&(4*x*x/(w*w)+4*z*z<=1.55);},
+    pelvis:(x,y,z)=>4*x*x+4*z*z<=1.45,
+    neck:rnd(0.9),
+    head:(x,y,z)=>{const top=y>0.05?1.25-(y-0.05)*1.9:y<-0.3?1.1-(-0.3-y)*2.2:1.3;if(4*x*x+4*z*z>top)return false;
+      if(z<-0.3&&Math.abs(x)>0.1&&Math.abs(x)<0.4&&y>-0.08&&y<0.16)return false;/* eye sockets */
+      if(z<-0.3&&y<-0.3&&Math.abs(x)<0.3)return false;/* the mouth, where the jaw hangs */
+      return true;},
+    jaw:(x,y,z)=>4*x*x+(z>0?4*z*z:0)<=1.1&&!(y>0.2&&z>-0.25&&Math.abs(x)<0.3),
+    hand:(x,y,z,i,j,k,P)=>y>-0.1||(i%2===0),/* fingers below the palm */
+    foot:(x,y,z,i,j,k,P)=>!(z<-0.3&&y>0.2)&&4*x*x+(z<0?2.2*z*z:0)<=1.25,
+    eyes:(x,y,z,i,j,k,P)=>i===0||i===P.nx-1,
+    seam:(x,y,z,i,j,k,P)=>i===((j>>1)%2)*(P.nx-1)||(j%2===1),/* a stitched zigzag */
+    shell,
+    pad:(x,y,z,i,j,k,P)=>(y>0.1||4*(x*x+z*z)>0.55)&&4*(x*x+z*z)<=1.3,
+    helm:(x,y,z,i,j,k,P)=>{const r=4*x*x+4*z*z;if(r>(y>0.15?1.3-(y-0.15)*2.4:1.3))return false;if(r<0.62&&y<0.35)return false;/* hollow */
+      return !(z<-0.3&&y>-0.12&&y<0.12&&Math.abs(x)<0.42);/* the visor slit */},
+    dots:(x,y,z,i,j,k)=>zHash(i*7+3,j*13+1,k*5+2)>0.88,
+    ridge:(x,y,z,i,j)=>j%2===0};
+  // P(name, joint, w,h,d, x,y,z, kind, region, opts {r: voxel size, s: shape, only: [types], soft})
+  const P=(name,parent,w,h,d,x,y,z,kind,reg,o)=>{o=o||{};const ob=new THREE.Object3D();ob.position.set(x,y,z);ob.scale.set(w,h,d);parent.add(ob);const r=(o.r||0.045)*ZQ;
+    const nx=Math.max(1,Math.round(w/r)),ny=Math.max(1,Math.round(h/r)),nz=Math.max(1,Math.round(d/r)),n=nx*ny*nz,off=new Float32Array(n*3),mask=new Uint8Array(n),nb=new Int32Array(n*6);
+    const Pt={name,o:ob,w,h,d,nx,ny,nz,n,off,mask,nb,kind,reg,glow:kind==='glow',only:o.only||null,soft:!!o.soft,vs:Math.cbrt((w/nx)*(h/ny)*(d/nz))};
+    const id=(i,j,k)=>(i<0||j<0||k<0||i>=nx||j>=ny||k>=nz)?-1:(i*ny+j)*nz+k;
+    for(let ix=0,i=0;ix<nx;ix++)for(let iy=0;iy<ny;iy++)for(let iz=0;iz<nz;iz++,i++){const a=(ix+0.5)/nx-0.5,b=(iy+0.5)/ny-0.5,c=(iz+0.5)/nz-0.5;off[i*3]=a;off[i*3+1]=b;off[i*3+2]=c;
+      mask[i]=!o.s||o.s(a,b,c,ix,iy,iz,Pt)?1:0;const q=i*6;nb[q]=id(ix-1,iy,iz);nb[q+1]=id(ix+1,iy,iz);nb[q+2]=id(ix,iy-1,iz);nb[q+3]=id(ix,iy+1,iz);nb[q+4]=id(ix,iy,iz-1);nb[q+5]=id(ix,iy,iz+1);}
+    Pt.m=mask.reduce((s,v)=>s+v,0);parts.push(Pt);};
+  // the base body, every type (this order is the online part numbering; keep it)
+  P('pelvis',hips,0.34,0.2,0.23,0,0,0,'rag','torso',{s:SH.pelvis,r:0.06});
+  P('torso',spine,0.42,0.5,0.25,0,0.27,0,'skin','torso',{s:SH.torso,r:0.06});
+  P('collar',spine,0.13,0.11,0.13,0,0.55,0.005,'skin','torso',{s:SH.neck,r:0.045});
+  P('seam',spine,0.06,0.3,0.02,0.07,0.3,-0.128,'glow','torso',{s:SH.seam,r:0.03});
+  P('head',head,0.23,0.26,0.25,0,0.15,0,'skin','head',{s:SH.head,r:0.042});
+  P('eyes',head,0.15,0.035,0.03,0,0.165,-0.1,'glow','head',{s:SH.eyes,r:0.036});
   for(let i=0;i<2;i++){const s=sh[i],l=lg[i],n=i?'R':'L';
-    P('uarm'+n,s.s,0.11,0.33,0.11,0,-0.16,0,'skin','arm'+n);P('farm'+n,s.e,0.1,0.32,0.1,0,-0.16,0,'skin','arm'+n);
-    P('thigh'+n,l.h,0.15,0.44,0.16,0,-0.22,0,'rag','leg'+n);P('shin'+n,l.k,0.13,0.42,0.14,0,-0.21,0,'skin','leg'+n);P('foot'+n,l.k,0.13,0.08,0.25,0,-0.43,-0.05,'rag','leg'+n);}
+    P('uarm'+n,s.s,0.12,0.33,0.12,0,-0.16,0,'skin','arm'+n,{s:SH.limb,r:0.045});P('farm'+n,s.e,0.1,0.32,0.1,0,-0.16,0,'skin','arm'+n,{s:SH.limb,r:0.045});
+    P('thigh'+n,l.h,0.16,0.44,0.17,0,-0.22,0,'rag','leg'+n,{s:SH.limb,r:0.05});P('shin'+n,l.k,0.13,0.42,0.14,0,-0.21,0,'skin','leg'+n,{s:SH.limb,r:0.05});
+    P('foot'+n,l.k,0.13,0.09,0.26,0,-0.42,-0.05,'rag','leg'+n,{s:SH.foot,r:0.045});}
+  // added later (append only)
+  P('jaw',jaw,0.18,0.08,0.18,0,-0.03,-0.04,'skin','head',{s:SH.jaw,r:0.036,soft:1});
+  for(let i=0;i<2;i++){const s=sh[i],n=i?'R':'L';P('hand'+n,s.h,0.09,0.13,0.08,0,-0.06,-0.005,'skin','arm'+n,{s:SH.hand,r:0.032,soft:1});}
+  P('ridge',spine,0.05,0.42,0.05,0,0.3,0.135,'bone','torso',{s:SH.ridge,r:0.05,only:['sprint'],soft:1});
+  P('boils',spine,0.36,0.36,0.03,0,0.22,-0.135,'glow','torso',{s:SH.dots,r:0.034,only:['bloat'],soft:1});
+  P('helm',head,0.31,0.32,0.32,0,0.16,0.005,'metal','head',{s:SH.helm,r:0.04,only:['jugg'],soft:1});
+  P('visor',head,0.22,0.04,0.02,0,0.165,-0.142,'glow','head',{r:0.037,only:['jugg']});
+  P('plate',spine,0.5,0.38,0.31,0,0.3,-0.005,'metal','torso',{s:SH.shell,r:0.05,only:['jugg'],soft:1});
+  for(let i=0;i<2;i++){const s=sh[i],l=lg[i],n=i?'R':'L',sx=i?1:-1;
+    P('pad'+n,s.s,0.21,0.16,0.23,sx*0.025,0.01,0,'metal','arm'+n,{s:SH.pad,r:0.045,only:['jugg'],soft:1});
+    P('greave'+n,l.k,0.17,0.24,0.18,0,-0.12,-0.005,'metal','leg'+n,{s:SH.shell,r:0.045,only:['jugg'],soft:1});}
+  for(const p of parts){if(p.glow)NG=Math.max(NG,p.n);}
+  const PI={};parts.forEach((p,i)=>{PI[p.name]=i;});
+  const regParts={};parts.forEach((p,i)=>{(regParts[p.reg]||(regParts[p.reg]=[])).push(i);});
+  // voxels per region for each type (a Juggernaut's plating counts toward its regions)
+  const regN={};for(const t in ZTYPES){regN[t]={};for(const r in regParts)regN[t][r]=regParts[r].reduce((a,i)=>a+(!parts[i].only||parts[i].only.includes(t)?parts[i].m:0),0);}
+  // instance room: the most surface voxels one Revenant can show, times the horde cap (checked when drawing, see zRender)
+  let pv=0;for(const t in ZTYPES){let s=0,g=0;for(const p of parts){if(p.only&&!p.only.includes(t))continue;if(p.glow)g+=p.m;else s+=p.m;}pv=Math.max(pv,s);NG=Math.max(NG,g);}
+  NB=Math.ceil(pv*0.62);
   const cap=ZB.cap,geo=new THREE.BoxGeometry(0.97,0.97,0.97);
   const mk=(mat,n)=>{const m=new THREE.InstancedMesh(geo,mat,n);m.count=0;m.frustumCulled=false;m.userData.noMerge=true;m.castShadow=false;m.receiveShadow=true;
     m.setColorAt(0,new THREE.Color(1,1,1));m.instanceColor.setUsage(THREE.DynamicDrawUsage);m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(m);return m;};
-  const body=mk(new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.8,metalness:0.08}),cap*NB),glowM=mk(new THREE.MeshBasicMaterial({color:0xffffff,toneMapped:false}),cap*NG);
+  // a little of each voxel's own colour is added as glow, so clothes and skin still read under the arena's night lighting
+  const bm=new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.78,metalness:0.08});
+  bm.onBeforeCompile=sh=>{sh.fragmentShader=sh.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n\ttotalEmissiveRadiance+=vColor.rgb*0.16;');};
+  const body=mk(bm,cap*NB),glowM=mk(new THREE.MeshBasicMaterial({color:0xffffff,toneMapped:false}),cap*NG);
   // flying pixels: chips knocked off, limbs bursting, corpses dissolving
   const DN=1600,dBody=mk(new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.8,metalness:0.08}),DN),dGlow=mk(new THREE.MeshBasicMaterial({color:0xffffff,toneMapped:false}),DN);
   const blob=new THREE.InstancedMesh(new THREE.PlaneGeometry(1.2,1.2).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({map:poolTex,color:0x000000,transparent:true,opacity:0.5,depthWrite:false}),cap);
   blob.count=0;blob.frustumCulled=false;blob.userData.noMerge=true;blob.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(blob);
-  const PI={};parts.forEach((p,i)=>{PI[p.name]=i;});
-  const regParts={};parts.forEach((p,i)=>{(regParts[p.reg]||(regParts[p.reg]=[])).push(i);});
-  const regN={};for(const r in regParts)regN[r]=regParts[r].reduce((a,i)=>a+parts[i].n,0);
-  return{root,model,hips,spine,head,sh,lg,parts,PI,regParts,regN,body,glowM,dBody,dGlow,DN,blob,m:new THREE.Matrix4(),m2:new THREE.Matrix4(),q:new THREE.Quaternion(),v:new THREE.Vector3(),v2:new THREE.Vector3(),c:new THREE.Color()};})();
+  return{root,model,hips,spine,head,jaw,sh,lg,parts,PI,regParts,regN,NB:cap*NB,NG:cap*NG,body,glowM,dBody,dGlow,DN,blob,m:new THREE.Matrix4(),m2:new THREE.Matrix4(),q:new THREE.Quaternion(),v:new THREE.Vector3(),v2:new THREE.Vector3(),c:new THREE.Color()};})();
 /* the debris pool */
 const ZD={n:0,px:new Float32Array(ZR.DN),py:new Float32Array(ZR.DN),pz:new Float32Array(ZR.DN),vx:new Float32Array(ZR.DN),vy:new Float32Array(ZR.DN),vz:new Float32Array(ZR.DN),
   t:new Float32Array(ZR.DN),life:new Float32Array(ZR.DN),sz:new Float32Array(ZR.DN),col:new Float32Array(ZR.DN*3),glow:new Uint8Array(ZR.DN),ax:new Float32Array(ZR.DN*3),spin:new Float32Array(ZR.DN),next:0};
@@ -9163,16 +9226,56 @@ function zPixTick(dt){const R=ZR,bm=R.dBody,gm=R.dGlow;let nb=0,ng=0;
   bm.count=nb;gm.count=ng;zUpd(bm,nb);zUpd(gm,ng);}
 const ZWS=new THREE.Vector3();
 /* ---------- simulation ---------- */
-/* each Revenant's own copy of the body: which voxels are left, their colours (with wounds), region health, posed part matrices */
-function zBody(z){const T=ZTYPES[z.t],R=ZR,c=R.c;z.vox=[];z.col=[];z.cnt=[];z.pm=new Float32Array(R.parts.length*16);z.reg={};
+function zHash(a,b,c){const s=Math.sin(a*12.9898+b*78.233+c*37.719)*43758.5453;return s-Math.floor(s);}
+/* each Revenant's own copy of the body: which voxels are left, their colours (clothes, wounds, shading), region health, posed part matrices */
+function zBody(z){const T=ZTYPES[z.t],R=ZR,c=R.c;z.vox=[];z.col=[];z.cnt=[];z.vis=[];z.vn=new Uint16Array(R.parts.length);z.vd=new Uint8Array(R.parts.length).fill(1);
+  z.pm=new Float32Array(R.parts.length*16);z.reg={};
   for(const r in ZREG)z.reg[r]={hp:z.max*ZREG[r].f,max:z.max*ZREG[r].f,gone:false};
-  const tint=new THREE.Color(T.tint),rag=new THREE.Color(0x2a2c2a),metal=new THREE.Color(0x3a3f45),eye=new THREE.Color(z.elite?0xffd040:T.eye),rot=new THREE.Color(0x4a4438);
-  R.parts.forEach((p,pi)=>{const v=new Uint8Array(p.n).fill(1),col=new Float32Array(p.n*3);
-    for(let i=0;i<p.n;i++){const iy=Math.floor((p.off[i*3+1]+0.5)*p.ny);let b=p.kind==='skin'?tint:p.kind==='rag'?rag:p.kind==='metal'?metal:eye;
-      if(p.name==='torso'&&iy<p.ny*0.38)b=rag;/* the tattered vest */
-      c.copy(b);if(p.kind==='skin'&&Math.random()<0.1)c.lerp(rot,0.6);if(p.kind!=='glow')c.multiplyScalar(0.88+Math.random()*0.24);
+  const L=ZLOOK[z.t]||ZLOOK.sham,pk=a=>a?a[(Math.random()*a.length)|0]:null,sd=z.seed;
+  const lk={skin:new THREE.Color(T.tint).multiplyScalar(1.22),shirt:L.shirt?new THREE.Color(pk(L.shirt)):null,pants:new THREE.Color(pk(L.pants)),shoe:new THREE.Color(pk(L.shoe)),
+    rot:new THREE.Color(0x4a4438),dark:new THREE.Color(0x2a1d1c),bone:new THREE.Color(0xd6cdb4),hair:new THREE.Color(0x231e1a),metal:new THREE.Color(L.armor||0x3a3f45),
+    stripe:new THREE.Color(L.stripe||0xd8661c),eye:new THREE.Color(z.elite?0xffd040:T.eye),vein:new THREE.Color(0x3c4a5a),
+    cut:0.3+zHash(sd,1,2)*0.35,ribs:zHash(sd,3,4)<0.6?(zHash(sd,5,6)<0.5?-1:1):0,bald:zHash(sd,7,8)<0.35};
+  if(z.elite)lk.skin.lerp(new THREE.Color(0x5a4a3a),0.25);
+  R.parts.forEach((p,pi)=>{const on=!p.only||p.only.includes(z.t),v=new Uint8Array(p.n),col=new Float32Array(p.n*3);let n=0;
+    if(on)for(let i=0;i<p.n;i++){if(!p.mask[i])continue;v[i]=1;n++;
+      const ix=Math.floor((p.off[i*3]+0.5)*p.nx),iy=Math.floor((p.off[i*3+1]+0.5)*p.ny),iz=Math.floor((p.off[i*3+2]+0.5)*p.nz);
+      zPaint(z,p,lk,L,(ix+0.5)/p.nx,(iy+0.5)/p.ny,(iz+0.5)/p.nz,ix,iy,iz,c);
       col[i*3]=c.r;col[i*3+1]=c.g;col[i*3+2]=c.b;}
-    z.vox.push(v);z.col.push(col);z.cnt.push(p.n);});}
+    z.vox.push(v);z.col.push(col);z.cnt.push(n);z.vis.push(new Uint16Array(n));});}
+/* the colour of one voxel: u across (0 = the Revenant's right... left side), v up, w front (0) to back (1) of its part */
+function zPaint(z,p,lk,L,u,v,w,ix,iy,iz,c){const nm=p.name,sd=z.seed,h=zHash(sd+ix*1.7,iy*3.1+p.nx,iz*5.3+p.n),side=nm.endsWith('L')?0:1;
+  if(p.glow){c.copy(lk.eye);if(nm==='boils')c.multiplyScalar(0.35+h*0.3);return;}
+  const skin=()=>{c.copy(lk.skin);if(h<0.1)c.lerp(lk.rot,0.6);else if(h>0.94)c.lerp(lk.vein,0.35);};
+  if(p.kind==='metal'){c.copy(lk.metal);
+    if((nm==='plate'&&v>0.62&&v<0.8)||(nm.startsWith('pad')&&(side?u>0.75:u<0.25))||(nm==='helm'&&Math.abs(u-0.5)<0.12&&v>0.55)||(nm.startsWith('greave')&&v>0.8))c.copy(lk.stripe);
+    else if(h>0.82)c.multiplyScalar(1.35);/* scuffs */
+    c.multiplyScalar(0.8+0.25*v);return;}
+  if(p.kind==='bone'){c.copy(lk.bone).multiplyScalar(0.8+h*0.25);return;}
+  switch(nm){
+    case 'head':skin();
+      if(L.hair&&!lk.bald&&v>0.62&&(w>0.35||v>0.85)&&h>0.25)c.copy(lk.hair);
+      else if(w<0.3&&v>0.42&&v<0.72)c.multiplyScalar(0.55);/* shadowed brow and sockets */
+      else if(v<0.3)c.multiplyScalar(0.85);
+      if(z.t==='jugg')c.multiplyScalar(0.8);break;
+    case 'jaw':skin();if(v>0.5&&w<0.3)c.copy(lk.bone).multiplyScalar(0.75+h*0.3);/* teeth */else if(w>0.3&&v>0.4)c.copy(lk.dark);break;
+    case 'collar':skin();c.multiplyScalar(0.8);break;
+    case 'torso':{let cloth=false;
+      if(lk.shirt){const low=L.tank?0.3:0.12,edge=low+zHash(sd,ix,iz)*0.18;cloth=v>edge;if(L.tank&&v>0.78&&(u<0.3||u>0.7))cloth=false;if(cloth&&h<0.1)cloth=false;/* holes */}
+      if(cloth){c.copy(lk.shirt);if(h>0.85)c.lerp(lk.dark,0.35);/* grime */}
+      else{skin();if(L.belly&&w<0.35&&h>0.8)c.lerp(lk.vein,0.5);}
+      // a torn-open patch of ribs on one side of the chest
+      if(lk.ribs&&w<0.2&&v>0.42&&v<0.82&&(lk.ribs>0?u>0.58:u<0.42)&&Math.abs(u-0.5)<0.42){c.copy(iy%2?lk.bone:lk.dark);if(iy%2)c.multiplyScalar(0.8+h*0.2);}
+      break;}
+    case 'pelvis':c.copy(lk.pants);if(v>0.7&&z.t!=='jugg'&&z.t!=='bloat')c.multiplyScalar(0.55);/* belt */break;
+    case 'uarmL':case 'uarmR':if(lk.shirt&&v>1-L.sleeve-zHash(sd,side,ix)*0.1)c.copy(lk.shirt);else skin();break;
+    case 'farmL':case 'farmR':if(L.sleeve>=1)c.copy(lk.shirt);else{skin();if(v<0.3)c.lerp(lk.rot,0.25);}break;
+    case 'handL':case 'handR':skin();c.lerp(lk.rot,0.3);if(iy===0)c.copy(lk.dark).lerp(lk.bone,0.4);/* black nails */break;
+    case 'thighL':case 'thighR':if(L.shorts&&v<0.45)skin();else{c.copy(lk.pants);if(h<0.08)c.lerp(lk.skin,0.8);}break;
+    case 'shinL':case 'shinR':if(!L.shorts&&v>1-(L.shin||0)*(0.6+lk.cut))c.copy(lk.pants);else skin();break;
+    case 'footL':case 'footR':c.copy(lk.shoe);if(iy===0)c.multiplyScalar(0.6);break;
+    default:skin();}
+  c.multiplyScalar((0.84+0.16*v)*(0.92+h*0.16));}
 function zTargets(){return S.players.filter(p=>p.st==='alive'&&!(SB.on&&p.bot&&!p.rgId&&S.range));}
 /* walking distance from every free cell to the nearest living player (8-way, diagonals cost 1.414, no corner cutting) */
 function zField(T){const D=ZB.dist,st=++FP.stamp,{gen,closed,hf,hi}=FP;let hn=0;D.fill(1e9);
@@ -9196,7 +9299,7 @@ function zSpawn(t,x,z,yaw,elite){if(ZB.list.length>=ZB.cap){const old=ZB.list.fi
   const T=ZTYPES[t],hp=Math.round(CFG[T.hp]*(elite?2.2:1));
   const zo={id:++ZB.id,t,x,z,y:0,vx:0,vz:0,yaw:yaw==null?Math.random()*Math.PI*2:yaw,hp,max:hp,st:'rise',riseT:0.7,wind:0,cd:0,slow:0,flinch:0,
     wp:null,wpT:Math.random()*0.15,ph:Math.random()*6,seed:Math.random()*100,prog:{x,z,t:0},esc:null,deadT:0,headOff:false,flash:0,groanT:1+Math.random()*4,spd:0,atkK:0,fall:1,elite:!!elite};
-  zBody(zo);if(T.legless)for(const r of ['legL','legR']){zo.reg[r].gone=true;zo.reg[r].hp=0;for(const q of ZR.regParts[r]){zo.cnt[q]=0;zo.vox[q].fill(0);}}
+  zBody(zo);if(T.legless)for(const r of ['legL','legR']){zo.reg[r].gone=true;zo.reg[r].hp=0;for(const q of ZR.regParts[r]){zo.cnt[q]=0;zo.vox[q].fill(0);zo.vd[q]=1;}}
   ZB.list.push(zo);return zo;}
 function zRemove(z){const i=ZB.list.indexOf(z);if(i>=0)ZB.list.splice(i,1);}
 function zClear(){ZB.list.length=0;ZB.acc=null;}
@@ -9308,19 +9411,20 @@ const ZICHOR=new THREE.Color();
 function zChip(z,p,lx,ly,lz,count,dx,dy,dz){const P=ZR.parts[p],v=z.vox[p],col=z.col[p],s=ZTYPES[z.t].size,list=[];
   for(let i=0;i<P.n;i++){if(!v[i])continue;const ex=(P.off[i*3]-lx)*P.w,ey=(P.off[i*3+1]-ly)*P.h,ez=(P.off[i*3+2]-lz)*P.d;list.push([ex*ex+ey*ey+ez*ez,i]);}
   list.sort((a,b)=>a[0]-b[0]);const k=Math.min(count,list.length);let rr=0;const W=ZR.v;
-  for(let j=0;j<k;j++){const i=list[j][1];v[i]=0;z.cnt[p]--;rr=list[j][0];zVoxW(z,p,i,W);
-    zPix(W.x,W.y,W.z,dx*(1.5+Math.random()*2)+(Math.random()-.5)*2.2,1+Math.random()*2.2+dy,dz*(1.5+Math.random()*2)+(Math.random()-.5)*2.2,ZV*0.95*s,col[i*3],col[i*3+1],col[i*3+2],false,1.4+Math.random()*1.2);}
+  z.vd[p]=1;for(let j=0;j<k;j++){const i=list[j][1];v[i]=0;z.cnt[p]--;rr=list[j][0];zVoxW(z,p,i,W);
+    zPix(W.x,W.y,W.z,dx*(1.5+Math.random()*2)+(Math.random()-.5)*2.2,1+Math.random()*2.2+dy,dz*(1.5+Math.random()*2)+(Math.random()-.5)*2.2,P.vs*0.95*s,col[i*3],col[i*3+1],col[i*3+2],false,1.4+Math.random()*1.2);}
   if(P.glow)return;
-  ZICHOR.set(ZTYPES[z.t].eye).multiplyScalar(0.75);const r2=Math.pow(Math.sqrt(rr)+ZV*1.3,2);
+  ZICHOR.set(ZTYPES[z.t].eye).multiplyScalar(0.75);const r2=Math.pow(Math.sqrt(rr)+P.vs*1.2,2);
   for(let j=k;j<list.length&&list[j][0]<=r2;j++){const i=list[j][1];col[i*3]=ZICHOR.r;col[i*3+1]=ZICHOR.g;col[i*3+2]=ZICHOR.b;}}
 /* a region at zero: every pixel it has left bursts off, and the stump it leaves glows */
 function zSever(z,reg,dx,dz){const R=z.reg[reg];if(R.gone)return;R.gone=true;R.hp=0;const s=ZTYPES[z.t].size,W=ZR.v,ps=ZR.regParts[reg];
   let cx=0,cy=0,cz=0,n=0;for(const p of ps)for(let i=0;i<ZR.parts[p].n;i++)if(z.vox[p][i]){zVoxW(z,p,i,W);cx+=W.x;cy+=W.y;cz+=W.z;n++;}
   if(n){cx/=n;cy/=n;cz/=n;}if(reg==='head'){z.hx=cx;z.hy=cy;z.hz=cz;}
-  for(const p of ps){const col=z.col[p];for(let i=0;i<ZR.parts[p].n;i++){if(!z.vox[p][i])continue;zVoxW(z,p,i,W);
-      const ox=W.x-cx,oy=W.y-cy,oz=W.z-cz;z.vox[p][i]=0;
-      zPix(W.x,W.y,W.z,dx*2+ox*6+(Math.random()-.5)*2,1.5+oy*6+Math.random()*2.5,dz*2+oz*6+(Math.random()-.5)*2,ZV*0.95*s,col[i*3],col[i*3+1],col[i*3+2],ZR.parts[p].glow,1.6+Math.random()*1.4);}
-    z.cnt[p]=0;}
+  const keep=Math.min(1,90/Math.max(1,n));/* finer bodies have more voxels than the pool should take at once */
+  for(const p of ps){const col=z.col[p],vs=ZR.parts[p].vs*1.15;for(let i=0;i<ZR.parts[p].n;i++){if(!z.vox[p][i])continue;z.vox[p][i]=0;if(Math.random()>keep)continue;zVoxW(z,p,i,W);
+      const ox=W.x-cx,oy=W.y-cy,oz=W.z-cz;
+      zPix(W.x,W.y,W.z,dx*2+ox*6+(Math.random()-.5)*2,1.5+oy*6+Math.random()*2.5,dz*2+oz*6+(Math.random()-.5)*2,vs*s,col[i*3],col[i*3+1],col[i*3+2],ZR.parts[p].glow,1.6+Math.random()*1.4);}
+    z.cnt[p]=0;z.vd[p]=1;}
   // the stump: the body voxels nearest the joint glow with ichor
   const root=ps[0],tgt=reg==='head'?ZR.PI.collar:reg.startsWith('arm')?ZR.PI.torso:ZR.PI.pelvis,e=z.pm,o=root*16;
   const jx=e[o+4]*0.5+e[o+12],jy=e[o+5]*0.5+e[o+13],jz=e[o+6]*0.5+e[o+14];ZICHOR.set(ZTYPES[z.t].eye).multiplyScalar(0.75);
@@ -9341,9 +9445,9 @@ function zApply(z,e,by,pred){if(z.st==='dead')return false;const boss=!!ZTYPES[z
     const hitReg={},off=[];let headKill=false;
     for(const h of e.hits){const P=ZR.parts[h.p],reg=P.reg,R=z.reg[reg];if(R.gone||!z.cnt[h.p])continue;
       R.hp-=h.dmg;hitReg[reg]=(hitReg[reg]||0)+h.dmg;zHitLog(z,h,by);if(reg!=='torso')z.reg.torso.hp-=h.dmg*0.3;
-      zChip(z,h.p,h.lx,h.ly,h.lz,clamp(Math.round(h.dmg/R.max*ZR.regN[reg]*0.3),1,10),h.dx,h.dy,h.dz);
+      zChip(z,h.p,h.lx,h.ly,h.lz,clamp(Math.round(h.dmg/R.max*ZR.regN[z.t][reg]*0.3),1,10),h.dx,h.dy,h.dz);
       // a region at zero, or a limb's upper part shot away, falls off
-      const broke=R.hp<=0||(reg!=='torso'&&ZR.regParts[reg].some(q=>!z.cnt[q]));
+      const broke=R.hp<=0||(reg!=='torso'&&ZR.regParts[reg].some(q=>!ZR.parts[q].soft&&!ZR.parts[q].only&&!z.cnt[q]));
       if(broke){if(reg==='torso'){z.reg.torso.hp=0;}else{zSever(z,reg,ux,uz);if(reg==='head')headKill=true;else{off.push(ZREG[reg].name);if(reg.startsWith('leg')&&!boss)z.slow=0.8;}}}}
     // Payload: every 10th hit a player lands bursts (the host decides; a guest's own copy waits)
     if(!pred&&!zGuest()&&zrHas(by,'px')){by.pxN=(by.pxN|0)+1;if(by.pxN>=10){by.pxN=0;const bx=z.x,bz=z.z;setTimeout(()=>{if(S&&S.phase==='live')zAoe(bx,bz,2.5,40,by);},0);}}
@@ -9382,6 +9486,9 @@ function zPose(z,dt){const R=ZR,T=ZTYPES[z.t],s=zSize(z),lb=zLimbs(z),crawl=lb.l
   {const sw0=T.bloat?(z.wind>0?1+0.35*(1-z.wind/T.wind):1)+0.06*Math.sin(zClk()*2+z.seed):0,fx=1+0.42*sw0,fy=1+0.06*sw0,fz=1+0.6*sw0;
     R.spine.scale.set(fx,fy,fz);R.head.scale.set(1/fx,1/fy,1/fz);for(const A of R.sh)A.s.scale.set(1/fx,1/fy,1/fz);}
   R.head.rotation.set(-T.lean*0.6-fl*0.3,Math.sin(z.seed*3+zClk()*0.7)*0.25,Math.sin(z.seed+zClk()*1.3)*0.18);
+  // the jaw hangs open and works; it gapes on the windup and when shot
+  R.jaw.rotation.x=(T.boss?0.08:0.22)+0.1*Math.sin(zClk()*(z.t==='sprint'?7:3.2)+z.seed*5)+(z.wind>0?0.3:0)+fl*0.25;
+  for(const A of R.sh){A.h.rotation.set(-0.25-(z.wind>0?0.4:0),0,0);}
   for(let i=0;i<2;i++){const sg=i?1:-1,L=R.lg[i],A=R.sh[i],p=ph+(i?Math.PI:0),swing=Math.sin(p)*(sprint?0.85:0.45)*sw;
     L.h.rotation.set(swing-(sprint?0.2:0),0,0);L.k.rotation.set(-Math.max(0,-Math.cos(p))*(sprint?1.3:0.7)*sw-(sprint?0.25:0.05),0,0);
     // shamblers reach forward; sprinters pump their arms; the windup draws an arm back and the swing throws it
@@ -9401,6 +9508,11 @@ function zPose(z,dt){const R=ZR,T=ZTYPES[z.t],s=zSize(z),lb=zLimbs(z),crawl=lb.l
       R.spine.rotation.x*=1-e*0.7;for(const A of R.sh)A.s.rotation.x=(1-e)*A.s.rotation.x+e*(z.fallBack?2.6:-0.4);}}
   R.root.updateMatrixWorld(true);
   for(let p=0;p<R.parts.length;p++)z.pm.set(R.parts[p].o.matrixWorld.elements,p*16);z.posed=true;}
+/* which of a part's voxels are on the surface (a missing neighbour or the edge of the part): only those are drawn. Redone when the
+   part loses voxels (z.vd). */
+function zVis(z,p){const P=ZR.parts[p],v=z.vox[p],nb=P.nb,out=z.vis[p];let k=0;
+  for(let i=0;i<P.n;i++){if(!v[i])continue;const o=i*6;for(let j=0;j<6;j++){const q=nb[o+j];if(q<0||!v[q]){out[k++]=i;break;}}}
+  z.vn[p]=k;z.vd[p]=0;}
 function zRender(dt){
   if(ZB.list.length&&!zOn())zClear();
   // the first time Revenants can appear, build their shaders ahead (one instance each, under the floor) so the first ones rising don't stall a frame
@@ -9413,12 +9525,17 @@ function zRender(dt){
     const dis=z.st==='dead'&&z.deadT>ZDIS0?(z.deadT-ZDIS0)/ZDIS:-1,eyeK=z.st==='dead'?Math.max(0,1-z.deadT*1.5):1;
     for(let p=0;p<R.parts.length;p++){if(!z.cnt[p])continue;const P=R.parts[p],v=z.vox[p],col=z.col[p],o=p*16,off=P.off;
       const ax=e[o]/P.nx,ay=e[o+1]/P.nx,az=e[o+2]/P.nx,bx=e[o+4]/P.ny,by=e[o+5]/P.ny,bz=e[o+6]/P.ny,cx=e[o+8]/P.nz,cy=e[o+9]/P.nz,cz=e[o+10]/P.nz;
-      const A=P.glow?GA:BA,C=P.glow?GC:BC;
-      for(let i=0;i<P.n;i++){if(!v[i])continue;const x=off[i*3],y=off[i*3+1],w=off[i*3+2];
+      // dissolving: top down with some noise, voxels leaving as glowing pixels that drift up
+      if(dis>=0){const ek=R.c.set(ZTYPES[z.t].eye);for(let i=0;i<P.n;i++){if(!v[i])continue;const x=off[i*3],y=off[i*3+1],w=off[i*3+2],ty=e[o+1]*x+e[o+5]*y+e[o+9]*w+e[o+13];
+          const key=0.55*clamp(1-ty/1.9,0,1)+0.45*((i*0.6180339+p*0.31+z.seed)%1);if(key>=dis)continue;v[i]=0;z.cnt[p]--;z.vd[p]=1;if(Math.random()>0.45)continue;
+          const tx=e[o]*x+e[o+4]*y+e[o+8]*w+e[o+12],tz=e[o+2]*x+e[o+6]*y+e[o+10]*w+e[o+14];ZICHOR.setRGB(col[i*3],col[i*3+1],col[i*3+2]).lerp(ek,0.6);
+          zPix(tx,ty,tz,(Math.random()-.5)*0.6,0.4+Math.random()*0.8,(Math.random()-.5)*0.6,P.vs*1.2,ZICHOR.r,ZICHOR.g,ZICHOR.b,true,0.7+Math.random()*0.6);}
+        if(!z.cnt[p])continue;}
+      if(z.vd[p])zVis(z,p);
+      const A=P.glow?GA:BA,C=P.glow?GC:BC,vl=z.vis[p],vn=z.vn[p];
+      for(let k=0;k<vn;k++){const i=vl[k],x=off[i*3],y=off[i*3+1],w=off[i*3+2];
+        if(P.glow?ng>=R.NG:nb>=R.NB)break;
         const tx=e[o]*x+e[o+4]*y+e[o+8]*w+e[o+12],ty=e[o+1]*x+e[o+5]*y+e[o+9]*w+e[o+13],tz=e[o+2]*x+e[o+6]*y+e[o+10]*w+e[o+14];
-        // dissolving: top down with some noise, each voxel leaving as a glowing pixel that drifts up
-        if(dis>=0){const key=0.55*clamp(1-ty/1.9,0,1)+0.45*((i*0.6180339+p*0.31+z.seed)%1);
-          if(key<dis){v[i]=0;z.cnt[p]--;{R.c.setRGB(col[i*3],col[i*3+1],col[i*3+2]).lerp(ZICHOR.set(ZTYPES[z.t].eye),0.6);zPix(tx,ty,tz,(Math.random()-.5)*0.6,0.4+Math.random()*0.8,(Math.random()-.5)*0.6,ZV*0.9,R.c.r,R.c.g,R.c.b,true,0.7+Math.random()*0.6);}continue;}}
         const j=P.glow?ng++:nb++,m=j*16;
         A[m]=ax;A[m+1]=ay;A[m+2]=az;A[m+3]=0;A[m+4]=bx;A[m+5]=by;A[m+6]=bz;A[m+7]=0;A[m+8]=cx;A[m+9]=cy;A[m+10]=cz;A[m+11]=0;A[m+12]=tx;A[m+13]=ty;A[m+14]=tz;A[m+15]=1;
         let r=col[i*3],g=col[i*3+1],b=col[i*3+2];if(P.glow){r*=eyeK;g*=eyeK;b*=eyeK;}else if(f>0){const q=f*0.6;r+=(1.6-r)*q;g+=(1.6-g)*q;b+=(1.6-b)*q;}
