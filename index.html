@@ -236,7 +236,7 @@ body.prematch #topbar,body.prematch #mini,body.prematch #feed,body.prematch #vit
 #zrdir .btn{min-height:44px;padding:8px 18px;font-size:16px}#zrdir .btn.on{border-color:var(--warn);color:var(--warn)}
 #zrint .zib{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}#zrint .zib .btn{min-height:44px;padding:8px 18px;font-size:17px}
 #zrheld{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;max-width:min(520px,calc(100vw - 32px));margin:3px auto 0}
-.zrcd.set{font-weight:700;background:rgba(0,0,0,.6);border-color:rgba(255,255,255,.35);color:var(--fg)}
+.zrcd.set{font-weight:700;background:rgba(0,0,0,.6);border-color:var(--hc);color:var(--hc)}
 .zrcd .zg{width:13px;height:13px;border-radius:3px;vertical-align:-2px;margin-right:4px;box-shadow:none}
 .zrcd{display:inline-block;background:rgba(0,0,0,.45);text-shadow:0 1px 2px #000;margin:0;padding:0 6px;border-radius:3px;font-size:12px;border:1px solid var(--rc,var(--line));border-left-width:3px;color:var(--fg)}
 @media (prefers-reduced-motion:reduce){#zrcap div{animation:none}}
@@ -10202,7 +10202,8 @@ const ZCARDS={
   rb:{h:'ark',n:'Rapid Rebuild',r:1,d:'Broken cover rebuilds in 2 s'},
   bp:{h:'ark',n:'Blast Plating',r:2,d:'Bloater bursts hurt you 60% less'},
   mn:{h:'ark',n:'Live Sites',r:3,d:'Bomb sites A and B blow up under Revenants that step on them'}};
-/* each house's cards are made by one of the arena's sponsors (SPONSORS, the brands on the wall boards); its logo is the card's glyph */
+/* the houses sponsor the set bonuses (ZSET); the brands (SPONSORS, on the wall boards) make the cards, and a brand's logo is its cards' glyph.
+   Each brand's cards count toward one house's set (the third entry). */
 const ZHOUSE={arm:['Armoury','#ff8a5c','HEXFORGE'],kin:['Kinetics','#5ff2ff','VOLTEX'],med:['Medica','#4dffa6','PULSE-9'],brd:['Broadcast','#ffc23d','STRATA'],ark:['Arena Works','#c99bff','IRONLEAF']};
 const ZRAR=['','Standard','Rare','Signature'],ZRARC=['','#b9c3cf','#3fa0ff','#ffc23d'],ZRARP=['','◆','◆◆','◆◆◆'],ZCOST=[0,60,90,130],ZREROLL=30,ZGUN=50;
 /* a sponsor's logo as a little badge (data URL, made once), the same drawing as on its wall board */
@@ -10212,7 +10213,7 @@ function zGlyph(h){if(ZGLY[h])return ZGLY[h];const sp=SPONSORS.find(q=>q.n===(ZH
     drawLogo(g,sp.logo,32,30,19,sp.ac);ZGLY[h]=c.toDataURL();}catch(e){ZGLY[h]='';}return ZGLY[h];}
 function zGlyphEl(h){const e=document.createElement('span');e.className='zg';const u=zGlyph(h);if(u)e.style.setProperty('--gl',`url(${u})`);e.setAttribute('aria-hidden','true');return e;}
 /* what taking a card does to its sponsor set, for the card's stack line */
-function zrStackLine(c,n){const h=c.h,sn=ZHOUSE[h][2];
+function zrStackLine(c,n){const h=c.h,sn=ZHOUSE[h][0];
   return n>=3?[`${sn} set III already on · this card adds its own effect`,0]:n===2?[`Completes <em>${sn} set III</em>: ${ZSET[h][1]} (replaces set II)`,1]:n===1?[`Makes <em>${sn} set II</em>: ${ZSET[h][0]}`,1]:[`1 of 2 for ${sn} set II (${ZSET[h][0]})`,0];}
 /* house sets: two cards of one house give the first bonus, three or more the second */
 const ZSET={arm:['+5% damage','+15% damage'],kin:['+5% move speed','+5% move speed, dash recharges 20% faster'],med:['10% less damage taken','10% less damage taken, 25 s to bleed out'],
@@ -10538,9 +10539,9 @@ function zrHud(P){const Z=S.zr;if(!Z)return;const L=Z.left|0;
 /* the cards you hold, under your health */
 function zrHide(){for(const id of ['zrheld','zrboss','zrint','zrwcard'])if(!$(id).hidden)$(id).hidden=true;$('zrcap').replaceChildren();}
 function zrCardsLine(P){const el=$('zrheld'),cs=(P&&P.cards)||[],k=cs.join(',')+(TOUCH.on?'t':'')+(innerHeight<520?'s':'');el.hidden=!cs.length;if(el.dataset.k===k)return;el.dataset.k=k;
-  const chip=(h,t,d,set,r)=>{const sp=document.createElement('span');sp.className='zrcd'+(set?' set':'');if(r)sp.style.setProperty('--rc',ZRARC[r]);sp.append(zGlyphEl(h),t);sp.title=d;return sp;};
-  el.replaceChildren(...Object.keys(ZHOUSE).filter(h=>zrSet(P,h)).map(h=>{const n=zrSet(P,h);return chip(h,`${ZHOUSE[h][2]} set ${n>1?'III':'II'}: ${ZSET[h][n-1]}`,`${ZHOUSE[h][2]} set ${n>1?'III':'II'} (${n>1?'3':'2'} ${ZHOUSE[h][0]} cards): ${ZSET[h][n-1]}`,true);}),
-    ...cs.filter(id=>ZCARDS[id]).map(id=>{const c=ZCARDS[id];return chip(c.h,c.n,`${c.n} · ${ZHOUSE[c.h][2]} ${ZHOUSE[c.h][0]} · ${ZRAR[c.r]}: ${c.d}`,false,c.r);}));
+  const chip=(h,t,d,set,r)=>{const sp=document.createElement('span');sp.className='zrcd'+(set?' set':'');if(r)sp.style.setProperty('--rc',ZRARC[r]);if(set)sp.style.setProperty('--hc',ZHOUSE[h][1]);if(!set)sp.append(zGlyphEl(h));sp.append(t);sp.title=d;return sp;};
+  el.replaceChildren(...Object.keys(ZHOUSE).filter(h=>zrSet(P,h)).map(h=>{const n=zrSet(P,h);return chip(h,`${ZHOUSE[h][0]} set ${n>1?'III':'II'}: ${ZSET[h][n-1]}`,`${ZHOUSE[h][0]} set ${n>1?'III':'II'}, sponsored by the house (${n>1?'3':'2'} ${ZHOUSE[h][0]} cards): ${ZSET[h][n-1]}`,true);}),
+    ...cs.filter(id=>ZCARDS[id]).map(id=>{const c=ZCARDS[id];return chip(c.h,c.n,`${c.n} · by ${ZHOUSE[c.h][2]}, counts for ${ZHOUSE[c.h][0]} · ${ZRAR[c.r]}: ${c.d}`,false,c.r);}));
   const max=TOUCH.on?(innerHeight<520?1:6):(innerHeight<520?3:8),kids=[...el.children];if(kids.length>max+1){const more=kids.slice(max);more.forEach(k=>k.remove());const m=document.createElement('span');m.className='zrcd more';m.textContent=`+${more.length} more`;m.title=more.map(k=>k.textContent).join(', ');el.append(m);}}
 function zrBanner(){const Z=S.zr,bn=$('banner');bn.hidden=false;
   if(S.phase==='buy'){$('bannerT').textContent='Monday Night Zombie Rumble';
@@ -10576,14 +10577,14 @@ function zrInterUI(P){const Z=S.zr,el=$('zrint'),on=S.phase==='live'&&Z.ph==='in
   const gun=(Z.gun||{})[s],gift=ZI.gift&&!!mate,mc=(mate&&mate.cards)||[];
   const key=[Z.dir,Z.dirOn,of.join(','),pk,rd,fv,(P.cards||[]).join(','),mc.join(','),gun,gift,TOUCH.on].join('|');if(key===ZI.k)return;ZI.k=key;
   if(!$('zrleg').childElementCount){const L=$('zrleg'),r=k=>{const i=document.createElement('i');i.style.color=ZRARC[k];i.textContent=`${ZRARP[k]} ${ZRAR[k]}`;return i;},sp=document.createElement('span');
-    for(const h in ZHOUSE){const q=document.createElement('span');q.append(zGlyphEl(h),`${ZHOUSE[h][2]} ${ZHOUSE[h][0]}`);sp.append(q);}
-    L.append(r(1),r(2),r(3),sp,'Two cards from one sponsor make set II, three make set III (it replaces II) · You hold each card once per run · Bonuses multiply: +12% with +15% is +29%');}
+    for(const h in ZHOUSE){const q=document.createElement('span');q.append(zGlyphEl(h),`${ZHOUSE[h][2]} → ${ZHOUSE[h][0]}`);sp.append(q);}
+    L.append(r(1),r(2),r(3),sp,'Brands make the cards; each card counts for a house. Two cards for one house earn that house’s set II, three its set III (it replaces II) · You hold each card once per run · Bonuses multiply: +12% with +15% is +29%');}
   $('zrintS').textContent=pk?`Favor ${fv}. Buy another card, reroll, or ready up for segment ${Z.seg+1}`:`Segment ${Z.seg} survived. The patrons are bidding: take one card, free · Favor ${fv}`;
   const mk=(t,c,x)=>{const n=document.createElement(t);if(c)n.className=c;if(x!=null)n.textContent=x;return n;};
   const who=gift&&pk?mate:P,held=h=>((who.cards||[]).filter(q=>ZCARDS[q]&&ZCARDS[q].h===h).length);
   $('zrcards').replaceChildren(...of.map((id,i)=>{const c=ZCARDS[id],cost=ZCOST[c.r],no=rd||(pk&&(fv<cost||(who.cards||[]).includes(id))),b=mk('button','zcard r'+c.r);b.type='button';
     b.style.setProperty('--rc',ZRARC[c.r]);b.setAttribute('aria-disabled',no);const hn=held(c.h),own=(who.cards||[]).includes(id);
-    const top=mk('span','ztop'),spn=mk('span','zsp');spn.append(mk('b','',ZHOUSE[c.h][2]),mk('span','',ZHOUSE[c.h][0]));top.append(zGlyphEl(c.h),spn,mk('span','zk',TOUCH.on?'':String(i+1)));
+    const top=mk('span','ztop'),spn=mk('span','zsp');spn.append(mk('b','',ZHOUSE[c.h][2]),mk('span','','for '+ZHOUSE[c.h][0]));top.append(zGlyphEl(c.h),spn,mk('span','zk',TOUCH.on?'':String(i+1)));
     const [sl,up]=own?[`${who===P?'You':who.name} already hold${who===P?'':'s'} this card`,0]:zrStackLine(c,hn),st=mk('span','zst'+(up?' up':''));st.innerHTML=sl+(who!==P&&hn?` (${who.name} holds ${hn})`:'');
     b.append(top,mk('span','zr',`${ZRARP[c.r]} ${ZRAR[c.r]}`),mk('b','',c.n),mk('span','zd',c.d),st,
       mk('span','zc',pk?`${cost} Favor${who!==P?' · for '+who.name:''}`:'Free pick'));
