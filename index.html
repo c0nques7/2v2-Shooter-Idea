@@ -6338,7 +6338,7 @@ const WKEYS=['rifle','smg','br','sg','lmg','sniper','hc','bc','asg','mp','lance'
 /* PVPK: every gun you can carry in PvP (the Workshop, the wheel loadout, bots); ZRX: Zombie Rumble exclusives */
 const PVPK=WKEYS.filter(k=>!W[k].zr),ZRX=WKEYS.filter(k=>W[k].zr),WHEEL0=['rifle','smg','br','sg','lmg','sniper'];
 /* until Joe approves each new gun's own shot sound, the new guns borrow an existing one */
-const GSUB={hc:'br',bc:'rifle',asg:'sg',mp:'smg',lance:'sniper',arc:'smg',gl:'sg'};
+
 const wOf=k=>W[k]||W.rifle;
 function wDmg(k,head,d,w0){const w=w0||wOf(k);const base=head?w.head:w.dmg;const t=clamp((d-w.near)/Math.max(1,w.far-w.near),0,1);return Math.round(base*(1-t*(1-w.fall)));}
 /* your own shot's damage: wDmg, but a Reach Lance shot lands between its tap damage and a full charge (me.lanceF 0..1) */
@@ -8525,7 +8525,7 @@ function glTick(dt){for(const g of GLS){if(!g.on)continue;if(!S){g.on=false;g.m.
 function glBoom(g,x,y,z){const w=g.w||wOf('gl'),R=w.splash||4;
   for(const c of [NEON.cy,NEON.mg,NEON.am,0x4dff6a,NEON.vi,0xffe14d])spawnSparks(x,y,z,c,7,0,-1.4,0);
   const f=GLFX.reduce((a,b)=>a.t<b.t?a:b);f.t=0.35;f.r=R*0.8;f.m.position.set(x,y,z);f.m.visible=true;
-  impactSound(x,z,2.5);/* stand-in until Joe approves an Encore burst sound */
+  encoreBurst(x,z);
   if(!g.mine||!S)return;const s=g.s,mt=S.players[s]?S.players[s].team:-1;let any=false;
   if(ZB.list.length){ZB.acc=new Map();for(const q of ZB.list){if(q.st==='dead'||!q.posed)continue;const zy=0.9*zSize(q),d=Math.hypot(q.x-x,zy-y,q.z-z);
       if(d>R+0.4||!losPts(x,y+0.2,z,q.x,zy,q.z))continue;zHitDirect(q,Math.round(w.dmg*(1-0.75*clamp(d/R,0,1))),x,z);}
@@ -8721,7 +8721,7 @@ document.addEventListener('pointerdown',audioWake,true);document.addEventListene
 /* dev overlay sound tuning: per sound volume x, pitch x, tone (low-pass Hz), low cut (high-pass Hz), extra echo send.
    Neutral everywhere outside the sandbox; the sandbox dev overlay (T) edits it and can save/export it. */
 const TUNE_N={vol:1,pitch:1,lp:20000,hp:0,wet:0};
-const SND_KEYS=['rifle','smg','br','sg','lmg','sniper','boltCatch','boltSlam','click','impact','steps','slide','dash','grab','hit','hitHead','hitDown','hitKill','hurt','heart','announcer','stings','beep','boom','cover','ui','crowd','rain','musicMenu','musicMatch','musicShop','zomb'];
+const SND_KEYS=['rifle','smg','br','sg','lmg','sniper','hc','bc','asg','mp','lance','lanceChg','arc','gl','encore','boltCatch','boltSlam','click','impact','steps','slide','dash','grab','hit','hitHead','hitDown','hitKill','hurt','heart','announcer','stings','beep','boom','cover','ui','crowd','rain','musicMenu','musicMatch','musicShop','zomb'];
 /* Joe's tuned defaults (from his sandbox export, 2026-11-11); anything not listed is neutral */
 const TUNE_D={boltCatch:{vol:1.31},boltSlam:{pitch:1.06},click:{vol:1.01},steps:{pitch:0.88},slide:{pitch:1.54},announcer:{pitch:0.91},rain:{lp:9000,hp:2400}};
 const tuneDef=k=>({...TUNE_N,...(TUNE_D[k]||{})});
@@ -8813,7 +8813,31 @@ const GUN={rifle:{len:0.55,crack:0.55,crackT:0.0011,blastF:5950,blastF1:650,blas
   br:{len:0.8,crack:0.7,crackT:0.0016,blastF:4200,blastF1:420,blastT:0.045,tailT:0.26,tail:0.42,body:1,f0:135,f1:38,bodyT:0.075,mech:0.16,boltT:0.075,mk:0.85,drive:3.2,refl:0.24},
   sg:{len:0.9,crack:0.2,crackT:0.002,blastF:3000,blastF1:300,blastT:0.06,tailT:0.3,tail:0.5,body:1.3,f0:110,f1:32,bodyT:0.095,mech:0.1,boltT:0.09,mk:0.8,drive:3.8,refl:0.26},
   lmg:{len:0.6,crack:0.6,crackT:0.0013,blastF:5000,blastF1:520,blastT:0.034,tailT:0.2,tail:0.36,body:0.9,f0:150,f1:45,bodyT:0.055,mech:0.3,boltT:0.05,mk:1,drive:3,refl:0.22},
-  sniper:{len:1.1,crack:1.1,crackT:0.002,blastF:3800,blastF1:340,blastT:0.055,tailT:0.42,tail:0.55,body:1.2,f0:120,f1:30,bodyT:0.09,mech:0.05,boltT:0.09,mk:0.7,drive:3.6,refl:0.32}};
+  sniper:{len:1.1,crack:1.1,crackT:0.002,blastF:3800,blastF1:340,blastT:0.055,tailT:0.42,tail:0.55,body:1.2,f0:120,f1:30,bodyT:0.09,mech:0.05,boltT:0.09,mk:0.7,drive:3.6,refl:0.32},
+  /* the expanded roster (approved by Joe 2026-11-21 from audio/new-weapons-preview): Gavel boom, Tribune crack, Turnstile blast,
+     Hecklers pops, Reach Lance crack-boom (plus the beam zap in EXSND), Encore launcher thump. The Arc Caster has no gunshot, only its crackle. */
+  hc:{len:0.95,crack:0.9,crackT:0.0018,blastF:3600,blastF1:300,blastT:0.06,tailT:0.34,tail:0.5,body:1.35,f0:105,f1:34,bodyT:0.1,mech:0.12,boltT:0.12,mk:0.65,drive:3.6,refl:0.3},
+  bc:{len:0.45,crack:0.6,crackT:0.001,blastF:6600,blastF1:800,blastT:0.022,tailT:0.12,tail:0.26,body:0.65,f0:180,f1:60,bodyT:0.036,mech:0.3,boltT:0.045,mk:1.12,drive:2.8,refl:0.18},
+  asg:{len:0.8,crack:0.25,crackT:0.0022,blastF:2800,blastF1:280,blastT:0.055,tailT:0.26,tail:0.46,body:1.4,f0:95,f1:30,bodyT:0.09,mech:0.45,boltT:0.07,mk:0.9,drive:4,refl:0.24},
+  mp:{len:0.3,crack:0.3,crackT:0.0006,blastF:7200,blastF1:1200,blastT:0.012,tailT:0.08,tail:0.2,body:0.38,f0:260,f1:90,bodyT:0.02,mech:0.6,boltT:0.03,mk:1.45,drive:2,refl:0.14},
+  lance:{len:1.2,crack:1.2,crackT:0.0025,blastF:4400,blastF1:380,blastT:0.05,tailT:0.45,tail:0.5,body:1.1,f0:90,f1:28,bodyT:0.12,mech:0.02,boltT:0.1,mk:0.6,drive:3.2,refl:0.34},
+  gl:{len:0.6,crack:0.05,crackT:0.001,blastF:900,blastF1:160,blastT:0.05,tailT:0.18,tail:0.3,body:1.6,f0:75,f1:40,bodyT:0.07,mech:0.4,boltT:0.12,mk:0.7,drive:2.2,refl:0.2}};
+/* the extra weapon sounds from the same preview: the Lance's charge hum and beam zap, the Arc's crackle (one short burst per tick, so
+   held fire runs together), the Encore's burst. Rendered once, the first time sound starts. */
+let EXSND=null;
+function exInit(){if(EXSND||!actx)return;const sr=actx.sampleRate,mk=(L,R)=>{const b=actx.createBuffer(2,L.length,sr);b.copyToChannel(L,0);b.copyToChannel(R||L,1);return b;};
+  const hum=dur=>{const n=Math.floor(dur*sr),L=new Float32Array(n);let ph=0,ph2=0;for(let i=0;i<n;i++){const t=i/sr,f=110+260*Math.min(1,t/0.8);ph+=2*Math.PI*f/sr;ph2+=2*Math.PI*f*2.01/sr;
+    L[i]=(Math.sin(ph)*0.5+Math.sin(ph2)*0.25+(Math.random()*2-1)*0.04)*Math.min(1,t/0.1)*0.45*(0.6+0.4*Math.min(1,t/0.8));}return mk(L);};
+  const zap=()=>{const n=Math.floor(0.5*sr),L=new Float32Array(n);let ph=0;for(let i=0;i<n;i++){const t=i/sr,f=1800*Math.exp(-t/0.06)+220;ph+=2*Math.PI*f/sr;L[i]=Math.sin(ph)*Math.exp(-t/0.12)*0.6+(Math.random()*2-1)*Math.exp(-t/0.03)*0.3;}return mk(L);};
+  const crackle=(dur,seed)=>{const r=rng(seed),n=Math.floor(dur*sr),L=new Float32Array(n),R=new Float32Array(n);let hp=0.6,prev=0;for(let i=0;i<n;i++){const t=i/sr;if(Math.abs(r())>0.992)hp+=1;hp*=0.995;
+    const w=r(),x=(w-prev)*0.5*Math.min(1,hp)+Math.sin(2*Math.PI*120*t)*0.06,f=Math.min(1,t/0.004,(dur-t)/0.03);prev=w;L[i]=x*0.9*f;R[i]=x*0.9*f*(0.8+0.2*Math.sin(t*30));}return mk(L,R);};
+  const burst=()=>{const n=Math.floor(1.2*sr),L=new Float32Array(n),R=new Float32Array(n);let lp=0,lp2=0;for(let i=0;i<n;i++){const t=i/sr,w=Math.random()*2-1,fc=200+3000*Math.exp(-t/0.05),a=1-Math.exp(-2*Math.PI*fc/sr);lp+=a*(w-lp);lp2+=a*(lp-lp2);
+    const env=(1-Math.exp(-t/0.002))*(Math.exp(-t/0.12)+0.3*Math.exp(-t/0.5)),body=Math.sin(2*Math.PI*(50+40*Math.exp(-t/0.05))*t)*Math.exp(-t/0.15);let pops=0;if(t>0.05&&t<0.7&&Math.random()<0.002)pops=(Math.random()*2-1)*0.8;
+    L[i]=Math.tanh(3*(lp2*4*env+body*0.7))+pops;R[i]=Math.tanh(3*(lp2*4*env*0.95+body*0.7))+pops*0.6;}return mk(L,R);};
+  EXSND={hum:hum(3.6),zap:zap(),arc:[1,2,3,4].map(i=>crackle(0.16,900+i*37)),burst:burst()};}
+/* the Lance's hum while you hold a charge (stops when it fires or you let go) */
+function lanceHum(on){if(!on){if(me.humH){sndFade(me.humH,0.05);me.humH=null;}return;}if(me.humH||!audioInit())return;exInit();me.humH=playBuf(EXSND.hum,{vol:0.32,tk:'lanceChg'});}
+function encoreBurst(x,z){if(!audioInit())return;exInit();const s=spat(x,z);playBuf(EXSND.burst,{bus:'fx',tk:'encore',vol:clamp(0.55*s.vol,0.04,0.55),pan:s.pan*0.7,at:s.d/343,lp:Math.max(2000,18000*Math.exp(-s.d/40)),wet:0.12+0.4*clamp(s.d/40,0,1)});}
 let gunBufs=null,clickBufs=null;
 function rng(seed){let s=seed>>>0||1;return()=>{s^=s<<13;s^=s>>>17;s^=s<<5;return((s>>>0)/4294967296)*2-1;};}
 /* damped metal resonance (a click, a bolt hitting home) added into arr at time t0 */
@@ -8854,7 +8878,10 @@ function playBuf(buf,o){if(!audioInit()||!buf)return;o=tuned(o);try{const t=actx
   node.connect(AU.bus[o.bus||'weapons']);
   if(o.wet){const w=actx.createGain();w.gain.value=o.wet;g.connect(w);w.connect(AU.rev);}
   s.start(t);return{s,g};}catch(e){AU.err=String(e&&e.message);}}
-function shotSound(w,x,z,sup){if(!audioInit())return;gunInit();const sw=GUN[w]?w:GUN[GSUB[w]]?GSUB[w]:'rifle',v=gunBufs[sw]||gunBufs.rifle,buf=v[(Math.random()*v.length)|0],rate=0.97+Math.random()*0.06;
+function shotSound(w,x,z,sup){if(!audioInit())return;gunInit();
+  if(w==='arc'||w==='lance'){exInit();const b=w==='arc'?EXSND.arc[(Math.random()*4)|0]:EXSND.zap,o={vol:w==='arc'?0.42:0.3,tk:w,rate:0.96+Math.random()*0.08};
+    if(x!=null){const s=spat(x,z);o.vol*=clamp(s.vol*1.4,0.03,1);o.pan=s.pan;o.at=s.d/343;o.lp=Math.max(1500,16000*Math.exp(-s.d/25));}playBuf(b,o);if(w==='arc')return;}
+  const sw=GUN[w]?w:'rifle',v=gunBufs[sw]||gunBufs.rifle,buf=v[(Math.random()*v.length)|0],rate=0.97+Math.random()*0.06;
   const tk=sw;if(x==null){playBuf(buf,sup?{vol:0.2,rate,tk,lp:2800}:{vol:0.36,rate,tk});return;}
   const s=spat(x,z),far=clamp(s.d/60,0,1);
   playBuf(buf,{vol:clamp(0.5*s.vol,0.02,0.3)*(sup?0.45:1),rate:rate*(1-0.04*far),pan:s.pan,lp:Math.max(1100,(sup?3500:16000)*Math.exp(-s.d/22)),at:s.d/343,wet:0.12+0.5*far,tk});}
@@ -9276,7 +9303,8 @@ const GUN_FIELDS=[['crack','Supersonic crack',0,1.5,0.01],['blastF','Blast brigh
  ['tail','Blast tail level',0,1,0.01],['tailT','Tail length (s)',0.02,0.6,0.005],['body','Body thump',0,2,0.01],['f0','Thump pitch (Hz)',50,400,1],['bodyT','Thump length (s)',0.01,0.2,0.001],
  ['mech','Action clicks',0,1,0.01],['boltT','Second click delay (s)',0.02,0.15,0.001],['drive','Grit (saturation)',0.5,6,0.05],['refl','Wall reflections',0,0.6,0.01],['len','Clip length (s)',0.2,1.5,0.01]];
 const STEP_FIELDS=[['vol','Volume',0,1,0.005],['rate','Pitch',0.5,1.6,0.01],['lp','Tone (low-pass Hz)',500,18000,100]];
-const SND_INFO={rifle:['Rifle shot','Weapons'],smg:['SMG shot','Weapons'],br:['Battle rifle shot','Weapons'],sg:['Shotgun shot','Weapons'],lmg:['LMG shot','Weapons'],sniper:['Sniper rifle shot','Weapons'],boltCatch:['Bolt catch (last round fired)','Weapons'],boltSlam:['Bolt slam (reload from empty)','Weapons'],click:['Dry-fire click','Weapons'],impact:['Bullets hitting cover and walls','Weapons'],
+const SND_INFO={hc:['Gavel shot','Weapons'],bc:['Tribune shot','Weapons'],asg:['Turnstile shot','Weapons'],mp:['Hecklers shot','Weapons'],lance:['Reach Lance shot and beam zap','Weapons'],
+  lanceChg:['Reach Lance charge hum','Weapons'],arc:['Arc Caster crackle','Weapons'],gl:['Encore launch','Weapons'],encore:['Encore grenade burst','Weapons'],rifle:['Rifle shot','Weapons'],smg:['SMG shot','Weapons'],br:['Battle rifle shot','Weapons'],sg:['Shotgun shot','Weapons'],lmg:['LMG shot','Weapons'],sniper:['Sniper rifle shot','Weapons'],boltCatch:['Bolt catch (last round fired)','Weapons'],boltSlam:['Bolt slam (reload from empty)','Weapons'],click:['Dry-fire click','Weapons'],impact:['Bullets hitting cover and walls','Weapons'],
  steps:['Footsteps and landings','Movement'],slide:['Slide scrape','Movement'],dash:['Dash whoosh','Movement'],grab:['Ledge grab','Movement'],
  hit:['Hit confirm: body hit','Combat feedback'],hitHead:['Hit confirm: headshot','Combat feedback'],hitDown:['Hit confirm: down','Combat feedback'],hitKill:['Hit confirm: kill or finish','Combat feedback'],hurt:['Taking damage and getting downed','Combat feedback'],heart:['Low-health heartbeat','Combat feedback'],
  announcer:['Announcer (countdown and round calls)','Match'],stings:['Round stings, countdown ticks and respawn','Match'],beep:['Armed charge beeping','Match'],boom:['Charge explosion','Match'],cover:['Cover breaking and rebuilding','Match'],ui:['Menu clicks and weapon switch','Match'],
@@ -9569,7 +9597,9 @@ function devSteps(m,far){const p=far?[camera.position.x+35,camera.position.z]:[n
 function devHit(kind,n,gun){const cd=CFG.fireCd*1000;for(let i=0;i<n;i++)setTimeout(()=>{if(gun)shotSound('rifle');const c=kind==='head'&&i===n-1?'head':kind==='hit'||kind==='head'||gun?'hit':'';if(c)hitCue(c);},i*cd);
   if(kind==='down'||kind==='kill')setTimeout(()=>hitCue(kind),gun?(n-1)*cd+60:0);}
 function devTest(k,far){const fx=camera.position.x+35,fz=camera.position.z;
-  if(GUN[k]){shotSound(k,far?fx:undefined,far?fz:undefined);return;}
+  if(GUN[k]||k==='arc'){if(k==='arc')for(let i=0;i<8;i++)setTimeout(()=>shotSound('arc',far?fx:undefined,far?fz:undefined),i*100);else shotSound(k,far?fx:undefined,far?fz:undefined);return;}
+  if(k==='lanceChg'){me.humH=null;lanceHum(true);setTimeout(()=>{lanceHum(false);shotSound('lance');},900);return;}
+  if(k==='encore'){encoreBurst(far?fx:camera.position.x+8,far?fz:camera.position.z);return;}
   ({boltCatch:()=>boltSound(false,0,0.32),boltSlam:()=>boltSound(true,0.1,0.52),click:()=>dryFire(),steps:()=>devSteps('walk',far),
     slide:()=>{const h=slideSound();setTimeout(()=>sndFade(h,0.08),650);},dash:()=>dashSound(far?fx:undefined,far?fz:undefined),cover:()=>{coverBreakSound(false,false,0,1);setTimeout(()=>coverBreakSound(true,true,0,1),600);},
     boom:()=>boom(camera.position.x+12,camera.position.z),announcer:()=>{[3,2,1,'fight','won','lost','sides','offense','defense','planted','double','triple'].forEach((k,i)=>announce(k,i<4?i:4.6+(i-4)*1.9));},crowd:()=>{crowdCheer('knock',1);setTimeout(()=>crowdCheer('point',1),2500);setTimeout(()=>crowdCheer('win',1),7000);},impact:()=>{for(let i=0;i<5;i++)setTimeout(()=>impactSound(camera.position.x+(far?35:6),camera.position.z+(Math.random()-.5)*2,1),i*140);},hit:()=>devHit('hit',5,far),hitHead:()=>devHit('head',3,far),hitDown:()=>devHit('down',3,far),hitKill:()=>devHit('kill',3,far),ui:()=>{for(let i=0;i<4;i++)setTimeout(()=>blip(980,0.022,0.012,false,'ui'),i*160);setTimeout(()=>blip(520,0.06,0.03,false,undefined,undefined,'ui'),800);},
@@ -11888,7 +11918,7 @@ function localTick(dt){
   if(cw.chg){/* Reach Lance: hold to charge, let go (or hold past chgMax) to fire */
     const ready=canFire&&me.fireCd<=0&&me.sprintK<0.4;
     if(mouseDown&&ready&&me.ammo<=0){if(me.reloadT<=0)dryFire();startReload();me.chgT=0;}
-    else if(mouseDown&&ready){me.chgT=(me.chgT||0)+dt;if(me.chgT>=cw.chgMax)lanceRelease(s,cw);}
+    else if(mouseDown&&ready){me.chgT=(me.chgT||0)+dt;lanceHum(true);if(me.chgT>=cw.chgMax)lanceRelease(s,cw);}
     else if(me.chgT>0){if(ready&&me.ammo>0)lanceRelease(s,cw);else me.chgT=0;}}
   else{
     if(mouseDown&&canFire&&me.fireCd<=0&&me.sprintK<0.4){
@@ -11896,6 +11926,7 @@ function localTick(dt){
       else{pullShot(s,cw,false);if(cw.burst&&me.ammo>0){me.bq=cw.burst-1;me.bT=cw.bgap;}}}
     /* the rest of a burst fires on its own, even if you let go */
     if(me.bq>0){if(!canFire||me.ammo<=0)me.bq=0;else{me.bT-=dt;if(me.bT<=0){me.bT+=cw.bgap;me.bq--;pullShot(s,cw,true);}}}}
+  if(!(me.chgT>0))lanceHum(false);
   /* a heat bar cools 10 shots a second once you stop firing for half a second */
   if(cw.heat&&me.reloadT<=0&&me.sinceShot>0.5&&me.ammo<cw.mag){me.heatT=(me.heatT||0)+dt*10;while(me.heatT>=1&&me.ammo<cw.mag){me.heatT-=1;me.ammo++;}}
   if(me.sinceShot>0.13){const f=Math.exp(-8*dt);me.rcP*=f;me.rcY*=f;}
