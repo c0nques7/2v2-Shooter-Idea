@@ -7813,34 +7813,58 @@ function buildGun(parent,shadow,kind,P,hex){
   return{g,tip};
 }
 function buildRifle(parent,shadow,optic,P){return buildGun(parent,shadow,'rifle',Object.assign({sight:optic?'dot':'iron'},P||{}));}
-/* soldier */
+/* soldier: an armoured arena fighter built from boxes (the outline hulls need boxes). Team colour on the plates, glowing team trim,
+   a helmet with a wraparound visor, a back pack with two thrusters. The boxes of each joint are merged per material after the
+   outline is built (mergeAvatar), so the extra detail costs few draw calls. Joints and the gun rig are unchanged (animations). */
 function buildSoldier(team){
   const root=new THREE.Group(),model=new THREE.Group();root.add(model);
-  const armor=smat(team===0?0x1b2c4d:0x4a2412,0.45,0.45),armorDark=smat(team===0?0x121c33:0x2e170c,0.5,0.4),visorM=new THREE.MeshBasicMaterial({color:lin(team===0?0x3fd0ff:0xff8a2a),toneMapped:false});
+  const armor=smat(team===0?0x24407a:0x7a3618,0.42,0.45),armorDark=smat(team===0?0x141d33:0x2e170c,0.5,0.4),visorM=new THREE.MeshBasicMaterial({color:lin(team===0?0x3fd0ff:0xff8a2a),toneMapped:false});
+  const plate=smat(team===0?0x8e9bb0:0xb0a08e,0.4,0.55);/* light steel trim */
+  const R=(m,rx,ry,rz)=>{m.rotation.set(rx||0,ry||0,rz||0);return m;};
   const hips=new THREE.Group();hips.position.y=0.95;model.add(hips);
-  bx(0.36,0.17,0.24,MAT.fabric,0,0,0,hips);
+  bx(0.34,0.17,0.23,MAT.fabric,0,0,0,hips);
+  bx(0.38,0.06,0.26,armorDark,0,0.065,0,hips);bx(0.1,0.07,0.03,plate,0,0.065,-0.135,hips);/* belt and buckle */
+  for(const sx of [-1,1]){R(bx(0.13,0.14,0.03,armor,sx*0.1,-0.07,-0.125,hips),0.12,0,0);/* tassets */bx(0.07,0.1,0.08,MAT.dark,sx*0.2,0.02,0.04,hips);/* hip pouches */}
+  bx(0.14,0.09,0.05,MAT.dark,0,0.03,0.14,hips);
   const legs=[];
-  for(const sx of [-0.1,0.1]){const hip=new THREE.Group();hip.position.set(sx,-0.06,0);hips.add(hip);
-    bx(0.15,0.44,0.17,MAT.fabric,0,-0.22,0,hip);bx(0.155,0.12,0.06,armorDark,0,-0.3,-0.09,hip);
+  for(const sx of [-0.1,0.1]){const hip=new THREE.Group();hip.position.set(sx,-0.06,0);hips.add(hip);const o=Math.sign(sx);
+    bx(0.15,0.44,0.17,MAT.fabric,0,-0.22,0,hip);bx(0.155,0.2,0.05,armor,0,-0.17,-0.095,hip);bx(0.04,0.13,0.11,MAT.dark,o*0.095,-0.2,0,hip);
+    bx(0.12,0.03,0.18,armorDark,0,-0.06,0,hip);
     const knee=new THREE.Group();knee.position.set(0,-0.44,0);hip.add(knee);
-    bx(0.13,0.42,0.15,MAT.fabric,0,-0.21,0,knee);bx(0.14,0.1,0.05,armorDark,0,-0.02,-0.085,knee);bx(0.15,0.1,0.27,MAT.boot,0,-0.43,-0.045,knee);
+    bx(0.13,0.42,0.15,MAT.fabric,0,-0.21,0,knee);
+    bx(0.155,0.12,0.07,armorDark,0,-0.01,-0.085,knee);bx(0.1,0.05,0.02,plate,0,0.0,-0.125,knee);/* knee pad */
+    bx(0.145,0.22,0.05,armor,0,-0.2,-0.085,knee);bx(0.015,0.16,0.01,visorM,0,-0.2,-0.113,knee,false);/* shin guard and its stripe */
+    bx(0.15,0.04,0.17,armorDark,0,-0.355,0,knee);/* ankle cuff */
+    bx(0.15,0.1,0.27,MAT.boot,0,-0.42,-0.045,knee);bx(0.16,0.03,0.29,MAT.dark,0,-0.465,-0.045,knee);bx(0.14,0.05,0.07,armorDark,0,-0.4,-0.16,knee);
     legs.push({hip,knee});}
   const spine=new THREE.Group();spine.position.y=0.08;hips.add(spine);
-  bx(0.44,0.54,0.26,MAT.fabric,0,0.27,0,spine);
-  bx(0.48,0.36,0.31,armor,0,0.33,-0.005,spine);
-  bx(0.4,0.07,0.3,armorDark,0,0.1,0,spine);
-  for(const px of [-0.13,0,0.13])bx(0.1,0.1,0.06,armorDark,px,0.2,-0.17,spine);
-  bx(0.34,0.4,0.15,MAT.dark,0,0.32,0.2,spine);bx(0.2,0.08,0.1,armorDark,0,0.5,0.2,spine);
-  for(const sx of [-1,1])bx(0.16,0.09,0.24,armor,sx*0.29,0.53,0,spine);
+  bx(0.42,0.52,0.25,MAT.fabric,0,0.27,0,spine);
+  bx(0.46,0.22,0.29,armor,0,0.4,-0.01,spine);/* chest plate */
+  R(bx(0.4,0.07,0.06,armor,0,0.5,-0.15,spine),-0.35,0,0);/* the plate's sloped top edge */
+  for(const [y,w] of [[0.24,0.36],[0.16,0.32]])bx(w,0.07,0.27,armorDark,0,y,-0.005,spine);/* ab plates */
+  for(const sx of [-1,1])bx(0.05,0.3,0.24,armor,sx*0.235,0.3,0,spine);
+  bx(0.3,0.06,0.28,armorDark,0,0.545,0,spine);/* collar */
+  for(const px of [-0.12,0,0.12]){bx(0.09,0.1,0.05,MAT.dark,px,0.27,-0.16,spine);bx(0.095,0.03,0.06,armorDark,px,0.325,-0.16,spine);}/* mag pouches */
+  bx(0.3,0.03,0.02,visorM,0,0.43,-0.157,spine,false);for(const sx of [-1,1])bx(0.02,0.18,0.02,visorM,sx*0.2,0.33,-0.16,spine,false);
+  // back pack with two thrusters
+  bx(0.34,0.36,0.13,MAT.dark,0,0.34,0.19,spine);bx(0.36,0.05,0.17,armorDark,0,0.53,0.2,spine);
+  for(const sx of [-1,1]){bx(0.1,0.26,0.1,armorDark,sx*0.1,0.32,0.29,spine);bx(0.075,0.03,0.075,visorM,sx*0.1,0.175,0.29,spine,false);bx(0.11,0.03,0.11,plate,sx*0.1,0.45,0.29,spine);}
+  bx(0.2,0.03,0.02,visorM,0,0.47,0.258,spine,false);bx(0.015,0.24,0.015,MAT.dark,0.14,0.66,0.22,spine);
+  // pauldrons: two layers, sloping off the shoulder, glowing edge
+  for(const sx of [-1,1]){R(bx(0.19,0.08,0.26,armor,sx*0.29,0.55,0,spine),0,0,-sx*0.28);R(bx(0.16,0.06,0.24,armorDark,sx*0.33,0.49,0,spine),0,0,-sx*0.38);
+    R(bx(0.17,0.015,0.2,visorM,sx*0.29,0.596,0,spine,false),0,0,-sx*0.28);}
   const head=new THREE.Group();head.position.y=0.6;spine.add(head);
   bx(0.11,0.08,0.11,MAT.fabric,0,0.02,0,head);
-  bx(0.23,0.25,0.25,MAT.dark,0,0.15,0,head);
-  bx(0.29,0.15,0.31,armorDark,0,0.27,0.01,head);bx(0.25,0.03,0.08,armorDark,0,0.21,-0.17,head);
-  bx(0.22,0.065,0.03,visorM,0,0.15,-0.13,head,false);
-  bx(0.03,0.07,0.03,MAT.dark,0.13,0.3,0.06,head);
-  bx(0.3,0.03,0.02,visorM,0,0.4,-0.165,spine,false);bx(0.02,0.2,0.02,visorM,-0.2,0.3,-0.165,spine,false);bx(0.02,0.2,0.02,visorM,0.2,0.3,-0.165,spine,false);bx(0.2,0.03,0.02,visorM,0,0.42,0.28,spine,false);
-  for(const sx of [-1,1])bx(0.17,0.02,0.2,visorM,sx*0.29,0.58,0,spine,false);
-  for(const L of legs)bx(0.02,0.3,0.02,visorM,0,-0.2,-0.08,L.knee,false);
+  bx(0.22,0.24,0.24,MAT.dark,0,0.15,0,head);
+  bx(0.27,0.09,0.29,armor,0,0.295,0.01,head);/* crown */
+  for(const sx of [-1,1]){bx(0.03,0.17,0.27,armor,sx*0.135,0.2,0.01,head);bx(0.05,0.09,0.09,armorDark,sx*0.15,0.16,0.03,head);/* ear module */
+    bx(0.02,0.04,0.09,visorM,sx*0.118,0.155,-0.085,head,false);/* visor wrap */bx(0.03,0.09,0.08,armor,sx*0.12,0.07,-0.08,head);}
+  bx(0.25,0.13,0.04,armorDark,0,0.18,0.145,head);/* neck guard */
+  bx(0.26,0.04,0.07,armorDark,0,0.232,-0.14,head);/* brow */
+  bx(0.21,0.06,0.025,visorM,0,0.155,-0.13,head,false);/* visor */
+  bx(0.19,0.07,0.05,armorDark,0,0.065,-0.12,head);bx(0.08,0.03,0.02,plate,0,0.06,-0.148,head);/* chin guard and vents */
+  bx(0.03,0.012,0.22,visorM,0,0.345,0.01,head,false);/* crest stripe */
+  bx(0.025,0.12,0.025,MAT.dark,0.15,0.3,0.07,head);
   /* arms holding the rifle in spine space */
   const gunPos=[0.11,0.34,-0.27];
   /* the gun and both arms hang off a shoulder joint so they can recoil, lower for a sprint, tilt for a reload; the left arm has its own joint for the mag change */
@@ -7848,9 +7872,13 @@ function buildSoldier(team){
   const armL=new THREE.Group();armL.position.set(-0.27,0.48,0);armsIn.add(armL);const armLIn=new THREE.Group();armLIn.position.set(0.27,-0.48,0);armL.add(armLIn);
   const guns={};for(const k of WKEYS){guns[k]=buildGun(armsIn,true,k,null,GUNGLOW[k]);guns[k].g.position.set(...gunPos);guns[k].g.visible=k==='rifle';}const rifle=guns.rifle;
   const rH=[gunPos[0],gunPos[1]-0.09,gunPos[2]+0.1],lH=[gunPos[0],gunPos[1]-0.035,gunPos[2]-0.3];
-  limb([0.27,0.48,0],[0.26,0.27,-0.05],0.12,MAT.fabric,armsIn);limb([0.26,0.27,-0.05],rH,0.1,MAT.fabric,armsIn);
-  limb([-0.27,0.48,0],[-0.2,0.3,-0.27],0.12,MAT.fabric,armLIn);limb([-0.2,0.3,-0.27],lH,0.1,MAT.fabric,armLIn);
+  // an arm: upper arm with an elbow pad at its end, forearm with a bracer and a glowing cuff (a limb box's local z runs along it)
+  const arm=(sh,el,hand,par)=>{const u=limb(sh,el,0.12,MAT.fabric,par),f=limb(el,hand,0.1,MAT.fabric,par),Lu=u.geometry.parameters.depth,Lf=f.geometry.parameters.depth;
+    bx(0.13,0.13,0.06,armorDark,0,0,Lu/2-0.01,u);bx(0.135,0.06,Lu*0.45,armor,0,0.03,-Lu*0.12,u);
+    bx(0.118,0.118,Lf*0.5,armor,0,0,Lf*0.08,f);bx(0.122,0.122,0.02,visorM,0,0,Lf*0.36,f,false);};
+  arm([0.27,0.48,0],[0.26,0.27,-0.05],rH,armsIn);arm([-0.27,0.48,0],[-0.2,0.3,-0.27],lH,armLIn);
   bx(0.08,0.09,0.09,MAT.glove,...rH,armsIn);bx(0.08,0.09,0.09,MAT.glove,...lH,armLIn);
+  for(const h of [[rH,armsIn],[lH,armLIn]])bx(0.085,0.03,0.07,armorDark,h[0][0],h[0][1]+0.04,h[0][2],h[1]);/* knuckle plates */
   const flash=new THREE.Mesh(new THREE.SphereGeometry(0.09,8,6),new THREE.MeshBasicMaterial({color:raw(0xffd59a),transparent:true,opacity:0.9,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false}));flash.visible=false;rifle.tip.add(flash);
   root.traverse(o=>{o.castShadow=false;});
   const blob=new THREE.Mesh(new THREE.PlaneGeometry(1.3,1.3),new THREE.MeshBasicMaterial({map:poolTex,color:0x000000,transparent:true,opacity:0.55,depthWrite:false}));blob.rotation.x=-Math.PI/2;scene.add(blob);
@@ -7888,6 +7916,23 @@ function outlineAvatar(a){
   if(mm.has(a.armor))a.armor=mm.get(a.armor);
 }
 avatars.forEach(outlineAvatar);
+/* merge each joint's boxes into a few meshes (after the outline hulls are built from them): the team plates (they flash when hit),
+   the glowing trim, and everything else in one mesh coloured per vertex. Guns stay as they are. */
+function mergeAvatar(a){const skip=new Set();for(const k in a.guns)a.guns[k].g.traverse(o=>skip.add(o));
+  const vc=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.72,metalness:0.25,stencilWrite:true,stencilRef:1,stencilZPass:THREE.ReplaceStencilOp});
+  const nodes=[];a.root.traverse(n=>{if(!skip.has(n))nodes.push(n);});
+  for(const n of nodes){const by=new Map();
+    // a limb box carries its own pads (and their outline hull): lift them into the joint's space so the limb merges too
+    for(const c of [...n.children]){if(!c.isMesh||skip.has(c)||!c.children.length)continue;c.updateMatrix();
+      for(const g of [...c.children]){g.updateMatrix();g.matrix.premultiply(c.matrix);g.matrix.decompose(g.position,g.quaternion,g.scale);n.add(g);}}
+    for(const c of n.children){if(!c.isMesh||skip.has(c)||c.children.length||c.geometry.type!=='BoxGeometry'||c.material.transparent)continue;
+      const k=c.material===a.armor||c.material.isMeshBasicMaterial?c.material:vc;(by.get(k)||by.set(k,[]).get(k)).push(c);}
+    for(const [m,list] of by){if(list.length<2&&m!==vc)continue;
+      const gs=list.map(c=>{c.updateMatrix();const g=c.geometry.clone().applyMatrix4(c.matrix);
+        if(m===vc){const n3=g.attributes.position.count,col=new Float32Array(n3*3),cc=c.material.color;for(let i=0;i<n3;i++){col[i*3]=cc.r;col[i*3+1]=cc.g;col[i*3+2]=cc.b;}g.setAttribute('color',new THREE.BufferAttribute(col,3));}
+        return g;});
+      const mesh=new THREE.Mesh(gs.length>1?mergeGeometries(gs):gs[0],m);mesh.receiveShadow=list.some(c=>c.receiveShadow);for(const c of list){n.remove(c);c.geometry.dispose();}n.add(mesh);}}}
+avatars.forEach(mergeAvatar);
 function drawLabel(a,text,color){const g=a.c.getContext('2d');g.clearRect(0,0,256,64);g.font='600 30px "Saira Condensed",sans-serif';g.textAlign='center';g.fillStyle='rgba(10,14,17,.7)';const w=g.measureText(text).width+20;g.fillRect(128-w/2,8,w,44);g.fillStyle=color;g.fillText(text,128,41);a.tex.needsUpdate=true;}
 /* first-person rifle and arms */
 const vm=new THREE.Group(),vg=new THREE.Group();vm.add(vg);vm.scale.setScalar(0.78);
