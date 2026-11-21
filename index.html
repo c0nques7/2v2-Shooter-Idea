@@ -725,7 +725,18 @@ body.touch .chip{min-height:44px}
       h+='<p style="margin:0 0 8px">The game script stopped while loading. Reloading usually fixes a dropped download; if it keeps happening, an ad or script blocker may be blocking <code>cdn.jsdelivr.net</code>.</p>';
     }
     if(first)h+='<p style="margin:0;font:12px/1.35 ui-monospace,monospace;color:#ffd0d6;word-break:break-word;user-select:text">'+String(first).replace(/[<&]/g,function(c){return c==='<'?'&lt;':'&amp;';}).slice(0,300)+'</p>';
+    h+='<p id="bootprobe" style="margin:6px 0 0;font:12px/1.35 ui-monospace,monospace;color:#c9c3e6;word-break:break-word;user-select:text"></p>';
     d.innerHTML=h;(document.body||document.documentElement).appendChild(d);
+    if(gl)probe();
+  }
+  /* which download failed and how: one line per engine file, plus any blocked-by-policy reports */
+  var csp=[];addEventListener('securitypolicyviolation',function(e){csp.push((e.violatedDirective||'')+' '+(e.blockedURI||''));});
+  function probe(){
+    var el=document.getElementById('bootprobe'),base='https://cdn.jsdelivr.net/npm/three@0.186.1/',files=['build/three.module.js','build/three.core.js','examples/jsm/postprocessing/EffectComposer.js'],out=[];
+    function put(){if(el)el.textContent=out.join(' \u00b7 ')+(csp.length?' \u00b7 blocked by policy: '+csp.slice(0,3).join(', '):'')+' \u00b7 '+navigator.userAgent.replace(/^Mozilla\/5\.0 /,'');}
+    files.forEach(function(f,i){out[i]=f.split('/').pop()+': \u2026';
+      try{fetch(base+f,{cache:'no-store'}).then(function(r){out[i]=f.split('/').pop()+': '+r.status;put();},function(e){out[i]=f.split('/').pop()+': '+(e&&e.message||e);put();});}catch(e){out[i]=f+': '+e;}
+    });put();
   }
   addEventListener('error',function(e){
     if(window.__za)return;
